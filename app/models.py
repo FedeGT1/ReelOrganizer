@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -15,3 +16,16 @@ class Location(SQLModel, table=True):
     parent_id: Optional[str] = Field(default=None, foreign_key="location.id")
     x: Optional[float] = None
     y: Optional[float] = None
+
+
+class Reel(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    link: str
+    location_id: str = Field(foreign_key="location.id")
+    note: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ReelType(SQLModel, table=True):
+    reel_id: str = Field(foreign_key="reel.id", primary_key=True)
+    type: str = Field(primary_key=True)
