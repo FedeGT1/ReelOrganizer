@@ -1,4 +1,26 @@
-from app.models import Location, Reel
+from app.models import Location, Reel, ReelType
+
+
+def test_delete_location_cascades_reels(client, session):
+    hub_resp = client.post("/api/locations", json={"name": "Doomed Hub", "is_hub": True})
+    hub_id = hub_resp.json()["id"]
+
+    reel = Reel(link="https://instagram.com/reel/x", location_id=hub_id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    session.add(ReelType(reel_id=reel.id, type="food"))
+    session.commit()
+
+    response = client.delete(f"/api/locations/{hub_id}")
+    assert response.status_code == 204
+
+    assert client.get("/api/locations").json() == []
+
+
+def test_delete_missing_location_returns_404(client):
+    response = client.delete("/api/locations/does-not-exist")
+    assert response.status_code == 404
 
 
 def test_list_locations_includes_reel_counts(client, session):

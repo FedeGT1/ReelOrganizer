@@ -1,12 +1,12 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import Location, Reel
+from app.models import Location, Reel, ReelType
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
 
@@ -56,3 +56,20 @@ def list_locations(session: Session = Depends(get_session)):
         }
         for loc in locations
     ]
+
+
+@router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_location(location_id: str, session: Session = Depends(get_session)):
+    location = session.get(Location, location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    reels = session.exec(select(Reel).where(Reel.location_id == location_id)).all()
+    for reel in reels:
+        types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
+        for t in types:
+            session.delete(t)
+        session.delete(reel)
+
+    session.delete(location)
+    session.commit()
