@@ -1,3 +1,5 @@
+from sqlmodel import select
+
 from app.models import Location, Reel, ReelType
 
 
@@ -16,6 +18,8 @@ def test_delete_location_cascades_reels(client, session):
     assert response.status_code == 204
 
     assert client.get("/api/locations").json() == []
+    assert session.exec(select(Reel).where(Reel.location_id == hub_id)).all() == []
+    assert session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all() == []
 
 
 def test_delete_missing_location_returns_404(client):
