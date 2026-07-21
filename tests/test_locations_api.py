@@ -23,3 +23,26 @@ def test_list_locations_empty(client):
     response = client.get("/api/locations")
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_create_hub_location(client):
+    response = client.post(
+        "/api/locations",
+        json={"name": "Test Hub", "is_hub": True, "x": 10.0, "y": 20.0},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Test Hub"
+    assert data["id"]
+
+
+def test_create_satellite_location(client):
+    hub_resp = client.post("/api/locations", json={"name": "Parent Hub", "is_hub": True})
+    hub_id = hub_resp.json()["id"]
+
+    response = client.post(
+        "/api/locations",
+        json={"name": "Satellite Town", "is_hub": False, "parent_id": hub_id},
+    )
+    assert response.status_code == 201
+    assert response.json()["parent_id"] == hub_id

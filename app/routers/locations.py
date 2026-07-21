@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -6,6 +9,31 @@ from app.db import get_session
 from app.models import Location, Reel
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
+
+
+class LocationCreate(BaseModel):
+    name: str
+    is_hub: bool = True
+    parent_id: Optional[str] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_location(payload: LocationCreate, session: Session = Depends(get_session)):
+    location = Location(**payload.model_dump())
+    session.add(location)
+    session.commit()
+    session.refresh(location)
+    return {
+        "id": location.id,
+        "name": location.name,
+        "is_hub": location.is_hub,
+        "parent_id": location.parent_id,
+        "x": location.x,
+        "y": location.y,
+        "reel_count": 0,
+    }
 
 
 @router.get("")
