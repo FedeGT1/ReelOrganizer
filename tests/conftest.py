@@ -3,9 +3,6 @@ from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.db import get_session
-
 
 @pytest.fixture(name="session")
 def session_fixture():
@@ -21,6 +18,11 @@ def session_fixture():
 
 @pytest.fixture(name="client")
 def client_fixture(session: Session):
+    # Imported lazily: app.main doesn't exist until Task 7. Tasks 2-6 use
+    # only the `session` fixture, so collection must not require app.main.
+    from app.db import get_session
+    from app.main import app
+
     def get_session_override():
         return session
 
