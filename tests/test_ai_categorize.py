@@ -87,3 +87,11 @@ def test_categorize_matches_existing_location_case_insensitive(client, session, 
 
     response = client.post("/api/ai/categorize", json={"message": "Tempio a Nikko"})
     assert response.json()["matched_location_id"] == hub.id
+
+
+def test_categorize_with_unknown_session_id_returns_404(client):
+    response = client.post(
+        "/api/ai/categorize",
+        json={"session_id": "does-not-exist", "message": "Ciao"},
+    )
+    assert response.status_code == 404

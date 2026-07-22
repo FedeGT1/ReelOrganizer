@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -42,6 +42,8 @@ def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
 def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_session)):
     if payload.session_id:
         ai_session = session.get(AiSession, payload.session_id)
+        if ai_session is None:
+            raise HTTPException(status_code=404, detail="AI session not found")
     else:
         ai_session = AiSession()
         session.add(ai_session)
