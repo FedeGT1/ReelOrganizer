@@ -29,3 +29,17 @@ class Reel(SQLModel, table=True):
 class ReelType(SQLModel, table=True):
     reel_id: str = Field(foreign_key="reel.id", primary_key=True)
     type: str = Field(primary_key=True)
+
+
+class AiSession(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AiMessage(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    session_id: str = Field(foreign_key="aisession.id")
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -49,3 +49,24 @@ def test_create_reel_with_types():
             select(ReelType).where(ReelType.reel_id == reel.id)
         ).all()
         assert {t.type for t in types} == {"food", "culture"}
+
+
+def test_create_ai_session_with_messages():
+    from app.models import AiMessage, AiSession
+
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        ai_session = AiSession()
+        session.add(ai_session)
+        session.commit()
+        session.refresh(ai_session)
+
+        session.add(AiMessage(session_id=ai_session.id, role="user", content="Un reel di ramen a Tokyo"))
+        session.commit()
+
+        messages = session.exec(
+            select(AiMessage).where(AiMessage.session_id == ai_session.id)
+        ).all()
+        assert len(messages) == 1
+        assert messages[0].role == "user"
