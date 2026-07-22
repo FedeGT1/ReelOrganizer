@@ -1,4 +1,108 @@
+:root {
+    --color-paper: #E3E1D4;
+    --color-ink: #1F2C47;
+    --color-ink-medium: #35496B;
+    --color-hanko: #A63A2E;
+    --color-gold: #B08D57;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
-    font-family: sans-serif;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: "Zen Kaku Gothic New", sans-serif;
+}
+
+h1, h2, h3 {
+    font-family: "Shippori Mincho", serif;
+    color: var(--color-ink);
+}
+
+header {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--color-ink-medium);
+}
+
+main {
+    padding: 1rem 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.chip {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    margin: 0.15rem;
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.japan-map {
+    width: 100%;
+    max-width: 400px;
+    display: block;
+    margin: 0 auto;
+}
+
+.station.hub {
+    fill: var(--color-ink-medium);
+}
+
+.station.satellite {
+    fill: var(--color-gold);
+}
+
+.satellite-line {
+    stroke: var(--color-ink-medium);
+    stroke-dasharray: 4 3;
+}
+
+.station-label {
+    font-size: 10px;
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    fill: var(--color-ink);
+    text-anchor: middle;
+}
+
+button, .reel-list button {
+    background: var(--color-hanko);
+    color: var(--color-paper);
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+}
+
+.reel-list {
+    list-style: none;
+    padding: 0;
+}
+
+.reel-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-ink-medium);
+}
+
+.types, .reel-list .note {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.8rem;
+    color: var(--color-ink-medium);
+}
+
+@media (max-width: 480px) {
+    main {
+        padding: 0.5rem;
+    }
+    .japan-map {
+        max-width: 100%;
+    }
 }
