@@ -22,6 +22,7 @@ app = FastAPI(title="Japan Reel Organizer", lifespan=lifespan)
 app.include_router(locations.router)
 app.include_router(reels.router)
 app.include_router(map_router.router)
+app.include_router(map_router.ui_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
