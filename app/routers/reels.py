@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -63,3 +63,16 @@ def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
     session.commit()
 
     return _serialize_reel(session, reel)
+
+
+@router.delete("/{reel_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_reel(reel_id: str, session: Session = Depends(get_session)):
+    reel = session.get(Reel, reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="Reel not found")
+
+    types = session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all()
+    for t in types:
+        session.delete(t)
+    session.delete(reel)
+    session.commit()

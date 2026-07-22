@@ -82,3 +82,25 @@ def test_create_reel_filters_invalid_types(client, session):
     data = response.json()
     assert data["types"] == ["food"]
     assert data["note"] == "Great ramen"
+
+
+def test_delete_reel(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    create_resp = client.post(
+        "/api/reels",
+        json={"link": "https://instagram.com/reel/gone", "location_id": hub.id, "types": ["food"]},
+    )
+    reel_id = create_resp.json()["id"]
+
+    response = client.delete(f"/api/reels/{reel_id}")
+    assert response.status_code == 204
+    assert client.get("/api/reels").json() == []
+
+
+def test_delete_missing_reel_returns_404(client):
+    response = client.delete("/api/reels/does-not-exist")
+    assert response.status_code == 404
