@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.geo import project
+from app.geo import COASTLINE_PATHS, INSET_BOX, INSET_LABEL_POS, INSET_MARKER, VIEW_HEIGHT, VIEW_WIDTH, project
 from app.models import Location, Reel, ReelType
 from app.taxonomy import TAXONOMY
 from app.web import templates
@@ -73,5 +73,11 @@ def ui_map(request: Request, type: str = None, session: Session = Depends(get_se
             "taxonomy": TAXONOMY,
             "active_type": type,
             "matching_location_ids": matching_location_ids,
+            "coastline_paths": COASTLINE_PATHS,
+            "view_width": round(VIEW_WIDTH),
+            "view_height": round(VIEW_HEIGHT),
+            "inset_box": INSET_BOX,
+            "inset_marker": INSET_MARKER,
+            "inset_label_pos": INSET_LABEL_POS,
         },
     )

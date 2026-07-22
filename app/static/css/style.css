@@ -4,6 +4,7 @@
     --color-ink-medium: #35496B;
     --color-hanko: #A63A2E;
     --color-gold: #B08D57;
+    --color-sea: #8FA8B2;
 }
 
 * {
@@ -61,6 +62,30 @@ main {
 .satellite-line {
     stroke: var(--color-ink-medium);
     stroke-dasharray: 4 3;
+}
+
+.sea {
+    fill: var(--color-sea);
+}
+
+.land {
+    fill: var(--color-paper);
+    stroke: var(--color-ink-medium);
+    stroke-width: 1.5;
+}
+
+.inset-box {
+    fill: none;
+    stroke: var(--color-ink);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+}
+
+.inset-label {
+    font-size: 9px;
+    font-style: italic;
+    fill: var(--color-ink-medium);
+    font-family: "Zen Kaku Gothic New", sans-serif;
 }
 
 .station-label {

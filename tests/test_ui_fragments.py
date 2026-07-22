@@ -53,6 +53,24 @@ def test_ui_map_dims_stations_without_the_selected_type(client, session):
     assert "dimmed" in without_food_class
 
 
+def test_ui_map_renders_coastline_and_sea(client):
+    response = client.get("/ui/map")
+    assert response.status_code == 200
+    assert '<path d="M ' in response.text
+    assert 'class="sea"' in response.text
+
+
+def test_ui_map_renders_okinawa_inset_box(client, session):
+    okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809, map_inset=True)
+    session.add(okinawa)
+    session.commit()
+
+    response = client.get("/ui/map")
+    assert response.status_code == 200
+    assert 'class="inset-box"' in response.text
+    assert "Okinawa" in response.text
+
+
 def test_ui_reels_get_renders_list_and_form(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)

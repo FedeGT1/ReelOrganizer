@@ -9,7 +9,11 @@
     </a>
     {% endfor %}
 </div>
-<svg viewBox="0 0 440 650" class="japan-map">
+<svg viewBox="0 0 {{ view_width }} {{ view_height }}" class="japan-map">
+    <rect x="0" y="0" width="{{ view_width }}" height="{{ view_height }}" class="sea" />
+    {% for d in coastline_paths %}
+    <path d="{{ d }}" class="land" />
+    {% endfor %}
     {% for loc in locations %}
     {% if not loc.is_hub and not loc.map_inset %}
     <line x1="{{ hubs_by_id[loc.parent_id].x }}" y1="{{ hubs_by_id[loc.parent_id].y }}"
@@ -22,6 +26,14 @@
             r="{{ 8 if loc.is_hub else 4 }}"
             class="station {{ 'hub' if loc.is_hub else 'satellite' }}{{ ' dimmed' if active_type and loc.id not in matching_location_ids else '' }}" data-location-id="{{ loc.id }}" />
     <text x="{{ loc.x }}" y="{{ loc.y - 10 }}" class="station-label">{{ loc.name }}</text>
+    {% endif %}
+    {% endfor %}
+    {% for loc in locations %}
+    {% if loc.map_inset %}
+    <rect x="{{ inset_box.x }}" y="{{ inset_box.y }}" width="{{ inset_box.width }}" height="{{ inset_box.height }}" class="inset-box" />
+    <text x="{{ inset_label_pos[0] }}" y="{{ inset_label_pos[1] }}" class="inset-label" text-anchor="middle">Okinawa</text>
+    <circle cx="{{ inset_marker[0] }}" cy="{{ inset_marker[1] }}" r="7" class="station hub" data-location-id="{{ loc.id }}" />
+    <text x="{{ inset_marker[0] }}" y="{{ inset_marker[1] + 18 }}" class="station-label">{{ loc.name }}</text>
     {% endif %}
     {% endfor %}
 </svg>
