@@ -21,6 +21,10 @@ class LocationCreate(BaseModel):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_location(payload: LocationCreate, session: Session = Depends(get_session)):
+    if not payload.is_hub and not payload.parent_id:
+        raise HTTPException(
+            status_code=400, detail="A satellite location requires a parent_id"
+        )
     location = Location(**payload.model_dump())
     session.add(location)
     session.commit()
@@ -63,6 +67,15 @@ def delete_location(location_id: str, session: Session = Depends(get_session)):
     location = session.get(Location, location_id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
+
+    children = session.exec(
+        select(Location).where(Location.parent_id == location_id)
+    ).all()
+    if children:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a location that still has child locations; reassign or delete them first",
+        )
 
     reels = session.exec(select(Reel).where(Reel.location_id == location_id)).all()
     for reel in reels:

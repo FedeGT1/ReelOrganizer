@@ -72,3 +72,29 @@ def test_create_satellite_location(client):
     )
     assert response.status_code == 201
     assert response.json()["parent_id"] == hub_id
+
+
+def test_create_satellite_location_without_parent_id_returns_400(client):
+    response = client.post(
+        "/api/locations",
+        json={"name": "Orphan", "is_hub": False},
+    )
+    assert response.status_code == 400
+
+
+def test_delete_location_with_children_returns_409(client):
+    hub_resp = client.post("/api/locations", json={"name": "Hub With Kids", "is_hub": True})
+    hub_id = hub_resp.json()["id"]
+
+    satellite_resp = client.post(
+        "/api/locations",
+        json={"name": "Satellite Kid", "is_hub": False, "parent_id": hub_id},
+    )
+    assert satellite_resp.status_code == 201
+
+    response = client.delete(f"/api/locations/{hub_id}")
+    assert response.status_code == 409
+
+    names = {loc["name"] for loc in client.get("/api/locations").json()}
+    assert "Hub With Kids" in names
+    assert "Satellite Kid" in names
