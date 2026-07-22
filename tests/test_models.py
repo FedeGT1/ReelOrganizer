@@ -9,7 +9,7 @@ def test_create_hub_and_satellite_location():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        hub = Location(name="Tokyo / Kanto", is_hub=True, x=200.0, y=250.0)
+        hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
         session.add(hub)
         session.commit()
         session.refresh(hub)
@@ -30,7 +30,7 @@ def test_create_reel_with_types():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        hub = Location(name="Tokyo / Kanto", is_hub=True, x=200.0, y=250.0)
+        hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
         session.add(hub)
         session.commit()
         session.refresh(hub)

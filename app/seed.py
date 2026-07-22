@@ -3,28 +3,28 @@ from sqlmodel import Session, select
 from app.models import Location
 
 HUBS = [
-    ("Sapporo / Hokkaido", 100.0, 50.0),
-    ("Sendai / Tohoku", 150.0, 150.0),
-    ("Tokyo / Kanto", 200.0, 250.0),
-    ("Nagoya / Chubu", 180.0, 320.0),
-    ("Kyoto - Osaka / Kansai", 150.0, 380.0),
-    ("Hiroshima / Chugoku", 100.0, 420.0),
-    ("Matsuyama / Shikoku", 120.0, 460.0),
-    ("Fukuoka / Kyushu", 80.0, 480.0),
-    ("Okinawa", 60.0, 560.0),
+    ("Sapporo / Hokkaido", 43.0621, 141.3544, False),
+    ("Sendai / Tohoku", 38.2682, 140.8694, False),
+    ("Tokyo / Kanto", 35.6762, 139.6503, False),
+    ("Nagoya / Chubu", 35.1815, 136.9066, False),
+    ("Kyoto - Osaka / Kansai", 34.85, 135.60, False),
+    ("Hiroshima / Chugoku", 34.3853, 132.4553, False),
+    ("Matsuyama / Shikoku", 33.8392, 132.7657, False),
+    ("Fukuoka / Kyushu", 33.5904, 130.4017, False),
+    ("Okinawa", 26.2124, 127.6809, True),
 ]
 
 SATELLITES = [
-    ("Nikko", "Tokyo / Kanto"),
-    ("Kamakura", "Tokyo / Kanto"),
-    ("Hakone", "Tokyo / Kanto"),
-    ("Kawagoe", "Tokyo / Kanto"),
-    ("Nara", "Kyoto - Osaka / Kansai"),
-    ("Uji", "Kyoto - Osaka / Kansai"),
-    ("Himeji", "Kyoto - Osaka / Kansai"),
-    ("Miyajima", "Hiroshima / Chugoku"),
-    ("Otaru", "Sapporo / Hokkaido"),
-    ("Dazaifu", "Fukuoka / Kyushu"),
+    ("Nikko", "Tokyo / Kanto", 36.7199, 139.6982),
+    ("Kamakura", "Tokyo / Kanto", 35.3193, 139.5466),
+    ("Hakone", "Tokyo / Kanto", 35.2323, 139.1069),
+    ("Kawagoe", "Tokyo / Kanto", 35.9251, 139.4855),
+    ("Nara", "Kyoto - Osaka / Kansai", 34.6851, 135.8048),
+    ("Uji", "Kyoto - Osaka / Kansai", 34.8845, 135.7996),
+    ("Himeji", "Kyoto - Osaka / Kansai", 34.8154, 134.6853),
+    ("Miyajima", "Hiroshima / Chugoku", 34.2969, 132.3197),
+    ("Otaru", "Sapporo / Hokkaido", 43.1907, 140.9947),
+    ("Dazaifu", "Fukuoka / Kyushu", 33.5147, 130.5350),
 ]
 
 
@@ -34,14 +34,14 @@ def seed_if_empty(session: Session) -> None:
         return
 
     hub_by_name: dict[str, Location] = {}
-    for name, x, y in HUBS:
-        hub = Location(name=name, is_hub=True, x=x, y=y)
+    for name, lat, lon, map_inset in HUBS:
+        hub = Location(name=name, is_hub=True, lat=lat, lon=lon, map_inset=map_inset)
         session.add(hub)
         session.flush()
         hub_by_name[name] = hub
 
-    for name, hub_name in SATELLITES:
+    for name, hub_name, lat, lon in SATELLITES:
         parent = hub_by_name[hub_name]
-        session.add(Location(name=name, is_hub=False, parent_id=parent.id))
+        session.add(Location(name=name, is_hub=False, parent_id=parent.id, lat=lat, lon=lon))
 
     session.commit()

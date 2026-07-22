@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.layout import radial_positions
+from app.geo import project
 from app.models import Location, Reel, ReelType
 from app.taxonomy import TAXONOMY
 from app.web import templates
@@ -20,39 +20,26 @@ def compute_map(session: Session) -> list[dict]:
         ).all()
     )
 
-    hubs = [loc for loc in locations if loc.is_hub]
-    satellites_by_hub: dict[str, list[Location]] = {}
-    for loc in locations:
-        if not loc.is_hub and loc.parent_id is not None:
-            satellites_by_hub.setdefault(loc.parent_id, []).append(loc)
-
     result = []
-    for hub in hubs:
+    for loc in locations:
+        if loc.map_inset:
+            x, y = None, None
+        else:
+            x, y = project(loc.lat or 0.0, loc.lon or 0.0)
         result.append(
             {
-                "id": hub.id,
-                "name": hub.name,
-                "is_hub": True,
-                "parent_id": None,
-                "x": hub.x,
-                "y": hub.y,
-                "reel_count": counts.get(hub.id, 0),
+                "id": loc.id,
+                "name": loc.name,
+                "is_hub": loc.is_hub,
+                "parent_id": loc.parent_id,
+                "lat": loc.lat,
+                "lon": loc.lon,
+                "map_inset": loc.map_inset,
+                "x": x,
+                "y": y,
+                "reel_count": counts.get(loc.id, 0),
             }
         )
-        satellites = satellites_by_hub.get(hub.id, [])
-        positions = radial_positions(hub.x or 0.0, hub.y or 0.0, len(satellites))
-        for satellite, (sx, sy) in zip(satellites, positions):
-            result.append(
-                {
-                    "id": satellite.id,
-                    "name": satellite.name,
-                    "is_hub": False,
-                    "parent_id": hub.id,
-                    "x": sx,
-                    "y": sy,
-                    "reel_count": counts.get(satellite.id, 0),
-                }
-            )
     return result
 
 

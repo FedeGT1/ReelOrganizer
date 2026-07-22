@@ -28,7 +28,7 @@ def test_delete_missing_location_returns_404(client):
 
 
 def test_list_locations_includes_reel_counts(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, x=200.0, y=250.0)
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -54,7 +54,7 @@ def test_list_locations_empty(client):
 def test_create_hub_location(client):
     response = client.post(
         "/api/locations",
-        json={"name": "Test Hub", "is_hub": True, "x": 10.0, "y": 20.0},
+        json={"name": "Test Hub", "is_hub": True, "lat": 10.0, "lon": 20.0},
     )
     assert response.status_code == 201
     data = response.json()

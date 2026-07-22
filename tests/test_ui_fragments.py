@@ -6,7 +6,7 @@ from app.models import Location, Reel, ReelType
 
 
 def test_ui_map_renders_svg_with_stations(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, x=200.0, y=250.0)
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
 
@@ -24,8 +24,8 @@ def test_ui_map_includes_type_filter_chips(client):
 
 
 def test_ui_map_dims_stations_without_the_selected_type(client, session):
-    hub_with_food = Location(name="Has Food", is_hub=True, x=10.0, y=10.0)
-    hub_without_food = Location(name="No Food", is_hub=True, x=20.0, y=20.0)
+    hub_with_food = Location(name="Has Food", is_hub=True, lat=35.0, lon=135.0)
+    hub_without_food = Location(name="No Food", is_hub=True, lat=36.0, lon=136.0)
     session.add(hub_with_food)
     session.add(hub_without_food)
     session.commit()
