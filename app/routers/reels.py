@@ -1,12 +1,21 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Reel, ReelType
+from app.taxonomy import VALID_TYPES
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
+
+
+class ReelCreate(BaseModel):
+    link: str
+    location_id: str
+    note: Optional[str] = None
+    types: list[str] = []
 
 
 def _serialize_reel(session: Session, reel: Reel) -> dict:
@@ -39,3 +48,18 @@ def list_reels(
         reels = [r for r in reels if r.id in matching_ids]
 
     return [_serialize_reel(session, r) for r in reels]
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
+    reel = Reel(link=payload.link, location_id=payload.location_id, note=payload.note)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    for type_value in payload.types:
+        if type_value in VALID_TYPES:
+            session.add(ReelType(reel_id=reel.id, type=type_value))
+    session.commit()
+
+    return _serialize_reel(session, reel)

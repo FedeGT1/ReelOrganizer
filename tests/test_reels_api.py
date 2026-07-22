@@ -61,3 +61,24 @@ def test_filter_reels_by_type(client, session):
     data = response.json()
     assert len(data) == 1
     assert data[0]["link"] == "https://instagram.com/reel/food"
+
+
+def test_create_reel_filters_invalid_types(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/api/reels",
+        json={
+            "link": "https://instagram.com/reel/new",
+            "location_id": hub.id,
+            "note": "Great ramen",
+            "types": ["food", "not-a-real-type"],
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["types"] == ["food"]
+    assert data["note"] == "Great ramen"
