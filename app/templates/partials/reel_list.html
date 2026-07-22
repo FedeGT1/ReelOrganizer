@@ -1,0 +1,23 @@
+<form hx-post="/ui/reels" hx-target="#reel-list" hx-swap="innerHTML">
+    <input type="url" name="link" placeholder="Link Instagram" required>
+    <select name="location_id" required>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}">{{ loc.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="note" placeholder="Nota (opzionale)">
+    {% for key, info in taxonomy.items() %}
+    <label><input type="checkbox" name="types" value="{{ key }}"> {{ info.icon }} {{ info.label }}</label>
+    {% endfor %}
+    <button type="submit">Aggiungi reel</button>
+</form>
+<ul class="reel-list">
+    {% for reel in reels %}
+    <li>
+        <a href="{{ reel.link }}" target="_blank">{{ reel.link }}</a>
+        {% if reel.note %}<span class="note">{{ reel.note }}</span>{% endif %}
+        <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
+        <button hx-delete="/ui/reels/{{ reel.id }}" hx-target="#reel-list" hx-swap="innerHTML">Elimina</button>
+    </li>
+    {% endfor %}
+</ul>

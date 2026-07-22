@@ -49,3 +49,46 @@ def test_ui_map_dims_stations_without_the_selected_type(client, session):
 
     assert "dimmed" not in with_food_class
     assert "dimmed" in without_food_class
+
+
+def test_ui_reels_get_renders_list_and_form(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot"))
+    session.commit()
+
+    response = client.get("/ui/reels")
+    assert response.status_code == 200
+    assert "Nice spot" in response.text
+    assert "<form" in response.text
+
+
+def test_ui_reels_post_creates_and_returns_fragment(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/ui/reels",
+        data={"link": "https://instagram.com/reel/new", "location_id": hub.id, "note": "New one", "types": ["food"]},
+    )
+    assert response.status_code == 200
+    assert "New one" in response.text
+
+
+def test_ui_reels_delete_returns_updated_fragment(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(link="https://instagram.com/reel/gone", location_id=hub.id, note="Bye")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.delete(f"/ui/reels/{reel.id}")
+    assert response.status_code == 200
+    assert "Bye" not in response.text

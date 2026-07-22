@@ -1,14 +1,16 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import Reel, ReelType
-from app.taxonomy import VALID_TYPES
+from app.models import Location, Reel, ReelType
+from app.taxonomy import TAXONOMY, VALID_TYPES
+from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
+ui_router = APIRouter(prefix="/ui", tags=["reels-ui"])
 
 
 class ReelCreate(BaseModel):
@@ -76,3 +78,50 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
         session.delete(t)
     session.delete(reel)
     session.commit()
+
+
+def _reel_list_context(session: Session) -> dict:
+    reels = session.exec(select(Reel)).all()
+    locations = session.exec(select(Location)).all()
+    return {
+        "reels": [_serialize_reel(session, r) for r in reels],
+        "locations": locations,
+        "taxonomy": TAXONOMY,
+    }
+
+
+@ui_router.get("/reels")
+def ui_list_reels(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
+
+
+@ui_router.post("/reels")
+def ui_create_reel(
+    request: Request,
+    link: str = Form(...),
+    location_id: str = Form(...),
+    note: Optional[str] = Form(None),
+    types: list[str] = Form([]),
+    session: Session = Depends(get_session),
+):
+    reel = Reel(link=link, location_id=location_id, note=note)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    for type_value in types:
+        if type_value in VALID_TYPES:
+            session.add(ReelType(reel_id=reel.id, type=type_value))
+    session.commit()
+    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
+
+
+@ui_router.delete("/reels/{reel_id}")
+def ui_delete_reel(request: Request, reel_id: str, session: Session = Depends(get_session)):
+    reel = session.get(Reel, reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    for t in session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all():
+        session.delete(t)
+    session.delete(reel)
+    session.commit()
+    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
