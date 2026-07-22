@@ -1,3 +1,5 @@
+from sqlmodel import select
+
 from app.models import Location, Reel, ReelType
 
 
@@ -99,6 +101,7 @@ def test_delete_reel(client, session):
     response = client.delete(f"/api/reels/{reel_id}")
     assert response.status_code == 204
     assert client.get("/api/reels").json() == []
+    assert session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all() == []
 
 
 def test_delete_missing_reel_returns_404(client):
