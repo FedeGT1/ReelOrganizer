@@ -1,5 +1,7 @@
 import re
 
+from sqlmodel import select
+
 from app.models import Location, Reel, ReelType
 
 
@@ -77,6 +79,20 @@ def test_ui_reels_post_creates_and_returns_fragment(client, session):
     )
     assert response.status_code == 200
     assert "New one" in response.text
+
+
+def test_ui_reels_post_rejects_javascript_link(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/ui/reels",
+        data={"link": "javascript:alert(1)", "location_id": hub.id},
+    )
+    assert response.status_code == 400
+    assert session.exec(select(Reel)).all() == []
 
 
 def test_ui_reels_delete_returns_updated_fragment(client, session):

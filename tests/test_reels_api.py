@@ -107,3 +107,17 @@ def test_delete_reel(client, session):
 def test_delete_missing_reel_returns_404(client):
     response = client.delete("/api/reels/does-not-exist")
     assert response.status_code == 404
+
+
+def test_create_reel_rejects_javascript_link(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/api/reels",
+        json={"link": "javascript:alert(1)", "location_id": hub.id},
+    )
+    assert response.status_code == 400
+    assert session.exec(select(Reel)).all() == []

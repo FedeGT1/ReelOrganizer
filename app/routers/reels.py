@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from pydantic import BaseModel
@@ -11,6 +12,10 @@ from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
 ui_router = APIRouter(prefix="/ui", tags=["reels-ui"])
+
+
+def _is_safe_link(link: str) -> bool:
+    return urlparse(link).scheme.lower() in ("http", "https")
 
 
 class ReelCreate(BaseModel):
@@ -54,6 +59,8 @@ def list_reels(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
+    if not _is_safe_link(payload.link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
     reel = Reel(link=payload.link, location_id=payload.location_id, note=payload.note)
     session.add(reel)
     session.commit()
@@ -104,6 +111,8 @@ def ui_create_reel(
     types: list[str] = Form([]),
     session: Session = Depends(get_session),
 ):
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
     reel = Reel(link=link, location_id=location_id, note=note)
     session.add(reel)
     session.commit()
