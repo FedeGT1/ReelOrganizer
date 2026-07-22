@@ -59,11 +59,48 @@ def locations_with_type(session: Session, type_value: str) -> set[str]:
     )
 
 
+def visible_location_ids(
+    session: Session,
+    locations: list[dict],
+    type_value: str | None,
+    hide_empty: bool,
+) -> tuple[set[str] | None, set[str]]:
+    """(visible_ids, anchor_hub_ids). visible_ids is None when hide_empty is
+    False (no filtering - show everything). anchor_hub_ids is always a
+    subset of visible_ids: hubs that qualify only because a child satellite
+    qualifies, not because they have reels of their own."""
+    if not hide_empty:
+        return None, set()
+
+    if type_value:
+        qualifying = locations_with_type(session, type_value)
+    else:
+        qualifying = {loc["id"] for loc in locations if loc["reel_count"] > 0}
+
+    anchor_hubs = {
+        loc["id"]
+        for loc in locations
+        if loc["is_hub"]
+        and loc["id"] not in qualifying
+        and any(
+            sat["parent_id"] == loc["id"] and sat["id"] in qualifying
+            for sat in locations
+        )
+    }
+    return qualifying | anchor_hubs, anchor_hubs
+
+
 @ui_router.get("/map")
-def ui_map(request: Request, type: str = None, session: Session = Depends(get_session)):
+def ui_map(
+    request: Request,
+    type: str = None,
+    hide_empty: bool = False,
+    session: Session = Depends(get_session),
+):
     locations = compute_map(session)
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
     matching_location_ids = locations_with_type(session, type) if type else set()
+    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type, hide_empty)
     return templates.TemplateResponse(
         request,
         "partials/map.html",
@@ -73,6 +110,9 @@ def ui_map(request: Request, type: str = None, session: Session = Depends(get_se
             "taxonomy": TAXONOMY,
             "active_type": type,
             "matching_location_ids": matching_location_ids,
+            "visible_ids": visible_ids,
+            "anchor_hub_ids": anchor_hub_ids,
+            "hide_empty": hide_empty,
             "coastline_paths": COASTLINE_PATHS,
             "view_width": round(VIEW_WIDTH),
             "view_height": round(VIEW_HEIGHT),

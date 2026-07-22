@@ -1,4 +1,5 @@
-from app.models import Location
+from app.models import Location, Reel, ReelType
+from app.routers.map import compute_map, visible_location_ids
 
 
 def test_map_returns_projected_coordinates_for_hub_and_satellite(client, session):
@@ -23,3 +24,66 @@ def test_map_returns_projected_coordinates_for_hub_and_satellite(client, session
     assert hub_entry["x"] is not None and hub_entry["y"] is not None
     assert sat_entry["parent_id"] == hub.id
     assert sat_entry["x"] != hub_entry["x"] or sat_entry["y"] != hub_entry["y"]
+
+
+def test_visible_location_ids_returns_none_when_hide_empty_is_false(session):
+    locations = compute_map(session)
+    visible_ids, anchors = visible_location_ids(session, locations, None, False)
+    assert visible_ids is None
+    assert anchors == set()
+
+
+def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(session):
+    empty_hub = Location(name="Empty", is_hub=True, lat=35.0, lon=135.0)
+    filled_hub = Location(name="Filled", is_hub=True, lat=36.0, lon=136.0)
+    session.add(empty_hub)
+    session.add(filled_hub)
+    session.commit()
+    session.refresh(filled_hub)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=filled_hub.id))
+    session.commit()
+
+    locations = compute_map(session)
+    visible_ids, anchors = visible_location_ids(session, locations, None, True)
+
+    assert filled_hub.id in visible_ids
+    assert empty_hub.id not in visible_ids
+    assert anchors == set()
+
+
+def test_visible_location_ids_keeps_empty_hub_as_anchor_for_filled_satellite(session):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=satellite.id))
+    session.commit()
+
+    locations = compute_map(session)
+    visible_ids, anchors = visible_location_ids(session, locations, None, True)
+
+    assert hub.id in visible_ids
+    assert satellite.id in visible_ids
+    assert hub.id in anchors
+
+
+def test_visible_location_ids_uses_type_specific_emptiness_when_type_active(session):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(link="https://instagram.com/reel/c", location_id=hub.id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    session.add(ReelType(reel_id=reel.id, type="food"))
+    session.commit()
+
+    locations = compute_map(session)
+    visible_ids, _ = visible_location_ids(session, locations, "culture", True)
+
+    assert hub.id not in visible_ids

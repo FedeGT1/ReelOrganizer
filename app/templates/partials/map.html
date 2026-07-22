@@ -1,13 +1,18 @@
 <div class="map-filters">
     <a href="#" class="chip {{ 'active' if not active_type else '' }}"
-       hx-get="/ui/map" hx-target="#map-container" hx-swap="innerHTML">Tutti</a>
+       hx-get="/ui/map{% if hide_empty %}?hide_empty=1{% endif %}" hx-target="#map-container" hx-swap="innerHTML">Tutti</a>
     {% for key, info in taxonomy.items() %}
     <a href="#" class="chip {{ 'active' if active_type == key else '' }}"
        data-type="{{ key }}" style="border-color: {{ info.color }};"
-       hx-get="/ui/map?type={{ key }}" hx-target="#map-container" hx-swap="innerHTML">
+       hx-get="/ui/map?type={{ key }}{% if hide_empty %}&hide_empty=1{% endif %}" hx-target="#map-container" hx-swap="innerHTML">
         {{ info.icon }} {{ info.label }}
     </a>
     {% endfor %}
+    <a href="#" class="chip toggle {{ 'active' if hide_empty else '' }}"
+       hx-get="/ui/map?{% if active_type %}type={{ active_type }}&{% endif %}hide_empty={{ '0' if hide_empty else '1' }}"
+       hx-target="#map-container" hx-swap="innerHTML">
+        {{ 'Mostra tutti' if hide_empty else 'Nascondi vuoti' }}
+    </a>
 </div>
 <svg viewBox="0 0 {{ view_width }} {{ view_height }}" class="japan-map">
     <rect x="0" y="0" width="{{ view_width }}" height="{{ view_height }}" class="sea" />
@@ -15,21 +20,21 @@
     <path d="{{ d }}" class="land" />
     {% endfor %}
     {% for loc in locations %}
-    {% if not loc.is_hub and not loc.map_inset %}
+    {% if not loc.is_hub and not loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
     <line x1="{{ hubs_by_id[loc.parent_id].x }}" y1="{{ hubs_by_id[loc.parent_id].y }}"
           x2="{{ loc.x }}" y2="{{ loc.y }}" class="satellite-line" />
     {% endif %}
     {% endfor %}
     {% for loc in locations %}
-    {% if not loc.map_inset %}
+    {% if not loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
     <circle cx="{{ loc.x }}" cy="{{ loc.y }}"
             r="{{ 8 if loc.is_hub else 4 }}"
-            class="station {{ 'hub' if loc.is_hub else 'satellite' }}{{ ' dimmed' if active_type and loc.id not in matching_location_ids else '' }}" data-location-id="{{ loc.id }}" />
+            class="station {{ 'hub' if loc.is_hub else 'satellite' }}{{ ' anchor' if loc.id in anchor_hub_ids else '' }}{{ ' dimmed' if active_type and loc.id not in matching_location_ids else '' }}" data-location-id="{{ loc.id }}" />
     <text x="{{ loc.x }}" y="{{ loc.y - 10 }}" class="station-label">{{ loc.name }}</text>
     {% endif %}
     {% endfor %}
     {% for loc in locations %}
-    {% if loc.map_inset %}
+    {% if loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
     <rect x="{{ inset_box.x }}" y="{{ inset_box.y }}" width="{{ inset_box.width }}" height="{{ inset_box.height }}" class="inset-box" />
     <text x="{{ inset_label_pos[0] }}" y="{{ inset_label_pos[1] }}" class="inset-label" text-anchor="middle">Okinawa</text>
     <circle cx="{{ inset_marker[0] }}" cy="{{ inset_marker[1] }}" r="7" class="station hub" data-location-id="{{ loc.id }}" />

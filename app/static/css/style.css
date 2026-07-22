@@ -59,6 +59,12 @@ main {
     fill: var(--color-gold);
 }
 
+.station.anchor {
+    fill: none;
+    stroke: var(--color-ink-medium);
+    stroke-width: 2;
+}
+
 .satellite-line {
     stroke: var(--color-ink-medium);
     stroke-dasharray: 4 3;

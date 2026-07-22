@@ -71,6 +71,30 @@ def test_ui_map_renders_okinawa_inset_box(client, session):
     assert "Okinawa" in response.text
 
 
+def test_ui_map_hide_empty_removes_empty_hub_from_svg(client, session):
+    empty_hub = Location(name="Empty Hub", is_hub=True, lat=35.0, lon=135.0)
+    filled_hub = Location(name="Filled Hub", is_hub=True, lat=36.0, lon=136.0)
+    session.add(empty_hub)
+    session.add(filled_hub)
+    session.commit()
+    session.refresh(filled_hub)
+    session.add(Reel(link="https://instagram.com/reel/d", location_id=filled_hub.id))
+    session.commit()
+
+    response = client.get("/ui/map?hide_empty=1")
+    assert response.status_code == 200
+    assert "Filled Hub" in response.text
+    assert "Empty Hub" not in response.text
+
+
+def test_ui_map_toggle_chip_label_reflects_state(client):
+    response = client.get("/ui/map")
+    assert "Nascondi vuoti" in response.text
+
+    response = client.get("/ui/map?hide_empty=1")
+    assert "Mostra tutti" in response.text
+
+
 def test_ui_reels_get_renders_list_and_form(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
