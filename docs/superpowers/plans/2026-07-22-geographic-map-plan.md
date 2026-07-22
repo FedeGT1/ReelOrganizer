@@ -250,10 +250,15 @@ Edit `tests/test_models.py` — replace the two hub constructions that use `x`/`
         hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Run the tests to confirm the current state**
 
 Run: `uv run pytest tests/test_models.py -v`
-Expected: FAIL with `TypeError: 'x' is an invalid keyword argument for Location` (the field doesn't exist yet — SQLModel/Pydantic rejects the unknown kwarg)
+Expected: PASS (3 tests) — this is not a red step. SQLModel's default
+`extra="ignore"` behavior means passing an unknown `lat`/`lon` kwarg to a
+`Location` that doesn't have those fields yet is silently accepted (dropped,
+not stored, not an error), and neither test body reads `hub.lat`/`hub.lon`
+back — so there's nothing here to fail on yet. Step 4 is the meaningful
+verification, once the fields actually exist on the model.
 
 - [ ] **Step 3: Update the Location model**
 
@@ -334,13 +339,7 @@ def seed_if_empty(session: Session) -> None:
 Run: `uv run pytest tests/test_seed.py -v`
 Expected: PASS (2 tests — this file doesn't assert on coordinates, so it needs no edits)
 
-- [ ] **Step 7: Delete the now-unused radial layout module and its test**
-
-```bash
-rm app/layout.py tests/test_layout.py
-```
-
-- [ ] **Step 8: Update the failing location-API tests**
+- [ ] **Step 7: Update the failing location-API tests**
 
 Edit `tests/test_locations_api.py`:
 
@@ -364,7 +363,7 @@ Edit `tests/test_locations_api.py`:
     )
 ```
 
-- [ ] **Step 9: Update `LocationCreate` and the location endpoints**
+- [ ] **Step 8: Update `LocationCreate` and the location endpoints**
 
 Edit `app/routers/locations.py` — replace the `LocationCreate` model, `create_location`, and `list_locations`:
 
@@ -423,12 +422,12 @@ def list_locations(session: Session = Depends(get_session)):
     ]
 ```
 
-- [ ] **Step 10: Run the location-API tests to verify they pass**
+- [ ] **Step 9: Run the location-API tests to verify they pass**
 
 Run: `uv run pytest tests/test_locations_api.py -v`
 Expected: PASS (8 tests)
 
-- [ ] **Step 11: Update the failing map-API test**
+- [ ] **Step 10: Update the failing map-API test**
 
 Edit `tests/test_map_api.py` — replace the whole file:
 
@@ -460,12 +459,18 @@ def test_map_returns_projected_coordinates_for_hub_and_satellite(client, session
     assert sat_entry["x"] != hub_entry["x"] or sat_entry["y"] != hub_entry["y"]
 ```
 
-- [ ] **Step 12: Run the test to verify it fails**
+- [ ] **Step 11: Run the test to verify it fails**
 
 Run: `uv run pytest tests/test_map_api.py -v`
-Expected: FAIL — `compute_map` still reads `loc.x`/`loc.y` directly (no projection), so the response won't come back at all: `AttributeError` (500 response, `assert response.status_code == 200` fails)
+Expected: FAIL — `compute_map` still calls `radial_positions(hub.x or 0.0, ...)` from
+`app.layout`, and `Location` no longer has an `x` field (removed in Step 3),
+so this raises `AttributeError: 'Location' object has no attribute 'x'`
+(500 response, `assert response.status_code == 200` fails). `app/layout.py`
+itself still exists at this point — it isn't deleted until Step 13, right
+after `compute_map` stops needing it — so this is a real attribute error,
+not an import error.
 
-- [ ] **Step 13: Rewrite `compute_map` to project real coordinates**
+- [ ] **Step 12: Rewrite `compute_map` to project real coordinates**
 
 Edit `app/routers/map.py` — replace the imports and `compute_map`:
 
@@ -517,6 +522,19 @@ def compute_map(session: Session) -> list[dict]:
 
 Leave `get_map`, `locations_with_type`, and `ui_map` exactly as they are for now (they don't reference `x`/`y` directly).
 
+- [ ] **Step 13: Delete the now-unused radial layout module and its test**
+
+`compute_map` no longer imports `app.layout` as of Step 12, so this is safe
+now. It was **not** safe any earlier: `app/main.py` imports
+`app.routers.map` at module load time, so deleting this file before
+`compute_map` stopped depending on it would break every test that uses the
+`client` fixture (an import error, not just a map-specific failure) —
+including the unrelated location-API tests in Steps 7-9.
+
+```bash
+rm app/layout.py tests/test_layout.py
+```
+
 - [ ] **Step 14: Run the test to verify it passes**
 
 Run: `uv run pytest tests/test_map_api.py -v`
@@ -524,9 +542,9 @@ Expected: PASS (1 test)
 
 - [ ] **Step 15: Update the UI-fragment test fixtures**
 
-`compute_map` and the `Location` model were already fixed in steps 3 and 13,
+`compute_map` and the `Location` model were already fixed in steps 3 and 12,
 so this is a plain rename with no red step of its own — the failure it
-would otherwise cause was already covered by Steps 2 and 12.
+would otherwise cause was already covered by Steps 2 and 11.
 
 Edit `tests/test_ui_fragments.py`:
 
