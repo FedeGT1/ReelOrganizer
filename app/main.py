@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
 from app.db import create_db_and_tables, engine
-from app.routers import locations, reels
+from app.routers import locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Japan Reel Organizer", lifespan=lifespan)
 app.include_router(locations.router)
 app.include_router(reels.router)
+app.include_router(map_router.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
