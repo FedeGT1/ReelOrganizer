@@ -32,7 +32,10 @@ def test_categorize_creates_session_and_returns_proposal(client, session, monkey
 
 def test_categorize_continues_existing_session(client, session, monkeypatch):
     def fake_categorize(hub_names, messages):
-        assert len(messages) == 2
+        # Full session history: first user turn, first assistant (question)
+        # turn, second user turn — never windowed (spec §5.3: the model must
+        # see the entire conversation, not just the last exchange).
+        assert len(messages) == 3
         return {
             "place_name": "Nikko",
             "near_hub": "Tokyo / Kanto",

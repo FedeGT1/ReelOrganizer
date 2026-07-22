@@ -56,10 +56,7 @@ def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_s
         .where(AiMessage.session_id == ai_session.id)
         .order_by(AiMessage.created_at)
     ).all()
-    # Each assistant reply is a full structured-state snapshot (RESPONSE_SCHEMA
-    # requires every field on every turn), so the model only needs its own
-    # last snapshot plus the newest user turn to continue the conversation.
-    api_messages = [{"role": m.role, "content": m.content} for m in history[-2:]]
+    api_messages = [{"role": m.role, "content": m.content} for m in history]
 
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
