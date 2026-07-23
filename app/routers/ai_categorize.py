@@ -37,6 +37,8 @@ class CategorizeResponse(BaseModel):
 
 def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
     place_name_lower = place_name.lower()
+    if not place_name_lower:
+        return None
     for loc in session.exec(select(Location)).all():
         loc_name_lower = loc.name.lower()
         if place_name_lower in loc_name_lower or loc_name_lower in place_name_lower:

@@ -133,3 +133,22 @@ def test_categorize_returns_friendly_question_when_ai_call_fails(client, session
     response = client.post("/api/ai/categorize", json={"message": "Qualcosa"})
     assert response.status_code == 200
     assert "riprova" in response.json()["question"].lower()
+
+
+def test_empty_place_name_does_not_spuriously_match_location(client, session, monkeypatch):
+    # Regression: when AI call fails, place_name is "" (empty string).
+    # Before fix: "" in any location name is always True, so it would
+    # spuriously match the first location. After fix: returns None.
+    location = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(location)
+    session.commit()
+    session.refresh(location)
+
+    def boom(hub_names, messages):
+        raise anthropic.AnthropicError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post("/api/ai/categorize", json={"message": "Qualcosa"})
+    assert response.status_code == 200
+    assert response.json()["matched_location_id"] is None
