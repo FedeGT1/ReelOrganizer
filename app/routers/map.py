@@ -1,9 +1,10 @@
+import json
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.geo import COASTLINE_PATHS, INSET_BOX, INSET_LABEL_POS, INSET_MARKER, VIEW_HEIGHT, VIEW_WIDTH, project
 from app.models import Location, Reel, ReelType
 from app.taxonomy import TAXONOMY
 from app.web import templates
@@ -20,27 +21,18 @@ def compute_map(session: Session) -> list[dict]:
         ).all()
     )
 
-    result = []
-    for loc in locations:
-        if loc.map_inset:
-            x, y = None, None
-        else:
-            x, y = project(loc.lat or 0.0, loc.lon or 0.0)
-        result.append(
-            {
-                "id": loc.id,
-                "name": loc.name,
-                "is_hub": loc.is_hub,
-                "parent_id": loc.parent_id,
-                "lat": loc.lat,
-                "lon": loc.lon,
-                "map_inset": loc.map_inset,
-                "x": x,
-                "y": y,
-                "reel_count": counts.get(loc.id, 0),
-            }
-        )
-    return result
+    return [
+        {
+            "id": loc.id,
+            "name": loc.name,
+            "is_hub": loc.is_hub,
+            "parent_id": loc.parent_id,
+            "lat": loc.lat,
+            "lon": loc.lon,
+            "reel_count": counts.get(loc.id, 0),
+        }
+        for loc in locations
+    ]
 
 
 @router.get("")
@@ -101,23 +93,41 @@ def ui_map(
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
     matching_location_ids = locations_with_type(session, type) if type else set()
     visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type, hide_empty)
+
+    map_locations = []
+    for loc in locations:
+        if visible_ids is not None and loc["id"] not in visible_ids:
+            continue
+        if loc["lat"] is None or loc["lon"] is None:
+            continue
+
+        entry = {
+            "id": loc["id"],
+            "name": loc["name"],
+            "is_hub": loc["is_hub"],
+            "lat": loc["lat"],
+            "lon": loc["lon"],
+            "anchor": loc["id"] in anchor_hub_ids,
+            "dimmed": bool(type) and loc["id"] not in matching_location_ids,
+            "parent_lat": None,
+            "parent_lon": None,
+        }
+        if not loc["is_hub"]:
+            parent = hubs_by_id.get(loc["parent_id"])
+            if parent is not None and parent["lat"] is not None and parent["lon"] is not None:
+                entry["parent_lat"] = parent["lat"]
+                entry["parent_lon"] = parent["lon"]
+        map_locations.append(entry)
+
+    map_locations_json = json.dumps(map_locations).replace("<", "\\u003c")
+
     return templates.TemplateResponse(
         request,
         "partials/map.html",
         {
-            "locations": locations,
-            "hubs_by_id": hubs_by_id,
-            "taxonomy": TAXONOMY,
+            "map_locations_json": map_locations_json,
             "active_type": type,
-            "matching_location_ids": matching_location_ids,
-            "visible_ids": visible_ids,
-            "anchor_hub_ids": anchor_hub_ids,
+            "taxonomy": TAXONOMY,
             "hide_empty": hide_empty,
-            "coastline_paths": COASTLINE_PATHS,
-            "view_width": round(VIEW_WIDTH),
-            "view_height": round(VIEW_HEIGHT),
-            "inset_box": INSET_BOX,
-            "inset_marker": INSET_MARKER,
-            "inset_label_pos": INSET_LABEL_POS,
         },
     )

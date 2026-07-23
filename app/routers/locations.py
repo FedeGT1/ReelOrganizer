@@ -17,7 +17,6 @@ class LocationCreate(BaseModel):
     parent_id: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = None
-    map_inset: bool = False
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -37,7 +36,6 @@ def create_location(payload: LocationCreate, session: Session = Depends(get_sess
         "parent_id": location.parent_id,
         "lat": location.lat,
         "lon": location.lon,
-        "map_inset": location.map_inset,
         "reel_count": 0,
     }
 
@@ -58,7 +56,6 @@ def list_locations(session: Session = Depends(get_session)):
             "parent_id": loc.parent_id,
             "lat": loc.lat,
             "lon": loc.lon,
-            "map_inset": loc.map_inset,
             "reel_count": counts.get(loc.id, 0),
         }
         for loc in locations

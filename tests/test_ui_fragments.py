@@ -1,3 +1,4 @@
+import json
 import re
 
 from sqlmodel import select
@@ -5,15 +6,30 @@ from sqlmodel import select
 from app.models import Location, Reel, ReelType
 
 
-def test_ui_map_renders_svg_with_stations(client, session):
+def _map_data(response_text: str) -> list[dict]:
+    match = re.search(
+        r'<script type="application/json" id="map-data">(.*?)</script>',
+        response_text,
+        re.DOTALL,
+    )
+    assert match, "map-data JSON blob not found in response"
+    return json.loads(match.group(1))
+
+
+def test_ui_map_renders_leaflet_container_and_location_data(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
 
     response = client.get("/ui/map")
     assert response.status_code == 200
-    assert "<svg" in response.text
-    assert "Tokyo / Kanto" in response.text
+    assert 'id="leaflet-map"' in response.text
+
+    locations = _map_data(response.text)
+    assert len(locations) == 1
+    assert locations[0]["name"] == "Tokyo / Kanto"
+    assert locations[0]["lat"] == 35.6762
+    assert locations[0]["lon"] == 139.6503
 
 
 def test_ui_map_includes_type_filter_chips(client):
@@ -42,36 +58,27 @@ def test_ui_map_dims_stations_without_the_selected_type(client, session):
     response = client.get("/ui/map?type=food")
     assert response.status_code == 200
 
-    with_food_class = re.search(
-        rf'class="([^"]*)" data-location-id="{hub_with_food.id}"', response.text
-    ).group(1)
-    without_food_class = re.search(
-        rf'class="([^"]*)" data-location-id="{hub_without_food.id}"', response.text
-    ).group(1)
-
-    assert "dimmed" not in with_food_class
-    assert "dimmed" in without_food_class
+    locations = {loc["id"]: loc for loc in _map_data(response.text)}
+    assert locations[hub_with_food.id]["dimmed"] is False
+    assert locations[hub_without_food.id]["dimmed"] is True
 
 
-def test_ui_map_renders_coastline_and_sea(client):
-    response = client.get("/ui/map")
-    assert response.status_code == 200
-    assert '<path d="M ' in response.text
-    assert 'class="sea"' in response.text
-
-
-def test_ui_map_renders_okinawa_inset_box(client, session):
-    okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809, map_inset=True)
+def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session):
+    okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809)
     session.add(okinawa)
     session.commit()
 
     response = client.get("/ui/map")
     assert response.status_code == 200
-    assert 'class="inset-box"' in response.text
-    assert "Okinawa" in response.text
+
+    locations = _map_data(response.text)
+    assert len(locations) == 1
+    assert locations[0]["name"] == "Okinawa"
+    assert locations[0]["lat"] == 26.2124
+    assert locations[0]["lon"] == 127.6809
 
 
-def test_ui_map_hide_empty_removes_empty_hub_from_svg(client, session):
+def test_ui_map_hide_empty_removes_empty_hub(client, session):
     empty_hub = Location(name="Empty Hub", is_hub=True, lat=35.0, lon=135.0)
     filled_hub = Location(name="Filled Hub", is_hub=True, lat=36.0, lon=136.0)
     session.add(empty_hub)
@@ -83,8 +90,10 @@ def test_ui_map_hide_empty_removes_empty_hub_from_svg(client, session):
 
     response = client.get("/ui/map?hide_empty=1")
     assert response.status_code == 200
-    assert "Filled Hub" in response.text
-    assert "Empty Hub" not in response.text
+
+    ids = {loc["id"] for loc in _map_data(response.text)}
+    assert filled_hub.id in ids
+    assert empty_hub.id not in ids
 
 
 def test_ui_map_toggle_chip_label_reflects_state(client):

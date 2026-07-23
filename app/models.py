@@ -16,7 +16,6 @@ class Location(SQLModel, table=True):
     parent_id: Optional[str] = Field(default=None, foreign_key="location.id")
     lat: Optional[float] = None
     lon: Optional[float] = None
-    map_inset: bool = False
 
 
 class Reel(SQLModel, table=True):

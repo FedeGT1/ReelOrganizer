@@ -2,7 +2,7 @@ from app.models import Location, Reel, ReelType
 from app.routers.map import compute_map, visible_location_ids
 
 
-def test_map_returns_projected_coordinates_for_hub_and_satellite(client, session):
+def test_map_returns_lat_lon_for_hub_and_satellite(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
@@ -21,9 +21,11 @@ def test_map_returns_projected_coordinates_for_hub_and_satellite(client, session
 
     hub_entry = next(d for d in data if d["is_hub"])
     sat_entry = next(d for d in data if not d["is_hub"])
-    assert hub_entry["x"] is not None and hub_entry["y"] is not None
+    assert hub_entry["lat"] == 35.6762
+    assert hub_entry["lon"] == 139.6503
     assert sat_entry["parent_id"] == hub.id
-    assert sat_entry["x"] != hub_entry["x"] or sat_entry["y"] != hub_entry["y"]
+    assert "x" not in hub_entry and "y" not in hub_entry
+    assert "map_inset" not in hub_entry
 
 
 def test_visible_location_ids_returns_none_when_hide_empty_is_false(session):

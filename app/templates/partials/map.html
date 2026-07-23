@@ -14,31 +14,8 @@
         {{ 'Mostra tutti' if hide_empty else 'Nascondi vuoti' }}
     </a>
 </div>
-<svg viewBox="0 0 {{ view_width }} {{ view_height }}" class="japan-map">
-    <rect x="0" y="0" width="{{ view_width }}" height="{{ view_height }}" class="sea" />
-    {% for d in coastline_paths %}
-    <path d="{{ d }}" class="land" />
-    {% endfor %}
-    {% for loc in locations %}
-    {% if not loc.is_hub and not loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
-    <line x1="{{ hubs_by_id[loc.parent_id].x }}" y1="{{ hubs_by_id[loc.parent_id].y }}"
-          x2="{{ loc.x }}" y2="{{ loc.y }}" class="satellite-line" />
-    {% endif %}
-    {% endfor %}
-    {% for loc in locations %}
-    {% if not loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
-    <circle cx="{{ loc.x }}" cy="{{ loc.y }}"
-            r="{{ 8 if loc.is_hub else 4 }}"
-            class="station {{ 'hub' if loc.is_hub else 'satellite' }}{{ ' anchor' if loc.id in anchor_hub_ids else '' }}{{ ' dimmed' if active_type and loc.id not in matching_location_ids else '' }}" data-location-id="{{ loc.id }}" />
-    <text x="{{ loc.x }}" y="{{ loc.y - 10 }}" class="station-label">{{ loc.name }}</text>
-    {% endif %}
-    {% endfor %}
-    {% for loc in locations %}
-    {% if loc.map_inset and (visible_ids is none or loc.id in visible_ids) %}
-    <rect x="{{ inset_box.x }}" y="{{ inset_box.y }}" width="{{ inset_box.width }}" height="{{ inset_box.height }}" class="inset-box" />
-    <text x="{{ inset_label_pos[0] }}" y="{{ inset_label_pos[1] }}" class="inset-label" text-anchor="middle">Okinawa</text>
-    <circle cx="{{ inset_marker[0] }}" cy="{{ inset_marker[1] }}" r="7" class="station hub" data-location-id="{{ loc.id }}" />
-    <text x="{{ inset_marker[0] }}" y="{{ inset_marker[1] + 18 }}" class="station-label">{{ loc.name }}</text>
-    {% endif %}
-    {% endfor %}
-</svg>
+<div id="leaflet-map" class="leaflet-map"></div>
+<script type="application/json" id="map-data">{{ map_locations_json | safe }}</script>
+<script>
+    initReelMap("leaflet-map", "map-data");
+</script>

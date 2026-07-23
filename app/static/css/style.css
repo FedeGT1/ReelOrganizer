@@ -44,19 +44,21 @@ main {
     cursor: pointer;
 }
 
-.japan-map {
+.leaflet-map {
     width: 100%;
-    max-width: 400px;
-    display: block;
+    height: 420px;
     margin: 0 auto;
+    border: 1px solid var(--color-ink-medium);
 }
 
 .station.hub {
     fill: var(--color-ink-medium);
+    stroke: var(--color-ink-medium);
 }
 
 .station.satellite {
     fill: var(--color-gold);
+    stroke: var(--color-gold);
 }
 
 .station.anchor {
@@ -65,40 +67,19 @@ main {
     stroke-width: 2;
 }
 
+.station.dimmed {
+    opacity: 0.35;
+}
+
 .satellite-line {
     stroke: var(--color-ink-medium);
     stroke-dasharray: 4 3;
 }
 
-.sea {
-    fill: var(--color-sea);
-}
-
-.land {
-    fill: var(--color-paper);
-    stroke: var(--color-ink-medium);
-    stroke-width: 1.5;
-}
-
-.inset-box {
-    fill: none;
-    stroke: var(--color-ink);
-    stroke-width: 1;
-    stroke-dasharray: 3 2;
-}
-
-.inset-label {
-    font-size: 9px;
-    font-style: italic;
-    fill: var(--color-ink-medium);
-    font-family: "Zen Kaku Gothic New", sans-serif;
-}
-
 .station-label {
-    font-size: 10px;
+    font-size: 0.7rem;
     font-family: "Zen Kaku Gothic New", sans-serif;
-    fill: var(--color-ink);
-    text-anchor: middle;
+    color: var(--color-ink);
 }
 
 button, .reel-list button {
@@ -133,7 +114,7 @@ button, .reel-list button {
     main {
         padding: 0.5rem;
     }
-    .japan-map {
-        max-width: 100%;
+    .leaflet-map {
+        height: 320px;
     }
 }

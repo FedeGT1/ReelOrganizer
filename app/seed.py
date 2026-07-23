@@ -3,15 +3,15 @@ from sqlmodel import Session, select
 from app.models import Location
 
 HUBS = [
-    ("Sapporo / Hokkaido", 43.0621, 141.3544, False),
-    ("Sendai / Tohoku", 38.2682, 140.8694, False),
-    ("Tokyo / Kanto", 35.6762, 139.6503, False),
-    ("Nagoya / Chubu", 35.1815, 136.9066, False),
-    ("Kyoto - Osaka / Kansai", 34.85, 135.60, False),
-    ("Hiroshima / Chugoku", 34.3853, 132.4553, False),
-    ("Matsuyama / Shikoku", 33.8392, 132.7657, False),
-    ("Fukuoka / Kyushu", 33.5904, 130.4017, False),
-    ("Okinawa", 26.2124, 127.6809, True),
+    ("Sapporo / Hokkaido", 43.0621, 141.3544),
+    ("Sendai / Tohoku", 38.2682, 140.8694),
+    ("Tokyo / Kanto", 35.6762, 139.6503),
+    ("Nagoya / Chubu", 35.1815, 136.9066),
+    ("Kyoto - Osaka / Kansai", 34.85, 135.60),
+    ("Hiroshima / Chugoku", 34.3853, 132.4553),
+    ("Matsuyama / Shikoku", 33.8392, 132.7657),
+    ("Fukuoka / Kyushu", 33.5904, 130.4017),
+    ("Okinawa", 26.2124, 127.6809),
 ]
 
 SATELLITES = [
@@ -34,8 +34,8 @@ def seed_if_empty(session: Session) -> None:
         return
 
     hub_by_name: dict[str, Location] = {}
-    for name, lat, lon, map_inset in HUBS:
-        hub = Location(name=name, is_hub=True, lat=lat, lon=lon, map_inset=map_inset)
+    for name, lat, lon in HUBS:
+        hub = Location(name=name, is_hub=True, lat=lat, lon=lon)
         session.add(hub)
         session.flush()
         hub_by_name[name] = hub
