@@ -38,10 +38,11 @@ def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
     return None
 
 
-@router.post("/categorize", response_model=CategorizeResponse)
-def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_session)):
-    if payload.session_id:
-        ai_session = session.get(AiSession, payload.session_id)
+def _run_turn(
+    session: Session, session_id: Optional[str], message: str
+) -> tuple[AiSession, dict, Optional[str]]:
+    if session_id:
+        ai_session = session.get(AiSession, session_id)
         if ai_session is None:
             raise HTTPException(status_code=404, detail="AI session not found")
     else:
@@ -50,7 +51,7 @@ def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_s
         session.commit()
         session.refresh(ai_session)
 
-    session.add(AiMessage(session_id=ai_session.id, role="user", content=payload.message))
+    session.add(AiMessage(session_id=ai_session.id, role="user", content=message))
     session.commit()
 
     history = session.exec(
@@ -66,9 +67,25 @@ def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_s
     result = ai_client.categorize(hub_names, api_messages)
     result["types"] = [t for t in result.get("types", []) if t in VALID_TYPES]
 
+    matched_location_id = _find_matching_location(session, result["place_name"])
+
+    if (
+        matched_location_id is None
+        and result.get("question") is None
+        and (result.get("lat") is None or result.get("lon") is None)
+    ):
+        result["question"] = (
+            "Non riesco a stimare le coordinate di questo posto: "
+            "qual e' la citta' o zona piu' vicina?"
+        )
+
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
 
-    matched_location_id = _find_matching_location(session, result["place_name"])
+    return ai_session, result, matched_location_id
 
+
+@router.post("/categorize", response_model=CategorizeResponse)
+def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_session)):
+    ai_session, result, matched_location_id = _run_turn(session, payload.session_id, payload.message)
     return CategorizeResponse(session_id=ai_session.id, matched_location_id=matched_location_id, **result)

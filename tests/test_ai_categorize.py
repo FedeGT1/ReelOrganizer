@@ -95,3 +95,28 @@ def test_categorize_with_unknown_session_id_returns_404(client):
         json={"session_id": "does-not-exist", "message": "Ciao"},
     )
     assert response.status_code == 404
+
+
+def test_categorize_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, messages: {
+            "place_name": "Mystery Alley",
+            "near_hub": None,
+            "types": ["food"],
+            "note": "Some alley",
+            "confidence": "medium",
+            "question": None,
+            "lat": None,
+            "lon": None,
+        },
+    )
+
+    response = client.post("/api/ai/categorize", json={"message": "Un vicolo di street food"})
+    assert response.status_code == 200
+    assert response.json()["question"] is not None
+    assert "coordinate" in response.json()["question"].lower()
