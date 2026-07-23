@@ -15,8 +15,8 @@ class LocationCreate(BaseModel):
     name: str
     is_hub: bool = True
     parent_id: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    lat: float
+    lon: float
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

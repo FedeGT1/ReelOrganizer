@@ -4,7 +4,9 @@ from app.models import Location, Reel, ReelType
 
 
 def test_delete_location_cascades_reels(client, session):
-    hub_resp = client.post("/api/locations", json={"name": "Doomed Hub", "is_hub": True})
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Doomed Hub", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
     hub_id = hub_resp.json()["id"]
 
     reel = Reel(link="https://instagram.com/reel/x", location_id=hub_id)
@@ -62,13 +64,20 @@ def test_create_hub_location(client):
     assert data["id"]
 
 
+def test_create_location_without_lat_lon_returns_422(client):
+    response = client.post("/api/locations", json={"name": "No Coords", "is_hub": True})
+    assert response.status_code == 422
+
+
 def test_create_satellite_location(client):
-    hub_resp = client.post("/api/locations", json={"name": "Parent Hub", "is_hub": True})
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Parent Hub", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
     hub_id = hub_resp.json()["id"]
 
     response = client.post(
         "/api/locations",
-        json={"name": "Satellite Town", "is_hub": False, "parent_id": hub_id},
+        json={"name": "Satellite Town", "is_hub": False, "parent_id": hub_id, "lat": 35.1, "lon": 135.1},
     )
     assert response.status_code == 201
     assert response.json()["parent_id"] == hub_id
@@ -77,18 +86,20 @@ def test_create_satellite_location(client):
 def test_create_satellite_location_without_parent_id_returns_400(client):
     response = client.post(
         "/api/locations",
-        json={"name": "Orphan", "is_hub": False},
+        json={"name": "Orphan", "is_hub": False, "lat": 35.0, "lon": 135.0},
     )
     assert response.status_code == 400
 
 
 def test_delete_location_with_children_returns_409(client):
-    hub_resp = client.post("/api/locations", json={"name": "Hub With Kids", "is_hub": True})
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Hub With Kids", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
     hub_id = hub_resp.json()["id"]
 
     satellite_resp = client.post(
         "/api/locations",
-        json={"name": "Satellite Kid", "is_hub": False, "parent_id": hub_id},
+        json={"name": "Satellite Kid", "is_hub": False, "parent_id": hub_id, "lat": 35.1, "lon": 135.1},
     )
     assert satellite_resp.status_code == 201
 
