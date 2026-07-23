@@ -1,8 +1,14 @@
+{% if filtered_location %}
+<div class="reel-filter-banner">
+    <strong>Reel — {{ filtered_location.name }}</strong>
+    <a href="#" hx-get="/ui/reels" hx-target="#reel-list" hx-swap="innerHTML">✕ Mostra tutti</a>
+</div>
+{% endif %}
 <form hx-post="/ui/reels" hx-target="#reel-list" hx-swap="innerHTML">
     <input type="url" name="link" placeholder="Link Instagram" required>
     <select name="location_id" required>
         {% for loc in locations %}
-        <option value="{{ loc.id }}">{{ loc.name }}</option>
+        <option value="{{ loc.id }}" {{ 'selected' if filtered_location and loc.id == filtered_location.id else '' }}>{{ loc.name }}</option>
         {% endfor %}
     </select>
     <input type="text" name="note" placeholder="Nota (opzionale)">

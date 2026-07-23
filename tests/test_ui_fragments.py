@@ -159,3 +159,30 @@ def test_ui_reels_delete_returns_updated_fragment(client, session):
     response = client.delete(f"/ui/reels/{reel.id}")
     assert response.status_code == 200
     assert "Bye" not in response.text
+
+
+def test_ui_reels_get_filters_by_location_id(client, session):
+    hub_a = Location(name="Hub A", is_hub=True, lat=35.0, lon=135.0)
+    hub_b = Location(name="Hub B", is_hub=True, lat=36.0, lon=136.0)
+    session.add(hub_a)
+    session.add(hub_b)
+    session.commit()
+    session.refresh(hub_a)
+    session.refresh(hub_b)
+
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id, note="A spot"))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub_b.id, note="B spot"))
+    session.commit()
+
+    response = client.get(f"/ui/reels?location_id={hub_a.id}")
+    assert response.status_code == 200
+    assert "A spot" in response.text
+    assert "B spot" not in response.text
+    assert "Hub A" in response.text
+    assert "Mostra tutti" in response.text
+
+
+def test_ui_reels_get_without_filter_shows_no_banner(client):
+    response = client.get("/ui/reels")
+    assert response.status_code == 200
+    assert "Mostra tutti" not in response.text

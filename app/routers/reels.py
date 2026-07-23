@@ -87,19 +87,30 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
     session.commit()
 
 
-def _reel_list_context(session: Session) -> dict:
-    reels = session.exec(select(Reel)).all()
+def _reel_list_context(session: Session, location_id: Optional[str] = None) -> dict:
+    query = select(Reel)
+    if location_id is not None:
+        query = query.where(Reel.location_id == location_id)
+    reels = session.exec(query).all()
     locations = session.exec(select(Location)).all()
+    filtered_location = session.get(Location, location_id) if location_id else None
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
         "locations": locations,
         "taxonomy": TAXONOMY,
+        "filtered_location": filtered_location,
     }
 
 
 @ui_router.get("/reels")
-def ui_list_reels(request: Request, session: Session = Depends(get_session)):
-    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
+def ui_list_reels(
+    request: Request,
+    location_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    return templates.TemplateResponse(
+        request, "partials/reel_list.html", _reel_list_context(session, location_id)
+    )
 
 
 @ui_router.post("/reels")
