@@ -344,8 +344,8 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
             "note": "Famous ramen chain",
             "confidence": "high",
             "question": None,
-            "lat": None,
-            "lon": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
         },
     )
 
@@ -368,7 +368,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
             "types": [],
             "note": "",
             "confidence": "low",
-            "question": "Che citta' e'?",
+            "question": "In che citta si trova?",
             "lat": None,
             "lon": None,
         },
@@ -377,7 +377,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
         "/ui/ai/message",
         data={"link": "https://instagram.com/reel/abc", "message": "Un tempio"},
     )
-    assert "Che citta' e'?" in first.text
+    assert "In che citta si trova?" in first.text
 
     session_id = session.exec(select(AiSession)).first().id
 
@@ -802,8 +802,8 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
             "note": "Famous ramen chain",
             "confidence": "high",
             "question": None,
-            "lat": None,
-            "lon": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
         },
     )
 
@@ -826,7 +826,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
             "types": [],
             "note": "",
             "confidence": "low",
-            "question": "Che citta' e'?",
+            "question": "In che citta si trova?",
             "lat": None,
             "lon": None,
         },
@@ -835,7 +835,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
         "/ui/ai/message",
         data={"link": "https://instagram.com/reel/abc", "message": "Un tempio"},
     )
-    assert "Che citta' e'?" in first.text
+    assert "In che citta si trova?" in first.text
 
     session_id = session.exec(select(AiSession)).first().id
 
@@ -912,8 +912,8 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
             "note": "Famous ramen chain",
             "confidence": "high",
             "question": None,
-            "lat": None,
-            "lon": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
         },
     )
 
