@@ -1,0 +1,30 @@
+<div id="ai-chat-messages">
+    {% for turn in history %}
+        {% if turn.role == 'user' %}
+        <div class="chat-bubble user">{{ turn.text }}</div>
+        {% else %}
+        <div class="chat-bubble assistant">
+            {% if turn.result.question %}
+            {{ turn.result.question }}
+            {% else %}
+            <strong>{{ turn.result.place_name }}</strong>{% if turn.result.near_hub %} (vicino a {{ turn.result.near_hub }}){% endif %}<br>
+            <span class="types">{% for t in turn.result.types %}{{ taxonomy[t].icon }} {{ taxonomy[t].label }} {% endfor %}</span><br>
+            {% if turn.result.note %}<span class="note">{{ turn.result.note }}</span><br>{% endif %}
+            <span class="confidence">Confidenza: {{ turn.result.confidence }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<form hx-post="/ui/ai/message" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-input-form">
+    <input type="hidden" name="session_id" value="{{ session_id }}">
+    {% if not session_id %}
+    <input type="url" name="link" placeholder="Link Instagram" required>
+    <textarea name="message" placeholder="Descrizione o didascalia del reel" required></textarea>
+    {% else %}
+    <input type="hidden" name="link" value="{{ link }}">
+    <textarea name="message" placeholder="Scrivi..." required></textarea>
+    {% endif %}
+    <button type="submit">Invia</button>
+</form>

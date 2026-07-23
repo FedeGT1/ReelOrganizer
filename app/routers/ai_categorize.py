@@ -1,16 +1,19 @@
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.ai import client as ai_client
 from app.db import get_session
 from app.models import AiMessage, AiSession, Location
-from app.taxonomy import VALID_TYPES
+from app.routers.reels import _is_safe_link
+from app.taxonomy import TAXONOMY, VALID_TYPES
+from app.web import templates
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
+ui_router = APIRouter(prefix="/ui/ai", tags=["ai-ui"])
 
 
 class CategorizeRequest(BaseModel):
@@ -89,3 +92,68 @@ def _run_turn(
 def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_session)):
     ai_session, result, matched_location_id = _run_turn(session, payload.session_id, payload.message)
     return CategorizeResponse(session_id=ai_session.id, matched_location_id=matched_location_id, **result)
+
+
+def _build_ai_chat_context(session: Session, ai_session_id: Optional[str], link: str) -> dict:
+    history: list[dict] = []
+    latest_result: Optional[dict] = None
+
+    if ai_session_id:
+        messages = session.exec(
+            select(AiMessage)
+            .where(AiMessage.session_id == ai_session_id)
+            .order_by(AiMessage.created_at)
+        ).all()
+        for m in messages:
+            if m.role == "user":
+                history.append({"role": "user", "text": m.content})
+            else:
+                result = json.loads(m.content)
+                history.append({"role": "assistant", "result": result})
+                latest_result = result
+
+    matched_location_id = (
+        _find_matching_location(session, latest_result["place_name"])
+        if latest_result is not None
+        else None
+    )
+    can_confirm = latest_result is not None and latest_result.get("question") is None
+
+    return {
+        "session_id": ai_session_id or "",
+        "link": link or "",
+        "history": history,
+        "latest_result": latest_result,
+        "can_confirm": can_confirm,
+        "matched_location_id": matched_location_id or "",
+        "taxonomy": TAXONOMY,
+    }
+
+
+@ui_router.get("/panel")
+def ui_ai_panel(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(
+        request, "partials/ai_chat.html", _build_ai_chat_context(session, None, "")
+    )
+
+
+@ui_router.post("/message")
+def ui_ai_message(
+    request: Request,
+    session_id: str = Form(""),
+    link: str = Form(""),
+    message: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    if not session_id:
+        if not _is_safe_link(link):
+            raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+        combined_message = f"Link: {link}\nDescrizione: {message}"
+    else:
+        combined_message = message
+
+    ai_session, _, _ = _run_turn(session, session_id or None, combined_message)
+
+    return templates.TemplateResponse(
+        request, "partials/ai_chat.html", _build_ai_chat_context(session, ai_session.id, link)
+    )
