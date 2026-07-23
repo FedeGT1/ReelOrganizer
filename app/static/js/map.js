@@ -1,3 +1,9 @@
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function initReelMap(containerId, dataId) {
     const dataEl = document.getElementById(dataId);
     const locations = JSON.parse(dataEl.textContent);
@@ -19,7 +25,7 @@ function initReelMap(containerId, dataId) {
             className: classes.join(" "),
         }).addTo(map);
 
-        marker.bindTooltip(loc.name, {
+        marker.bindTooltip(escapeHtml(loc.name), {
             permanent: true,
             direction: "top",
             className: "station-label",
