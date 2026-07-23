@@ -1,3 +1,6 @@
+{% if notice %}
+<p class="ai-notice">{{ notice }}</p>
+{% endif %}
 <div id="ai-chat-messages">
     {% for turn in history %}
         {% if turn.role == 'user' %}

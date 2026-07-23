@@ -1,3 +1,4 @@
+import anthropic
 from sqlmodel import select
 
 from app.ai import client as ai_client
@@ -311,3 +312,27 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
     assert response.status_code == 200
     assert session.exec(select(AiSession).where(AiSession.id == ai_session_id)).first() is None
     assert session.exec(select(AiMessage).where(AiMessage.session_id == ai_session_id)).all() == []
+
+
+def test_ui_ai_message_shows_friendly_error_when_ai_call_fails(client, session, monkeypatch):
+    def boom(hub_names, messages):
+        raise anthropic.AnthropicError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/abc", "message": "Qualcosa"},
+    )
+    assert response.status_code == 200
+    assert "riprova" in response.text.lower()
+
+
+def test_ui_ai_message_with_unknown_session_id_resets_panel_with_notice(client, session):
+    response = client.post(
+        "/ui/ai/message",
+        data={"session_id": "does-not-exist", "link": "https://instagram.com/reel/abc", "message": "Ciao"},
+    )
+    assert response.status_code == 200
+    assert 'name="link"' in response.text
+    assert "Sessione scaduta" in response.text

@@ -1,6 +1,7 @@
 import json
 from typing import Optional
 
+import anthropic
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -69,7 +70,20 @@ def _run_turn(
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
 
-    result = ai_client.categorize(hub_names, api_messages)
+    try:
+        result = ai_client.categorize(hub_names, api_messages)
+    except anthropic.AnthropicError:
+        result = {
+            "place_name": "",
+            "near_hub": None,
+            "types": [],
+            "note": "",
+            "confidence": "low",
+            "question": "Errore nel contattare l'assistente, riprova.",
+            "lat": None,
+            "lon": None,
+        }
+
     result["types"] = [t for t in result.get("types", []) if t in VALID_TYPES]
 
     matched_location_id = _find_matching_location(session, result["place_name"])
@@ -96,7 +110,9 @@ def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_s
     return CategorizeResponse(session_id=ai_session.id, matched_location_id=matched_location_id, **result)
 
 
-def _build_ai_chat_context(session: Session, ai_session_id: Optional[str], link: str) -> dict:
+def _build_ai_chat_context(
+    session: Session, ai_session_id: Optional[str], link: str, notice: Optional[str] = None
+) -> dict:
     history: list[dict] = []
     latest_result: Optional[dict] = None
 
@@ -129,6 +145,7 @@ def _build_ai_chat_context(session: Session, ai_session_id: Optional[str], link:
         "can_confirm": can_confirm,
         "matched_location_id": matched_location_id or "",
         "taxonomy": TAXONOMY,
+        "notice": notice,
     }
 
 
@@ -154,7 +171,15 @@ def ui_ai_message(
     else:
         combined_message = message
 
-    ai_session, _, _ = _run_turn(session, session_id or None, combined_message)
+    try:
+        ai_session, _, _ = _run_turn(session, session_id or None, combined_message)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            context = _build_ai_chat_context(
+                session, None, "", notice="Sessione scaduta, ricomincia pure da qui."
+            )
+            return templates.TemplateResponse(request, "partials/ai_chat.html", context)
+        raise
 
     return templates.TemplateResponse(
         request, "partials/ai_chat.html", _build_ai_chat_context(session, ai_session.id, link)

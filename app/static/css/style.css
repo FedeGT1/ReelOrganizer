@@ -135,6 +135,12 @@ button, .reel-list button {
     font-family: inherit;
 }
 
+.ai-notice {
+    color: var(--color-hanko);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.85rem;
+}
+
 @media (max-width: 480px) {
     main {
         padding: 0.5rem;

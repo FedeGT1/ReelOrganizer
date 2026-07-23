@@ -1,5 +1,7 @@
 import json
 
+import anthropic
+
 from app.ai import client as ai_client
 from app.models import Location
 
@@ -120,3 +122,14 @@ def test_categorize_forces_question_when_new_location_missing_coordinates(client
     assert response.status_code == 200
     assert response.json()["question"] is not None
     assert "coordinate" in response.json()["question"].lower()
+
+
+def test_categorize_returns_friendly_question_when_ai_call_fails(client, session, monkeypatch):
+    def boom(hub_names, messages):
+        raise anthropic.AnthropicError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post("/api/ai/categorize", json={"message": "Qualcosa"})
+    assert response.status_code == 200
+    assert "riprova" in response.json()["question"].lower()
