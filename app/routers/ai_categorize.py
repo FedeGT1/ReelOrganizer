@@ -2,13 +2,15 @@ import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.ai import client as ai_client
 from app.db import get_session
-from app.models import AiMessage, AiSession, Location
-from app.routers.reels import _is_safe_link
+from app.models import AiMessage, AiSession, Location, Reel, ReelType
+from app.routers.reels import _is_safe_link, _reel_list_context
 from app.taxonomy import TAXONOMY, VALID_TYPES
 from app.web import templates
 
@@ -156,4 +158,78 @@ def ui_ai_message(
 
     return templates.TemplateResponse(
         request, "partials/ai_chat.html", _build_ai_chat_context(session, ai_session.id, link)
+    )
+
+
+@ui_router.post("/confirm")
+def ui_ai_confirm(
+    request: Request,
+    session_id: str = Form(...),
+    link: str = Form(...),
+    place_name: str = Form(...),
+    near_hub: str = Form(""),
+    types: list[str] = Form([]),
+    note: str = Form(""),
+    lat: str = Form(""),
+    lon: str = Form(""),
+    matched_location_id: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    if matched_location_id:
+        location_id = matched_location_id
+    else:
+        hub = None
+        if near_hub:
+            hub = session.exec(
+                select(Location).where(
+                    Location.is_hub == True, func.lower(Location.name) == near_hub.lower()
+                )
+            ).first()
+
+        if not lat or not lon:
+            raise HTTPException(
+                status_code=400, detail="lat/lon are required to create a new location"
+            )
+
+        new_location = Location(
+            name=place_name,
+            is_hub=hub is None,
+            parent_id=hub.id if hub else None,
+            lat=float(lat),
+            lon=float(lon),
+        )
+        session.add(new_location)
+        session.commit()
+        session.refresh(new_location)
+        location_id = new_location.id
+
+    reel = Reel(link=link, location_id=location_id, note=note or None)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    for type_value in types:
+        if type_value in VALID_TYPES:
+            session.add(ReelType(reel_id=reel.id, type=type_value))
+    session.commit()
+
+    stale_ai_session = session.get(AiSession, session_id)
+    if stale_ai_session is not None:
+        for msg in session.exec(select(AiMessage).where(AiMessage.session_id == session_id)).all():
+            session.delete(msg)
+        session.delete(stale_ai_session)
+        session.commit()
+
+    ai_chat_html = templates.get_template("partials/ai_chat.html").render(
+        _build_ai_chat_context(session, None, "")
+    )
+    reel_list_html = templates.get_template("partials/reel_list.html").render(
+        _reel_list_context(session)
+    )
+
+    return HTMLResponse(
+        ai_chat_html + f'<div hx-swap-oob="innerHTML:#reel-list">{reel_list_html}</div>'
     )

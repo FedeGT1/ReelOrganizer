@@ -17,6 +17,21 @@
     {% endfor %}
 </div>
 
+{% if can_confirm %}
+<form hx-post="/ui/ai/confirm" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-confirm-form">
+    <input type="hidden" name="session_id" value="{{ session_id }}">
+    <input type="hidden" name="link" value="{{ link }}">
+    <input type="hidden" name="place_name" value="{{ latest_result.place_name }}">
+    <input type="hidden" name="near_hub" value="{{ latest_result.near_hub or '' }}">
+    {% for t in latest_result.types %}<input type="hidden" name="types" value="{{ t }}">{% endfor %}
+    <input type="hidden" name="note" value="{{ latest_result.note }}">
+    <input type="hidden" name="lat" value="{{ latest_result.lat if latest_result.lat is not none else '' }}">
+    <input type="hidden" name="lon" value="{{ latest_result.lon if latest_result.lon is not none else '' }}">
+    <input type="hidden" name="matched_location_id" value="{{ matched_location_id }}">
+    <button type="submit">Conferma e salva</button>
+</form>
+{% endif %}
+
 <form hx-post="/ui/ai/message" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-input-form">
     <input type="hidden" name="session_id" value="{{ session_id }}">
     {% if not session_id %}
