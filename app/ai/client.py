@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any, Optional
 
@@ -10,6 +11,8 @@ MODEL = "claude-haiku-4-5"
 
 _client: Optional[Anthropic] = None
 
+logger = logging.getLogger("app.ai")
+
 
 def get_client() -> Anthropic:
     global _client
@@ -20,12 +23,15 @@ def get_client() -> Anthropic:
 
 def categorize(hub_names: list[str], messages: list[dict[str, str]]) -> dict[str, Any]:
     client = get_client()
+    system = build_system_prompt(hub_names)
+    logger.debug("categorize request hub_names=%s messages=%s", hub_names, messages)
     response = client.messages.create(
         model=MODEL,
         max_tokens=1024,
-        system=build_system_prompt(hub_names),
+        system=system,
         messages=messages,
         output_config={"format": {"type": "json_schema", "schema": RESPONSE_SCHEMA}},
     )
     text = next(block.text for block in response.content if block.type == "text")
+    logger.debug("categorize raw response text=%s", text)
     return json.loads(text)

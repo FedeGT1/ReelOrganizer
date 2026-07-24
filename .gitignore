@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .idea/
 data/*.db
+data/*.log
 .env
 
 .superpowers/

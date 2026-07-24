@@ -1,3 +1,5 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,6 +10,15 @@ from app.db import create_db_and_tables, engine
 from app.routers import ai_categorize, locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
+
+_ai_log_path = os.environ.get("AI_DEBUG_LOG_PATH", "data/ai_debug.log")
+os.makedirs(os.path.dirname(_ai_log_path) or ".", exist_ok=True)
+_ai_logger = logging.getLogger("app.ai")
+_ai_logger.setLevel(logging.DEBUG)
+if not _ai_logger.handlers:
+    _ai_handler = logging.FileHandler(_ai_log_path)
+    _ai_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    _ai_logger.addHandler(_ai_handler)
 
 
 @asynccontextmanager

@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Optional
 
 import anthropic
@@ -17,6 +18,8 @@ from app.web import templates
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 ui_router = APIRouter(prefix="/ui/ai", tags=["ai-ui"])
+
+logger = logging.getLogger("app.ai")
 
 MISSING_COORDINATES_QUESTION = (
     "Non riesco a stimare le coordinate di questo posto: "
@@ -111,6 +114,10 @@ def _run_turn(
     previous_safety_net_triggered = (
         previous_result is not None and previous_result.get("question") == MISSING_COORDINATES_QUESTION
     )
+    logger.debug(
+        "session=%s previous_safety_net_triggered=%s",
+        ai_session.id, previous_safety_net_triggered,
+    )
 
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
@@ -118,6 +125,7 @@ def _run_turn(
     try:
         result = ai_client.categorize(hub_names, api_messages)
     except anthropic.AnthropicError:
+        logger.exception("session=%s Anthropic call failed", ai_session.id)
         result = {
             "place_name": "",
             "near_hub": None,
@@ -129,23 +137,36 @@ def _run_turn(
             "lon": None,
         }
 
+    logger.debug("session=%s parsed model result=%s", ai_session.id, result)
+
     result["types"] = [t for t in result.get("types", []) if t in VALID_TYPES]
 
     matched_location_id = _find_matching_location(session, result["place_name"])
+    logger.debug("session=%s matched_location_id=%s", ai_session.id, matched_location_id)
 
     if (
         matched_location_id is None
         and result.get("question") is None
         and (result.get("lat") is None or result.get("lon") is None)
     ):
+        logger.debug(
+            "session=%s safety net condition met (unmatched place, no question, missing lat/lon)",
+            ai_session.id,
+        )
         if previous_safety_net_triggered and result.get("near_hub"):
             hub = _find_hub_by_name(session, result["near_hub"])
+            logger.debug(
+                "session=%s attempting hub fallback for near_hub=%r -> hub=%s",
+                ai_session.id, result["near_hub"], hub.name if hub else None,
+            )
             if hub is not None:
                 result["lat"] = hub.lat
                 result["lon"] = hub.lon
 
         if result.get("lat") is None or result.get("lon") is None:
             result["question"] = MISSING_COORDINATES_QUESTION
+
+    logger.debug("session=%s final result=%s", ai_session.id, result)
 
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
