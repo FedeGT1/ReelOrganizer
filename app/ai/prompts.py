@@ -1,33 +1,33 @@
 from typing import Iterable
 
-from app.taxonomy import TAXONOMY, VALID_TYPES
 
-RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "place_name": {"type": "string"},
-        "near_hub": {"type": ["string", "null"]},
-        "types": {
-            "type": "array",
-            "items": {"type": "string", "enum": sorted(VALID_TYPES)},
+def build_response_schema(valid_type_keys: Iterable[str]) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "place_name": {"type": "string"},
+            "near_hub": {"type": ["string", "null"]},
+            "types": {
+                "type": "array",
+                "items": {"type": "string", "enum": sorted(valid_type_keys)},
+            },
+            "note": {"type": "string"},
+            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+            "question": {"type": ["string", "null"]},
+            "lat": {"type": ["number", "null"]},
+            "lon": {"type": ["number", "null"]},
         },
-        "note": {"type": "string"},
-        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-        "question": {"type": ["string", "null"]},
-        "lat": {"type": ["number", "null"]},
-        "lon": {"type": ["number", "null"]},
-    },
-    "required": [
-        "place_name", "near_hub", "types", "note", "confidence", "question",
-        "lat", "lon",
-    ],
-    "additionalProperties": False,
-}
+        "required": [
+            "place_name", "near_hub", "types", "note", "confidence", "question",
+            "lat", "lon",
+        ],
+        "additionalProperties": False,
+    }
 
 
-def build_system_prompt(hub_names: Iterable[str]) -> str:
+def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) -> str:
     hubs_list = ", ".join(hub_names) if hub_names else "nessuno ancora"
-    types_list = ", ".join(f"{key} ({info['label']})" for key, info in TAXONOMY.items())
+    types_list = ", ".join(f"{key} ({label})" for key, label in categories.items())
     return (
         "Sei un assistente che aiuta a categorizzare reel Instagram salvati per un viaggio in Giappone. "
         "L'utente ti invia un link e una didascalia (o una descrizione libera) di un reel. "

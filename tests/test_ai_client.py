@@ -33,8 +33,12 @@ def test_categorize_returns_parsed_json(monkeypatch):
     fake_client = FakeAnthropicClient(expected)
     monkeypatch.setattr(ai_client, "get_client", lambda: fake_client)
 
-    result = ai_client.categorize(["Tokyo / Kanto"], [{"role": "user", "content": "Ramen a Tokyo"}])
+    result = ai_client.categorize(
+        ["Tokyo / Kanto"], {"food": "Cibo"}, [{"role": "user", "content": "Ramen a Tokyo"}]
+    )
 
     assert result == expected
     assert fake_client.messages.last_call_kwargs["model"] == ai_client.MODEL
     assert fake_client.messages.last_call_kwargs["output_config"]["format"]["type"] == "json_schema"
+    schema = fake_client.messages.last_call_kwargs["output_config"]["format"]["schema"]
+    assert schema["properties"]["types"]["items"]["enum"] == ["food"]
