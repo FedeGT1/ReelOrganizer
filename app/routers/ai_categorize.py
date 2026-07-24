@@ -18,6 +18,11 @@ from app.web import templates
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 ui_router = APIRouter(prefix="/ui/ai", tags=["ai-ui"])
 
+MISSING_COORDINATES_QUESTION = (
+    "Non riesco a stimare le coordinate di questo posto: "
+    "qual e' la citta' o zona piu' vicina?"
+)
+
 
 class CategorizeRequest(BaseModel):
     session_id: Optional[str] = None
@@ -46,6 +51,29 @@ def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
     return None
 
 
+def _find_hub_by_name(session: Session, name: str) -> Optional[Location]:
+    if not name:
+        return None
+    return session.exec(
+        select(Location).where(Location.is_hub == True, func.lower(Location.name) == name.lower())
+    ).first()
+
+
+def _assistant_turn_text(result: dict) -> str:
+    if result.get("question"):
+        return result["question"]
+
+    parts = [f"Luogo proposto: {result.get('place_name', '')}."]
+    if result.get("near_hub"):
+        parts.append(f"Vicino a: {result['near_hub']}.")
+    if result.get("types"):
+        parts.append(f"Tipo: {', '.join(result['types'])}.")
+    if result.get("note"):
+        parts.append(f"Nota: {result['note']}.")
+    parts.append(f"Confidenza: {result.get('confidence', '')}.")
+    return " ".join(parts)
+
+
 def _run_turn(
     session: Session, session_id: Optional[str], message: str
 ) -> tuple[AiSession, dict, Optional[str]]:
@@ -67,7 +95,22 @@ def _run_turn(
         .where(AiMessage.session_id == ai_session.id)
         .order_by(AiMessage.created_at)
     ).all()
-    api_messages = [{"role": m.role, "content": m.content} for m in history]
+    api_messages = [
+        {
+            "role": m.role,
+            "content": _assistant_turn_text(json.loads(m.content)) if m.role == "assistant" else m.content,
+        }
+        for m in history
+    ]
+
+    previous_result = None
+    for m in reversed(history[:-1]):
+        if m.role == "assistant":
+            previous_result = json.loads(m.content)
+            break
+    previous_safety_net_triggered = (
+        previous_result is not None and previous_result.get("question") == MISSING_COORDINATES_QUESTION
+    )
 
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
@@ -95,10 +138,14 @@ def _run_turn(
         and result.get("question") is None
         and (result.get("lat") is None or result.get("lon") is None)
     ):
-        result["question"] = (
-            "Non riesco a stimare le coordinate di questo posto: "
-            "qual e' la citta' o zona piu' vicina?"
-        )
+        if previous_safety_net_triggered and result.get("near_hub"):
+            hub = _find_hub_by_name(session, result["near_hub"])
+            if hub is not None:
+                result["lat"] = hub.lat
+                result["lon"] = hub.lon
+
+        if result.get("lat") is None or result.get("lon") is None:
+            result["question"] = MISSING_COORDINATES_QUESTION
 
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
@@ -208,13 +255,7 @@ def ui_ai_confirm(
     if matched_location_id:
         location_id = matched_location_id
     else:
-        hub = None
-        if near_hub:
-            hub = session.exec(
-                select(Location).where(
-                    Location.is_hub == True, func.lower(Location.name) == near_hub.lower()
-                )
-            ).first()
+        hub = _find_hub_by_name(session, near_hub)
 
         if not lat or not lon:
             raise HTTPException(

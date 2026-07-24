@@ -4,6 +4,7 @@ import anthropic
 
 from app.ai import client as ai_client
 from app.models import Location
+from app.routers.ai_categorize import _run_turn
 
 
 def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
@@ -152,3 +153,122 @@ def test_empty_place_name_does_not_spuriously_match_location(client, session, mo
     response = client.post("/api/ai/categorize", json={"message": "Qualcosa"})
     assert response.status_code == 200
     assert response.json()["matched_location_id"] is None
+
+
+def test_assistant_history_sent_to_model_is_natural_language_not_json(session, monkeypatch):
+    # Regression: the assistant's previous structured turn used to be replayed
+    # to the model as a raw json.dumps(...) blob, which can anchor the model
+    # into repeating the same (null) lat/lon turn after turn. It should be
+    # sent as plain text instead.
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, messages: {
+            "place_name": "?",
+            "near_hub": None,
+            "types": [],
+            "note": "",
+            "confidence": "low",
+            "question": "Che citta' e'?",
+            "lat": None,
+            "lon": None,
+        },
+    )
+    ai_session, _, _ = _run_turn(session, None, "Un tempio in montagna")
+
+    captured = {}
+
+    def fake_categorize(hub_names, messages):
+        captured["messages"] = messages
+        return {
+            "place_name": "Nikko",
+            "near_hub": None,
+            "types": ["nature"],
+            "note": "Shrine town",
+            "confidence": "medium",
+            "question": None,
+            "lat": 36.7199,
+            "lon": 139.6982,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+    _run_turn(session, ai_session.id, "E' Nikko")
+
+    assistant_messages = [m for m in captured["messages"] if m["role"] == "assistant"]
+    assert len(assistant_messages) == 1
+    assert assistant_messages[0]["content"] == "Che citta' e'?"
+    assert not assistant_messages[0]["content"].strip().startswith("{")
+
+
+def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, messages: {
+            "place_name": "Ichiran Ramen",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Famous ramen chain",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
+        },
+    )
+    ai_session, _, _ = _run_turn(session, None, "Ramen a Tokyo")
+
+    captured = {}
+
+    def fake_categorize(hub_names, messages):
+        captured["messages"] = messages
+        return {
+            "place_name": "Ichiran Ramen",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Famous ramen chain",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+    _run_turn(session, ai_session.id, "conferma")
+
+    assistant_text = [m for m in captured["messages"] if m["role"] == "assistant"][0]["content"]
+    assert "Ichiran Ramen" in assistant_text
+    assert not assistant_text.strip().startswith("{")
+
+
+def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failure(session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, messages: {
+            "place_name": "Shinjuku",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Street food area",
+            "confidence": "medium",
+            "question": None,
+            "lat": None,
+            "lon": None,
+        },
+    )
+
+    ai_session, first_result, _ = _run_turn(session, None, "Cibo di strada a Shinjuku")
+    assert first_result["question"] is not None
+    assert first_result["lat"] is None
+
+    ai_session2, second_result, matched = _run_turn(session, ai_session.id, "Shinjuku, Tokyo")
+    assert second_result["question"] is None
+    assert second_result["lat"] == 35.6762
+    assert second_result["lon"] == 139.6503
