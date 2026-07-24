@@ -32,7 +32,12 @@ def test_ui_map_renders_leaflet_container_and_location_data(client, session):
     assert locations[0]["lon"] == 139.6503
 
 
-def test_ui_map_includes_type_filter_chips(client):
+def test_ui_map_includes_type_filter_chips(client, session):
+    from app.models import Category
+
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+
     response = client.get("/ui/map")
     assert response.status_code == 200
     assert "Cibo" in response.text

@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
-from app.taxonomy import TAXONOMY
+from app.routers.categories import get_taxonomy
 from app.web import templates
 
 router = APIRouter(prefix="/api/map", tags=["map"])
@@ -127,7 +127,7 @@ def ui_map(
         {
             "map_locations_json": map_locations_json,
             "active_type": type,
-            "taxonomy": TAXONOMY,
+            "taxonomy": get_taxonomy(session),
             "hide_empty": hide_empty,
         },
     )
