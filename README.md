@@ -1,6 +1,6 @@
 # Japan Reel Organizer
 
-A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites) and by content type (food, culture, nature, etc.), then displayed on an interactive map (Leaflet + OpenStreetMap). A generative AI chat flow helps categorize new reels by asking a few questions and matching them to an existing or new location.
+A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map (Leaflet + OpenStreetMap). A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, asking clarifying questions when it doesn't have enough information, and never saving anything without confirmation.
 
 ## Stack
 
@@ -43,4 +43,8 @@ Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"
 
 ## Persistence
 
-There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs if empty. If you have an existing local `data/*.db` from before this change, delete it (`rm data/*.db`) so it gets recreated with the current schema — there is no migration path for schema changes.
+There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs and default categories if empty (both seeded independently, so clearing one doesn't require re-seeding the other). If you have an existing local `data/*.db` from before a schema change, delete it (`rm data/*.db`) so it gets recreated with the current schema — there is no migration path for schema changes.
+
+## AI debug log
+
+Every request/response exchanged with Claude during categorization, plus the safety-net decisions around it (missing-coordinates fallback, matched-location resolution), is logged to `data/ai_debug.log` (path configurable via `AI_DEBUG_LOG_PATH`) for troubleshooting. It's gitignored and grows unbounded — delete it freely.
