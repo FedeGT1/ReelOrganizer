@@ -24,3 +24,14 @@ def test_build_system_prompt_mentions_lat_lon_estimation():
     prompt = build_system_prompt(["Tokyo / Kanto"])
     assert "lat" in prompt
     assert "lon" in prompt
+
+
+def test_build_system_prompt_pushes_for_approximate_estimate_over_hedging():
+    # Regression: an earlier wording ("if you're not confident, leave lat/lon
+    # null") let the model hedge even for well-known named places (e.g.
+    # "Asakusa"). The prompt must now push for a best-effort approximate
+    # estimate whenever a recognizable place is named in the text.
+    prompt = build_system_prompt(["Tokyo / Kanto"])
+    assert "approssimativa" in prompt
+    assert "quartiere" in prompt
+    assert "Asakusa" in prompt
