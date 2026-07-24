@@ -1,14 +1,16 @@
 import re
 import unicodedata
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Category, ReelType
+from app.web import templates
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
+ui_router = APIRouter(prefix="/ui/categories", tags=["categories-ui"])
 
 
 def slugify(label: str) -> str:
@@ -85,3 +87,51 @@ def update_category(key: str, payload: CategoryPayload, session: Session = Depen
 @router.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_category(key: str, session: Session = Depends(get_session)):
     _delete_category(session, key)
+
+
+def _category_list_context(session: Session) -> dict:
+    return {"categories": session.exec(select(Category).order_by(Category.created_at)).all()}
+
+
+@ui_router.get("")
+def ui_list_categories(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))
+
+
+@ui_router.post("")
+def ui_create_category(
+    request: Request,
+    label: str = Form(...),
+    icon: str = Form(...),
+    color: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    _create_category(session, label, icon, color)
+    return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))
+
+
+@ui_router.get("/{key}/edit")
+def ui_edit_category_form(request: Request, key: str, session: Session = Depends(get_session)):
+    category = session.get(Category, key)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return templates.TemplateResponse(request, "partials/category_edit_row.html", {"category": category})
+
+
+@ui_router.post("/{key}")
+def ui_update_category(
+    request: Request,
+    key: str,
+    label: str = Form(...),
+    icon: str = Form(...),
+    color: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    _update_category(session, key, label, icon, color)
+    return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))
+
+
+@ui_router.delete("/{key}")
+def ui_delete_category(request: Request, key: str, session: Session = Depends(get_session)):
+    _delete_category(session, key)
+    return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))

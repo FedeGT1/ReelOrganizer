@@ -38,6 +38,7 @@ app.include_router(reels.ui_router)
 app.include_router(ai_categorize.router)
 app.include_router(ai_categorize.ui_router)
 app.include_router(categories.router)
+app.include_router(categories.ui_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -45,6 +46,11 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/")
 async def index(request: Request):
     return templates.TemplateResponse(request, "index.html", {})
+
+
+@app.get("/categories")
+async def categories_page(request: Request):
+    return templates.TemplateResponse(request, "categories.html", {})
 
 
 @app.get("/health")

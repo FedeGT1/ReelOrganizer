@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<section id="category-list" hx-get="/ui/categories" hx-trigger="load" hx-swap="innerHTML">
+    <p>Caricamento categorie...</p>
+</section>
+{% endblock %}

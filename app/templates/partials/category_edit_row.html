@@ -1,0 +1,9 @@
+<li id="category-{{ category.key }}">
+    <form hx-post="/ui/categories/{{ category.key }}" hx-target="#category-list" hx-swap="innerHTML">
+        <input type="text" name="label" value="{{ category.label }}" required>
+        <input type="text" name="icon" value="{{ category.icon }}" required>
+        <input type="color" name="color" value="{{ category.color }}" required>
+        <button type="submit">Salva</button>
+        <button type="button" hx-get="/ui/categories" hx-target="#category-list" hx-swap="innerHTML">Annulla</button>
+    </form>
+</li>
