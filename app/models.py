@@ -26,9 +26,17 @@ class Reel(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Category(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    label: str
+    icon: str
+    color: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class ReelType(SQLModel, table=True):
     reel_id: str = Field(foreign_key="reel.id", primary_key=True)
-    type: str = Field(primary_key=True)
+    type: str = Field(foreign_key="category.key", primary_key=True)
 
 
 class AiSession(SQLModel, table=True):

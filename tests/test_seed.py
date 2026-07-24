@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Session, create_engine, select
 
-from app.models import Location
+from app.models import Category, Location
 from app.seed import seed_if_empty
 
 
@@ -28,3 +28,29 @@ def test_seed_if_empty_is_idempotent():
         seed_if_empty(session)
         all_locations = session.exec(select(Location)).all()
         assert len(all_locations) == 19
+
+
+def test_seed_if_empty_creates_default_categories():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_if_empty(session)
+
+        categories = session.exec(select(Category)).all()
+        assert {c.key for c in categories} == {
+            "food", "culture", "nature", "shopping", "stay", "transport", "experience",
+        }
+        food = next(c for c in categories if c.key == "food")
+        assert food.label == "Cibo"
+        assert food.icon == "🍜"
+        assert food.color == "#A63A2E"
+
+
+def test_seed_if_empty_categories_are_idempotent():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_if_empty(session)
+        seed_if_empty(session)
+        categories = session.exec(select(Category)).all()
+        assert len(categories) == 7

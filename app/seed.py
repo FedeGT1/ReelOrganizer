@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from app.models import Location
+from app.models import Category, Location
 
 HUBS = [
     ("Sapporo / Hokkaido", 43.0621, 141.3544),
@@ -27,21 +27,33 @@ SATELLITES = [
     ("Dazaifu", "Fukuoka / Kyushu", 33.5147, 130.5350),
 ]
 
+DEFAULT_CATEGORIES = [
+    ("food", "Cibo", "🍜", "#A63A2E"),
+    ("culture", "Cultura", "⛩️", "#35496B"),
+    ("nature", "Natura", "🌸", "#7A8F5E"),
+    ("shopping", "Shopping", "🛍️", "#B08D57"),
+    ("stay", "Alloggio", "🏨", "#5B4636"),
+    ("transport", "Trasporti", "🚄", "#1F2C47"),
+    ("experience", "Esperienza", "🎡", "#8E5572"),
+]
+
 
 def seed_if_empty(session: Session) -> None:
-    existing = session.exec(select(Location)).first()
-    if existing is not None:
-        return
+    if session.exec(select(Location)).first() is None:
+        hub_by_name: dict[str, Location] = {}
+        for name, lat, lon in HUBS:
+            hub = Location(name=name, is_hub=True, lat=lat, lon=lon)
+            session.add(hub)
+            session.flush()
+            hub_by_name[name] = hub
 
-    hub_by_name: dict[str, Location] = {}
-    for name, lat, lon in HUBS:
-        hub = Location(name=name, is_hub=True, lat=lat, lon=lon)
-        session.add(hub)
-        session.flush()
-        hub_by_name[name] = hub
+        for name, hub_name, lat, lon in SATELLITES:
+            parent = hub_by_name[hub_name]
+            session.add(Location(name=name, is_hub=False, parent_id=parent.id, lat=lat, lon=lon))
 
-    for name, hub_name, lat, lon in SATELLITES:
-        parent = hub_by_name[hub_name]
-        session.add(Location(name=name, is_hub=False, parent_id=parent.id, lat=lat, lon=lon))
+        session.commit()
 
-    session.commit()
+    if session.exec(select(Category)).first() is None:
+        for key, label, icon, color in DEFAULT_CATEGORIES:
+            session.add(Category(key=key, label=label, icon=icon, color=color))
+        session.commit()

@@ -70,3 +70,19 @@ def test_create_ai_session_with_messages():
         ).all()
         assert len(messages) == 1
         assert messages[0].role == "user"
+
+
+def test_create_category():
+    from app.models import Category
+
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        category = Category(key="food", label="Cibo", icon="🍜", color="#A63A2E")
+        session.add(category)
+        session.commit()
+        session.refresh(category)
+
+        assert category.key == "food"
+        assert category.label == "Cibo"
+        assert isinstance(category.created_at, datetime)
