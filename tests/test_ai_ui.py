@@ -19,7 +19,7 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Ichiran Ramen",
             "near_hub": "Tokyo / Kanto",
             "types": ["food"],
@@ -44,7 +44,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "?",
             "near_hub": None,
             "types": [],
@@ -66,7 +66,7 @@ def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Nikko",
             "near_hub": None,
             "types": ["nature"],
@@ -101,7 +101,7 @@ def test_ui_ai_message_forces_question_when_new_location_missing_coordinates(cli
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Mystery Alley",
             "near_hub": None,
             "types": ["food"],
@@ -129,7 +129,7 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Ichiran Ramen",
             "near_hub": "Tokyo / Kanto",
             "types": ["food"],
@@ -287,7 +287,7 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Sapporo Ramen Alley",
             "near_hub": None,
             "types": ["food"],
@@ -324,7 +324,7 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
 
 
 def test_ui_ai_message_shows_friendly_error_when_ai_call_fails(client, session, monkeypatch):
-    def boom(hub_names, messages):
+    def boom(hub_names, categories, messages):
         raise anthropic.AnthropicError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)

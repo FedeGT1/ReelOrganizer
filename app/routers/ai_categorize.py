@@ -12,8 +12,8 @@ from sqlmodel import Session, select
 from app.ai import client as ai_client
 from app.db import get_session
 from app.models import AiMessage, AiSession, Location, Reel, ReelType
+from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.reels import _is_safe_link, _reel_list_context
-from app.taxonomy import TAXONOMY, VALID_TYPES
 from app.web import templates
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -122,8 +122,11 @@ def _run_turn(
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
 
+    taxonomy = get_taxonomy(session)
+    category_labels = {key: info["label"] for key, info in taxonomy.items()}
+
     try:
-        result = ai_client.categorize(hub_names, api_messages)
+        result = ai_client.categorize(hub_names, category_labels, api_messages)
     except anthropic.AnthropicError:
         logger.exception("session=%s Anthropic call failed", ai_session.id)
         result = {
@@ -139,7 +142,8 @@ def _run_turn(
 
     logger.debug("session=%s parsed model result=%s", ai_session.id, result)
 
-    result["types"] = [t for t in result.get("types", []) if t in VALID_TYPES]
+    valid_type_keys = get_valid_type_keys(session)
+    result["types"] = [t for t in result.get("types", []) if t in valid_type_keys]
 
     matched_location_id = _find_matching_location(session, result["place_name"])
     logger.debug("session=%s matched_location_id=%s", ai_session.id, matched_location_id)
@@ -214,7 +218,7 @@ def _build_ai_chat_context(
         "latest_result": latest_result,
         "can_confirm": can_confirm,
         "matched_location_id": matched_location_id or "",
-        "taxonomy": TAXONOMY,
+        "taxonomy": get_taxonomy(session),
         "notice": notice,
     }
 
@@ -300,8 +304,9 @@ def ui_ai_confirm(
     session.commit()
     session.refresh(reel)
 
+    valid_type_keys = get_valid_type_keys(session)
     for type_value in types:
-        if type_value in VALID_TYPES:
+        if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
 

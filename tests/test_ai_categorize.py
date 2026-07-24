@@ -3,16 +3,17 @@ import json
 import anthropic
 
 from app.ai import client as ai_client
-from app.models import Location
+from app.models import Category, Location
 from app.routers.ai_categorize import _run_turn
 
 
 def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
     session.commit()
 
-    def fake_categorize(hub_names, messages):
+    def fake_categorize(hub_names, categories, messages):
         return {
             "place_name": "Ichiran Ramen",
             "near_hub": "Tokyo / Kanto",
@@ -34,7 +35,7 @@ def test_categorize_creates_session_and_returns_proposal(client, session, monkey
 
 
 def test_categorize_continues_existing_session(client, session, monkeypatch):
-    def fake_categorize(hub_names, messages):
+    def fake_categorize(hub_names, categories, messages):
         # Full session history: first user turn, first assistant (question)
         # turn, second user turn — never windowed (spec §5.3: the model must
         # see the entire conversation, not just the last exchange).
@@ -48,7 +49,7 @@ def test_categorize_continues_existing_session(client, session, monkeypatch):
             "question": None,
         }
 
-    monkeypatch.setattr(ai_client, "categorize", lambda hub_names, messages: {
+    monkeypatch.setattr(ai_client, "categorize", lambda hub_names, categories, messages: {
         "place_name": "?",
         "near_hub": None,
         "types": [],
@@ -78,7 +79,7 @@ def test_categorize_matches_existing_location_case_insensitive(client, session, 
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "nikko",
             "near_hub": "Tokyo / Kanto",
             "types": ["nature"],
@@ -107,7 +108,7 @@ def test_categorize_forces_question_when_new_location_missing_coordinates(client
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Mystery Alley",
             "near_hub": None,
             "types": ["food"],
@@ -126,7 +127,7 @@ def test_categorize_forces_question_when_new_location_missing_coordinates(client
 
 
 def test_categorize_returns_friendly_question_when_ai_call_fails(client, session, monkeypatch):
-    def boom(hub_names, messages):
+    def boom(hub_names, categories, messages):
         raise anthropic.AnthropicError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
@@ -145,7 +146,7 @@ def test_empty_place_name_does_not_spuriously_match_location(client, session, mo
     session.commit()
     session.refresh(location)
 
-    def boom(hub_names, messages):
+    def boom(hub_names, categories, messages):
         raise anthropic.AnthropicError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
@@ -163,7 +164,7 @@ def test_assistant_history_sent_to_model_is_natural_language_not_json(session, m
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "?",
             "near_hub": None,
             "types": [],
@@ -178,7 +179,7 @@ def test_assistant_history_sent_to_model_is_natural_language_not_json(session, m
 
     captured = {}
 
-    def fake_categorize(hub_names, messages):
+    def fake_categorize(hub_names, categories, messages):
         captured["messages"] = messages
         return {
             "place_name": "Nikko",
@@ -208,7 +209,7 @@ def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypa
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Ichiran Ramen",
             "near_hub": "Tokyo / Kanto",
             "types": ["food"],
@@ -223,7 +224,7 @@ def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypa
 
     captured = {}
 
-    def fake_categorize(hub_names, messages):
+    def fake_categorize(hub_names, categories, messages):
         captured["messages"] = messages
         return {
             "place_name": "Ichiran Ramen",
@@ -252,7 +253,7 @@ def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failu
     monkeypatch.setattr(
         ai_client,
         "categorize",
-        lambda hub_names, messages: {
+        lambda hub_names, categories, messages: {
             "place_name": "Shinjuku",
             "near_hub": "Tokyo / Kanto",
             "types": ["food"],
