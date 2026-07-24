@@ -119,3 +119,11 @@ def test_delete_category_removes_only_matching_reel_types(client, session):
 def test_delete_unknown_category_returns_404(client):
     response = client.delete("/api/categories/does-not-exist")
     assert response.status_code == 404
+
+
+def test_create_category_rejects_invalid_color_format(client):
+    response = client.post(
+        "/api/categories",
+        json={"label": "Test", "icon": "🎉", "color": "not-a-color"},
+    )
+    assert response.status_code == 422

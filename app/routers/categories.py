@@ -2,7 +2,7 @@ import re
 import unicodedata
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import Session, select
 
 from app.db import get_session
@@ -31,6 +31,13 @@ class CategoryPayload(BaseModel):
     label: str
     icon: str
     color: str
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, value: str) -> str:
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise ValueError("color must be a hex code like #A63A2E")
+        return value
 
 
 def _create_category(session: Session, label: str, icon: str, color: str) -> Category:
