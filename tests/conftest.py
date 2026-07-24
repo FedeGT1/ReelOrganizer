@@ -1,14 +1,11 @@
 import pytest
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool
 from fastapi.testclient import TestClient
 
-from app.models import Category
-from app.seed import DEFAULT_CATEGORIES
-
 
 @pytest.fixture(name="session")
-def session_fixture(request):
+def session_fixture():
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -16,14 +13,6 @@ def session_fixture(request):
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        # Seed only categories for tests that use _reel_list_context (ai tests).
-        # This allows ai tests to access the taxonomy without breaking tests
-        # that expect an empty database (like test_categories_api).
-        if "ai" in request.node.name:
-            if session.exec(select(Category)).first() is None:
-                for key, label, icon, color in DEFAULT_CATEGORIES:
-                    session.add(Category(key=key, label=label, icon=icon, color=color))
-                session.commit()
         yield session
 
 
