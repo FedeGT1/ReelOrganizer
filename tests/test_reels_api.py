@@ -1,6 +1,6 @@
 from sqlmodel import select
 
-from app.models import Location, Reel, ReelType
+from app.models import Category, Location, Reel, ReelType
 
 
 def test_list_reels_with_types(client, session):
@@ -68,6 +68,7 @@ def test_filter_reels_by_type(client, session):
 def test_create_reel_filters_invalid_types(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
     session.commit()
     session.refresh(hub)
 
@@ -89,6 +90,7 @@ def test_create_reel_filters_invalid_types(client, session):
 def test_delete_reel(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
     session.commit()
     session.refresh(hub)
 

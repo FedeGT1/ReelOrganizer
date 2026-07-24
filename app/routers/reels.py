@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
-from app.taxonomy import TAXONOMY, VALID_TYPES
+from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
@@ -66,8 +66,9 @@ def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(reel)
 
+    valid_type_keys = get_valid_type_keys(session)
     for type_value in payload.types:
-        if type_value in VALID_TYPES:
+        if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
 
@@ -97,7 +98,7 @@ def _reel_list_context(session: Session, location_id: Optional[str] = None) -> d
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
         "locations": locations,
-        "taxonomy": TAXONOMY,
+        "taxonomy": get_taxonomy(session),
         "filtered_location": filtered_location,
     }
 
@@ -128,8 +129,9 @@ def ui_create_reel(
     session.add(reel)
     session.commit()
     session.refresh(reel)
+    valid_type_keys = get_valid_type_keys(session)
     for type_value in types:
-        if type_value in VALID_TYPES:
+        if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
     return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
