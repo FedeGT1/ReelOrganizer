@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
 
 from app.db import create_db_and_tables, engine
-from app.routers import ai_categorize, locations, map as map_router, reels
+from app.routers import ai_categorize, categories, locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -37,6 +37,7 @@ app.include_router(map_router.ui_router)
 app.include_router(reels.ui_router)
 app.include_router(ai_categorize.router)
 app.include_router(ai_categorize.ui_router)
+app.include_router(categories.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
