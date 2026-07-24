@@ -1,4 +1,5 @@
 from app.ai.prompts import RESPONSE_SCHEMA, build_system_prompt
+from app.taxonomy import VALID_TYPES
 
 
 def test_response_schema_has_required_fields():
@@ -24,6 +25,22 @@ def test_build_system_prompt_mentions_lat_lon_estimation():
     prompt = build_system_prompt(["Tokyo / Kanto"])
     assert "lat" in prompt
     assert "lon" in prompt
+
+
+def test_response_schema_types_items_are_constrained_to_the_taxonomy():
+    # Regression: the model returned invented category names ("neighborhood",
+    # "shopping district", ...) that never matched VALID_TYPES, so every
+    # reel got saved with no type flags at all. The schema must constrain
+    # each array item to exactly the app's taxonomy keys.
+    items_schema = RESPONSE_SCHEMA["properties"]["types"]["items"]
+    assert items_schema["type"] == "string"
+    assert set(items_schema["enum"]) == VALID_TYPES
+
+
+def test_build_system_prompt_lists_every_valid_type():
+    prompt = build_system_prompt(["Tokyo / Kanto"])
+    for key in VALID_TYPES:
+        assert key in prompt
 
 
 def test_build_system_prompt_pushes_for_approximate_estimate_over_hedging():
