@@ -278,6 +278,8 @@ def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
     assert "Conferma e salva" not in response.text
     assert 'hx-swap-oob="innerHTML:#reel-list"' in response.text
     assert "https://instagram.com/reel/abc" in response.text
+    assert 'hx-swap-oob="innerHTML:#map-container">' in response.text
+    assert response.headers["hx-trigger"] == "reel-saved"
 
 
 def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
