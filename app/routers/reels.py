@@ -18,6 +18,13 @@ def _is_safe_link(link: str) -> bool:
     return urlparse(link).scheme.lower() in ("http", "https")
 
 
+def _location_and_satellite_ids(session: Session, location_id: str) -> list[str]:
+    satellite_ids = session.exec(
+        select(Location.id).where(Location.parent_id == location_id)
+    ).all()
+    return [location_id, *satellite_ids]
+
+
 class ReelCreate(BaseModel):
     link: str
     location_id: str
@@ -45,7 +52,7 @@ def list_reels(
 ):
     query = select(Reel)
     if location_id is not None:
-        query = query.where(Reel.location_id == location_id)
+        query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
 
     if type is not None:
@@ -91,7 +98,7 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
 def _reel_list_context(session: Session, location_id: Optional[str] = None) -> dict:
     query = select(Reel)
     if location_id is not None:
-        query = query.where(Reel.location_id == location_id)
+        query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
     locations = session.exec(select(Location)).all()
     filtered_location = session.get(Location, location_id) if location_id else None

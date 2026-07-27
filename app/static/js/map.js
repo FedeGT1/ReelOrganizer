@@ -10,10 +10,13 @@ function initReelMap(containerId, dataId) {
 
     const map = L.map(containerId).setView([36.5, 138.0], 5);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 18,
-    }).addTo(map);
+    L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+            attribution: "&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ",
+            maxZoom: 18,
+        }
+    ).addTo(map);
 
     locations.forEach((loc) => {
         const classes = ["station", loc.is_hub ? "hub" : "satellite"];
@@ -31,7 +34,13 @@ function initReelMap(containerId, dataId) {
             className: "station-label",
         });
 
-        marker.on("click", () => {
+        const hitArea = L.circleMarker([loc.lat, loc.lon], {
+            radius: loc.is_hub ? 22 : 16,
+            opacity: 0,
+            fillOpacity: 0,
+        }).addTo(map);
+
+        hitArea.on("click", () => {
             htmx.ajax("GET", "/ui/reels?location_id=" + loc.id, {
                 target: "#reel-list",
                 swap: "innerHTML",

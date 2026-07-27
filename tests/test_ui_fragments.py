@@ -187,6 +187,29 @@ def test_ui_reels_get_filters_by_location_id(client, session):
     assert "Mostra tutti" in response.text
 
 
+def test_ui_reels_get_by_hub_location_id_includes_satellite_reels(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+
+    session.add(Reel(link="https://instagram.com/reel/hub", location_id=hub.id, note="Hub spot"))
+    session.add(
+        Reel(link="https://instagram.com/reel/satellite", location_id=satellite.id, note="Satellite spot")
+    )
+    session.commit()
+
+    response = client.get(f"/ui/reels?location_id={hub.id}")
+    assert response.status_code == 200
+    assert "Hub spot" in response.text
+    assert "Satellite spot" in response.text
+
+
 def test_ui_reels_get_without_filter_shows_no_banner(client):
     response = client.get("/ui/reels")
     assert response.status_code == 200
