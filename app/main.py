@@ -8,6 +8,7 @@ from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import require_env
+from app.auth_middleware import AuthMiddleware
 from app.db import create_db_and_tables, engine
 from app.routers import ai_categorize, auth, categories, locations, map as map_router, reels
 from app.seed import seed_if_empty
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Japan Reel Organizer", lifespan=lifespan)
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=_session_secret_key,

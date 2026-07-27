@@ -22,10 +22,16 @@ def session_fixture():
         yield session
 
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    # Imported lazily: app.main doesn't exist until Task 7. Tasks 2-6 use
-    # only the `session` fixture, so collection must not require app.main.
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    from app.auth import rate_limiter
+
+    rate_limiter.clear_all()
+    yield
+    rate_limiter.clear_all()
+
+
+def _build_client(session: Session) -> TestClient:
     from app.db import get_session
     from app.main import app
 
@@ -33,6 +39,23 @@ def client_fixture(session: Session):
         return session
 
     app.dependency_overrides[get_session] = get_session_override
-    client = TestClient(app)
+    return TestClient(app, base_url="https://testserver")
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session):
+    client = _build_client(session)
+    client.post("/login", data={"username": "testuser", "password": "testpass"})
     yield client
+    from app.main import app
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="anon_client")
+def anon_client_fixture(session: Session):
+    client = _build_client(session)
+    yield client
+    from app.main import app
+
     app.dependency_overrides.clear()
