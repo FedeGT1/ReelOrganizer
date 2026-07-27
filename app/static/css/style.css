@@ -36,7 +36,7 @@ main {
 
 .chip {
     display: inline-block;
-    padding: 0.25rem 0.6rem;
+    padding: 0.4rem 0.8rem;
     margin: 0.15rem;
     border: 1px solid var(--color-ink-medium);
     border-radius: 999px;
@@ -87,7 +87,8 @@ button, .reel-list button {
     color: var(--color-paper);
     border: none;
     border-radius: 4px;
-    padding: 0.4rem 0.8rem;
+    padding: 0.5rem 1rem;
+    min-height: 44px;
     cursor: pointer;
 }
 
@@ -170,4 +171,91 @@ button, .reel-list button {
 
 .login-form .error {
     color: var(--color-hanko);
+}
+
+dialog#add-reel-dialog {
+    border: none;
+    padding: 1rem;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+}
+
+dialog#add-reel-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 700px) {
+    dialog#add-reel-dialog {
+        width: 90vw;
+        max-width: 600px;
+        height: auto;
+        max-height: 85vh;
+        margin: auto;
+        border-radius: 8px;
+    }
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    min-height: 44px;
+    cursor: pointer;
+    color: var(--color-ink);
+}
+
+.tab-btn.active {
+    background: var(--color-ink-medium);
+    color: var(--color-paper);
+}
+
+.btn-add-reel {
+    display: block;
+    width: 100%;
+    margin: 0.75rem 0;
+    min-height: 48px;
+}
+
+.type-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+
+.category-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+    max-width: 320px;
+}
+
+.reel-list li a {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
