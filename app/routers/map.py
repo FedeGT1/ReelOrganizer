@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -78,16 +79,11 @@ def visible_location_ids(
     return qualifying | anchor_hubs, anchor_hubs
 
 
-@ui_router.get("/map")
-def ui_map(
-    request: Request,
-    type: str = None,
-    session: Session = Depends(get_session),
-):
+def render_map_html(session: Session, type_value: str | None = None) -> str:
     locations = compute_map(session)
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
-    matching_location_ids = locations_with_type(session, type) if type else set()
-    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type)
+    matching_location_ids = locations_with_type(session, type_value) if type_value else set()
+    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type_value)
 
     map_locations = []
     for loc in locations:
@@ -103,7 +99,7 @@ def ui_map(
             "lat": loc["lat"],
             "lon": loc["lon"],
             "anchor": loc["id"] in anchor_hub_ids,
-            "dimmed": bool(type) and loc["id"] not in matching_location_ids,
+            "dimmed": bool(type_value) and loc["id"] not in matching_location_ids,
             "parent_lat": None,
             "parent_lon": None,
         }
@@ -116,12 +112,17 @@ def ui_map(
 
     map_locations_json = json.dumps(map_locations).replace("<", "\\u003c")
 
-    return templates.TemplateResponse(
-        request,
-        "partials/map.html",
-        {
-            "map_locations_json": map_locations_json,
-            "active_type": type,
-            "taxonomy": get_taxonomy(session),
-        },
+    return templates.get_template("partials/map.html").render(
+        map_locations_json=map_locations_json,
+        active_type=type_value,
+        taxonomy=get_taxonomy(session),
     )
+
+
+@ui_router.get("/map")
+def ui_map(
+    request: Request,
+    type: str = None,
+    session: Session = Depends(get_session),
+):
+    return HTMLResponse(render_map_html(session, type))
