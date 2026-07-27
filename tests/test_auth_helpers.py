@@ -43,6 +43,12 @@ def test_verify_credentials_wrong_username(monkeypatch):
     assert verify_credentials("bob", "s3cret") is False
 
 
+def test_verify_credentials_non_ascii_username_returns_false(monkeypatch):
+    monkeypatch.setenv("AUTH_USERNAME", "alice")
+    monkeypatch.setenv("AUTH_PASSWORD", "s3cret")
+    assert verify_credentials("café", "s3cret") is False
+
+
 def test_get_client_ip_uses_x_forwarded_for():
     from starlette.requests import Request as StarletteRequest
 

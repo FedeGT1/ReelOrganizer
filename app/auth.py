@@ -24,8 +24,8 @@ def get_client_ip(request: Request) -> str:
 def verify_credentials(username: str, password: str) -> bool:
     expected_username = os.environ.get("AUTH_USERNAME", "")
     expected_password = os.environ.get("AUTH_PASSWORD", "")
-    username_ok = secrets.compare_digest(username, expected_username)
-    password_ok = secrets.compare_digest(password, expected_password)
+    username_ok = secrets.compare_digest(username.encode("utf-8"), expected_username.encode("utf-8"))
+    password_ok = secrets.compare_digest(password.encode("utf-8"), expected_password.encode("utf-8"))
     return username_ok and password_ok
 
 

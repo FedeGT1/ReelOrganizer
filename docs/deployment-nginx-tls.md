@@ -26,7 +26,7 @@ server {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
     }
 }
 EOF
@@ -36,9 +36,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+Unlike the more common `$proxy_add_x_forwarded_for`, this uses `$remote_addr`
+directly so nginx always overwrites the header rather than appending to it —
+the app trusts this header for its login rate-limiter, so it must not be
+spoofable by a client-supplied `X-Forwarded-For` value.
+
 At this point `http://reels.yourdomain.com` should already proxy to the app
 (over plain HTTP) — confirm with `curl -I http://reels.yourdomain.com/health`
-before moving on to TLS.
+before moving on to TLS. Login won't work yet at this point (the session
+cookie requires HTTPS) — that's expected until step 3 adds TLS.
 
 ## 3. Get a TLS certificate with certbot
 
