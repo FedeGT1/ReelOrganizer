@@ -2,12 +2,14 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
 from app.routers.categories import get_taxonomy, get_valid_type_keys
+from app.routers.map import render_map_html
 from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
@@ -151,7 +153,22 @@ def ui_create_reel(
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
-    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
+
+    form_html = templates.get_template("partials/reel_add_form.html").render(
+        _reel_add_form_context(session)
+    )
+    reel_list_html = templates.get_template("partials/reel_list.html").render(
+        _reel_list_context(session)
+    )
+    map_html = render_map_html(session)
+
+    response = HTMLResponse(
+        form_html
+        + f'<div hx-swap-oob="innerHTML:#reel-list">{reel_list_html}</div>'
+        + f'<div hx-swap-oob="innerHTML:#map-container">{map_html}</div>'
+    )
+    response.headers["HX-Trigger"] = "reel-saved"
+    return response
 
 
 @ui_router.delete("/reels/{reel_id}")

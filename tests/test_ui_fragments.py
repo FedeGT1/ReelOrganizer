@@ -134,8 +134,8 @@ def test_ui_reels_add_form_renders_locations_and_categories(client, session):
     assert "Cibo" in response.text
 
 
-def test_ui_reels_post_creates_and_returns_fragment(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_post_resets_form_and_refreshes_list_and_map(client, session):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -145,7 +145,11 @@ def test_ui_reels_post_creates_and_returns_fragment(client, session):
         data={"link": "https://instagram.com/reel/new", "location_id": hub.id, "note": "New one", "types": ["food"]},
     )
     assert response.status_code == 200
+    assert response.headers["hx-trigger"] == "reel-saved"
+    assert '<div hx-swap-oob="innerHTML:#reel-list">' in response.text
     assert "New one" in response.text
+    assert '<div hx-swap-oob="innerHTML:#map-container">' in response.text
+    assert 'id="leaflet-map"' in response.text
 
 
 def test_ui_reels_post_rejects_javascript_link(client, session):
