@@ -100,14 +100,24 @@ def _reel_list_context(session: Session, location_id: Optional[str] = None) -> d
     if location_id is not None:
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
-    locations = session.exec(select(Location)).all()
     filtered_location = session.get(Location, location_id) if location_id else None
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
-        "locations": locations,
         "taxonomy": get_taxonomy(session),
         "filtered_location": filtered_location,
     }
+
+
+def _reel_add_form_context(session: Session) -> dict:
+    return {
+        "locations": session.exec(select(Location)).all(),
+        "taxonomy": get_taxonomy(session),
+    }
+
+
+@ui_router.get("/reels/add-form")
+def ui_reel_add_form(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(request, "partials/reel_add_form.html", _reel_add_form_context(session))
 
 
 @ui_router.get("/reels")

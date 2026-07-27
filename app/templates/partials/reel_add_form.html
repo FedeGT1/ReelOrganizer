@@ -1,0 +1,13 @@
+<form hx-post="/ui/reels" hx-target="#reel-add-form-panel" hx-swap="innerHTML">
+    <input type="url" name="link" placeholder="Link Instagram" required>
+    <select name="location_id" required>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}">{{ loc.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="note" placeholder="Nota (opzionale)">
+    {% for key, info in taxonomy.items() %}
+    <label class="type-option"><input type="checkbox" name="types" value="{{ key }}"> {{ info.icon }} {{ info.label }}</label>
+    {% endfor %}
+    <button type="submit">Aggiungi reel</button>
+</form>

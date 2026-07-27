@@ -3,7 +3,7 @@ import re
 
 from sqlmodel import select
 
-from app.models import Location, Reel, ReelType
+from app.models import Category, Location, Reel, ReelType
 
 
 def _map_data(response_text: str) -> list[dict]:
@@ -107,7 +107,7 @@ def test_ui_map_removes_empty_hub_by_default(client, session):
     assert empty_hub.id not in ids
 
 
-def test_ui_reels_get_renders_list_and_form(client, session):
+def test_ui_reels_get_renders_list_without_form(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
     session.commit()
@@ -118,7 +118,20 @@ def test_ui_reels_get_renders_list_and_form(client, session):
     response = client.get("/ui/reels")
     assert response.status_code == 200
     assert "Nice spot" in response.text
+    assert "<form" not in response.text
+
+
+def test_ui_reels_add_form_renders_locations_and_categories(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+
+    response = client.get("/ui/reels/add-form")
+    assert response.status_code == 200
     assert "<form" in response.text
+    assert "Tokyo / Kanto" in response.text
+    assert "Cibo" in response.text
 
 
 def test_ui_reels_post_creates_and_returns_fragment(client, session):
