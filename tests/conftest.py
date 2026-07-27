@@ -1,3 +1,9 @@
+import os
+
+os.environ["AUTH_USERNAME"] = "testuser"
+os.environ["AUTH_PASSWORD"] = "testpass"
+os.environ["SESSION_SECRET_KEY"] = "test-secret-key-not-for-production"
+
 import pytest
 from sqlmodel import SQLModel, Session, create_engine
 from sqlmodel.pool import StaticPool

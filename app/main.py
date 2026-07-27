@@ -5,9 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.auth import require_env
 from app.db import create_db_and_tables, engine
-from app.routers import ai_categorize, categories, locations, map as map_router, reels
+from app.routers import ai_categorize, auth, categories, locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -20,6 +22,10 @@ if not _ai_logger.handlers:
     _ai_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     _ai_logger.addHandler(_ai_handler)
 
+require_env("AUTH_USERNAME")
+require_env("AUTH_PASSWORD")
+_session_secret_key = require_env("SESSION_SECRET_KEY")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,6 +36,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Japan Reel Organizer", lifespan=lifespan)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_session_secret_key,
+    https_only=True,
+    same_site="lax",
+    max_age=60 * 60 * 24 * 30,
+)
+app.include_router(auth.router)
 app.include_router(locations.router)
 app.include_router(reels.router)
 app.include_router(map_router.router)

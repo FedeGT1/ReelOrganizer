@@ -149,3 +149,25 @@ button, .reel-list button {
         height: 320px;
     }
 }
+
+.login-form {
+    max-width: 320px;
+    margin: 3rem auto;
+}
+
+.login-form label {
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.login-form input {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.4rem;
+    box-sizing: border-box;
+}
+
+.login-form .error {
+    color: var(--color-hanko);
+}
