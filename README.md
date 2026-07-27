@@ -1,6 +1,6 @@
 # Japan Reel Organizer
 
-A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map (Leaflet + OpenStreetMap). A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, asking clarifying questions when it doesn't have enough information, and never saving anything without confirmation.
+A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map (Leaflet + OpenStreetMap). A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, asking clarifying questions when it doesn't have enough information, and never saving anything without confirmation. Login-protected (single fixed user) so it can be safely exposed on the internet for remote access.
 
 ## Stack
 
@@ -13,9 +13,14 @@ A small FastAPI app for organizing Instagram reels saved while planning a trip t
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
+export AUTH_USERNAME=your-username
+export AUTH_PASSWORD=your-strong-password
+export SESSION_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 uv sync
 uv run uvicorn app.main:app --reload
 ```
+
+`AUTH_USERNAME`/`AUTH_PASSWORD` gate every page and API route behind a login form. `SESSION_SECRET_KEY` signs the session cookie — generate it once and keep it stable across restarts (regenerating it invalidates every logged-in session). The app refuses to start if any of the three is missing.
 
 The app is served at `http://localhost:8000`.
 
@@ -36,8 +41,17 @@ docker build -t japan-reel-organizer .
 Run it with a mounted data volume so the SQLite database persists across container restarts:
 
 ```bash
-docker run --rm -d -p 8000:8000 -v "$(pwd)/data:/data" -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" --name reel-organizer japan-reel-organizer
+docker run --rm -d \
+  -p 127.0.0.1:8000:8000 \
+  -v "$(pwd)/data:/data" \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -e AUTH_USERNAME="$AUTH_USERNAME" \
+  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
+  -e SESSION_SECRET_KEY="$SESSION_SECRET_KEY" \
+  --name reel-organizer japan-reel-organizer
 ```
+
+Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) for putting nginx with TLS in front of it so it can be reached remotely.
 
 Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"}`.
 
