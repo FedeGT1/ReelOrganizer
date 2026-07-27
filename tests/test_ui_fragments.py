@@ -20,6 +20,9 @@ def test_ui_map_renders_leaflet_container_and_location_data(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/tokyo", location_id=hub.id))
+    session.commit()
 
     response = client.get("/ui/map")
     assert response.status_code == 200
@@ -44,7 +47,7 @@ def test_ui_map_includes_type_filter_chips(client, session):
     assert 'hx-get="/ui/map?type=food"' in response.text
 
 
-def test_ui_map_dims_stations_without_the_selected_type(client, session):
+def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):
     hub_with_food = Location(name="Has Food", is_hub=True, lat=35.0, lon=135.0)
     hub_without_food = Location(name="No Food", is_hub=True, lat=36.0, lon=136.0)
     session.add(hub_with_food)
@@ -65,12 +68,15 @@ def test_ui_map_dims_stations_without_the_selected_type(client, session):
 
     locations = {loc["id"]: loc for loc in _map_data(response.text)}
     assert locations[hub_with_food.id]["dimmed"] is False
-    assert locations[hub_without_food.id]["dimmed"] is True
+    assert hub_without_food.id not in locations
 
 
 def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session):
     okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809)
     session.add(okinawa)
+    session.commit()
+    session.refresh(okinawa)
+    session.add(Reel(link="https://instagram.com/reel/okinawa", location_id=okinawa.id))
     session.commit()
 
     response = client.get("/ui/map")
@@ -83,7 +89,7 @@ def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session):
     assert locations[0]["lon"] == 127.6809
 
 
-def test_ui_map_hide_empty_removes_empty_hub(client, session):
+def test_ui_map_removes_empty_hub_by_default(client, session):
     empty_hub = Location(name="Empty Hub", is_hub=True, lat=35.0, lon=135.0)
     filled_hub = Location(name="Filled Hub", is_hub=True, lat=36.0, lon=136.0)
     session.add(empty_hub)
@@ -93,20 +99,12 @@ def test_ui_map_hide_empty_removes_empty_hub(client, session):
     session.add(Reel(link="https://instagram.com/reel/d", location_id=filled_hub.id))
     session.commit()
 
-    response = client.get("/ui/map?hide_empty=1")
+    response = client.get("/ui/map")
     assert response.status_code == 200
 
     ids = {loc["id"] for loc in _map_data(response.text)}
     assert filled_hub.id in ids
     assert empty_hub.id not in ids
-
-
-def test_ui_map_toggle_chip_label_reflects_state(client):
-    response = client.get("/ui/map")
-    assert "Nascondi vuoti" in response.text
-
-    response = client.get("/ui/map?hide_empty=1")
-    assert "Mostra tutti" in response.text
 
 
 def test_ui_reels_get_renders_list_and_form(client, session):

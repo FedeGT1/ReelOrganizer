@@ -28,13 +28,6 @@ def test_map_returns_lat_lon_for_hub_and_satellite(client, session):
     assert "map_inset" not in hub_entry
 
 
-def test_visible_location_ids_returns_none_when_hide_empty_is_false(session):
-    locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, None, False)
-    assert visible_ids is None
-    assert anchors == set()
-
-
 def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(session):
     empty_hub = Location(name="Empty", is_hub=True, lat=35.0, lon=135.0)
     filled_hub = Location(name="Filled", is_hub=True, lat=36.0, lon=136.0)
@@ -46,7 +39,7 @@ def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(ses
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, None, True)
+    visible_ids, anchors = visible_location_ids(session, locations, None)
 
     assert filled_hub.id in visible_ids
     assert empty_hub.id not in visible_ids
@@ -66,7 +59,7 @@ def test_visible_location_ids_keeps_empty_hub_as_anchor_for_filled_satellite(ses
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, None, True)
+    visible_ids, anchors = visible_location_ids(session, locations, None)
 
     assert hub.id in visible_ids
     assert satellite.id in visible_ids
@@ -86,6 +79,6 @@ def test_visible_location_ids_uses_type_specific_emptiness_when_type_active(sess
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, _ = visible_location_ids(session, locations, "culture", True)
+    visible_ids, _ = visible_location_ids(session, locations, "culture")
 
     assert hub.id not in visible_ids

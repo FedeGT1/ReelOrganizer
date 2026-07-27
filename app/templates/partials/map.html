@@ -1,18 +1,13 @@
 <div class="map-filters">
     <a href="#" class="chip {{ 'active' if not active_type else '' }}"
-       hx-get="/ui/map{% if hide_empty %}?hide_empty=1{% endif %}" hx-target="#map-container" hx-swap="innerHTML">Tutti</a>
+       hx-get="/ui/map" hx-target="#map-container" hx-swap="innerHTML">Tutti</a>
     {% for key, info in taxonomy.items() %}
     <a href="#" class="chip {{ 'active' if active_type == key else '' }}"
        data-type="{{ key }}" style="border-color: {{ info.color }};"
-       hx-get="/ui/map?type={{ key }}{% if hide_empty %}&hide_empty=1{% endif %}" hx-target="#map-container" hx-swap="innerHTML">
+       hx-get="/ui/map?type={{ key }}" hx-target="#map-container" hx-swap="innerHTML">
         {{ info.icon }} {{ info.label }}
     </a>
     {% endfor %}
-    <a href="#" class="chip toggle {{ 'active' if hide_empty else '' }}"
-       hx-get="/ui/map?{% if active_type %}type={{ active_type }}&{% endif %}hide_empty={{ '0' if hide_empty else '1' }}"
-       hx-target="#map-container" hx-swap="innerHTML">
-        {{ 'Mostra tutti' if hide_empty else 'Nascondi vuoti' }}
-    </a>
 </div>
 <div id="leaflet-map" class="leaflet-map"></div>
 <script type="application/json" id="map-data">{{ map_locations_json | safe }}</script>

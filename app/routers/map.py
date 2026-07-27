@@ -55,15 +55,11 @@ def visible_location_ids(
     session: Session,
     locations: list[dict],
     type_value: str | None,
-    hide_empty: bool,
-) -> tuple[set[str] | None, set[str]]:
-    """(visible_ids, anchor_hub_ids). visible_ids is None when hide_empty is
-    False (no filtering - show everything). anchor_hub_ids is always a
-    subset of visible_ids: hubs that qualify only because a child satellite
-    qualifies, not because they have reels of their own."""
-    if not hide_empty:
-        return None, set()
-
+) -> tuple[set[str], set[str]]:
+    """(visible_ids, anchor_hub_ids). Locations with no qualifying reel are
+    always excluded. anchor_hub_ids is always a subset of visible_ids: hubs
+    that qualify only because a child satellite qualifies, not because they
+    have reels of their own."""
     if type_value:
         qualifying = locations_with_type(session, type_value)
     else:
@@ -86,17 +82,16 @@ def visible_location_ids(
 def ui_map(
     request: Request,
     type: str = None,
-    hide_empty: bool = False,
     session: Session = Depends(get_session),
 ):
     locations = compute_map(session)
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
     matching_location_ids = locations_with_type(session, type) if type else set()
-    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type, hide_empty)
+    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type)
 
     map_locations = []
     for loc in locations:
-        if visible_ids is not None and loc["id"] not in visible_ids:
+        if loc["id"] not in visible_ids:
             continue
         if loc["lat"] is None or loc["lon"] is None:
             continue
@@ -128,6 +123,5 @@ def ui_map(
             "map_locations_json": map_locations_json,
             "active_type": type,
             "taxonomy": get_taxonomy(session),
-            "hide_empty": hide_empty,
         },
     )
