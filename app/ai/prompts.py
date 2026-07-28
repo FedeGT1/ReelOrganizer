@@ -16,10 +16,11 @@ def build_response_schema(valid_type_keys: Iterable[str]) -> dict:
             "question": {"type": ["string", "null"]},
             "lat": {"type": ["number", "null"]},
             "lon": {"type": ["number", "null"]},
+            "candidates": {"type": ["array", "null"], "items": {"type": "string"}},
         },
         "required": [
             "place_name", "near_hub", "types", "note", "confidence", "question",
-            "lat", "lon",
+            "lat", "lon", "candidates",
         ],
         "additionalProperties": False,
     }
@@ -36,8 +37,18 @@ def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) ->
         "Se il testo corrisponde chiaramente a un hub esistente o a una localita' vicina, usa near_hub per indicarlo. "
         f"Per 'types' puoi usare esclusivamente queste chiavi esatte (in inglese, non tradurle): {types_list}. "
         "Scegli una o piu' chiavi tra queste che descrivono il contenuto del reel; non inventare altre categorie. "
+        "Se non riesci a capire dalla tua sola conoscenza in che citta' o zona del Giappone si trovi il posto, "
+        "prova prima a cercarlo sul web (per esempio usando il nome del negozio, locale o punto di riferimento "
+        "citato nella didascalia) prima di chiedere chiarimenti all'utente. "
+        "Se la ricerca produce un risultato chiaro e univoco, usalo per determinare il luogo e le coordinate "
+        "esattamente come faresti con la tua conoscenza diretta. "
+        "Se la ricerca produce piu' risultati plausibili e diversi tra loro, valorizza 'candidates' con un elenco "
+        "breve (2-4 voci) di etichette leggibili per ciascuna opzione, per esempio 'Tokyo - Ikebukuro' oppure "
+        "'Osaka - Namba'; in questo caso lascia 'question' a null e usa la tua migliore ipotesi (il primo "
+        "candidato) per gli altri campi, incluse lat e lon. "
         "Se non riesci a capire nemmeno approssimativamente in che citta' o zona del Giappone si trovi il posto, "
-        "valorizza 'question' con una domanda di chiarimento e lascia gli altri campi con la tua migliore ipotesi. "
+        "neanche dopo aver cercato sul web, valorizza 'question' con una domanda di chiarimento e lascia gli altri "
+        "campi con la tua migliore ipotesi; in questo caso lascia 'candidates' a null. "
         "Se il luogo proposto non corrisponde a nessun hub o tappa gia' esistente, valorizza SEMPRE anche lat e lon: "
         "basta una stima approssimativa a livello di quartiere o citta' (in gradi decimali), non serve individuare "
         "il punto esatto -- la mappa e' schematica, non geograficamente precisa. Usa la tua conoscenza generale della "

@@ -16,9 +16,17 @@ def test_response_schema_has_required_fields():
     schema = build_response_schema(VALID_TYPES)
     assert schema["required"] == [
         "place_name", "near_hub", "types", "note", "confidence", "question",
-        "lat", "lon",
+        "lat", "lon", "candidates",
     ]
     assert schema["additionalProperties"] is False
+
+
+def test_response_schema_candidates_is_nullable_array_of_strings():
+    schema = build_response_schema(VALID_TYPES)
+    assert schema["properties"]["candidates"] == {
+        "type": ["array", "null"],
+        "items": {"type": "string"},
+    }
 
 
 def test_response_schema_lat_lon_are_nullable_numbers():
@@ -66,3 +74,14 @@ def test_build_system_prompt_pushes_for_approximate_estimate_over_hedging():
     assert "approssimativa" in prompt
     assert "quartiere" in prompt
     assert "Asakusa" in prompt
+
+
+def test_build_system_prompt_instructs_web_search_before_asking_user():
+    prompt = build_system_prompt(["Tokyo / Kanto"], CATEGORIES)
+    assert "cerca" in prompt.lower()
+
+
+def test_build_system_prompt_explains_candidates_field_for_ambiguous_search():
+    prompt = build_system_prompt(["Tokyo / Kanto"], CATEGORIES)
+    assert "candidates" in prompt
+    assert "question" in prompt
