@@ -109,3 +109,80 @@ def test_delete_location_with_children_returns_409(client):
     names = {loc["name"] for loc in client.get("/api/locations").json()}
     assert "Hub With Kids" in names
     assert "Satellite Kid" in names
+
+
+def test_update_location_changes_fields(client):
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Old Name", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
+    hub_id = hub_resp.json()["id"]
+
+    response = client.put(
+        f"/api/locations/{hub_id}",
+        json={"name": "New Name", "is_hub": True, "lat": 36.0, "lon": 136.0},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "New Name"
+    assert data["lat"] == 36.0
+    assert data["lon"] == 136.0
+
+
+def test_update_missing_location_returns_404(client):
+    response = client.put(
+        "/api/locations/does-not-exist",
+        json={"name": "X", "is_hub": True, "lat": 0.0, "lon": 0.0},
+    )
+    assert response.status_code == 404
+
+
+def test_update_satellite_without_parent_id_returns_400(client):
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Hub", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
+    hub_id = hub_resp.json()["id"]
+
+    response = client.put(
+        f"/api/locations/{hub_id}",
+        json={"name": "Hub", "is_hub": False, "lat": 35.0, "lon": 135.0},
+    )
+    assert response.status_code == 400
+
+
+def test_update_hub_with_children_to_satellite_returns_409(client):
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Parent Hub", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
+    hub_id = hub_resp.json()["id"]
+    other_hub_resp = client.post(
+        "/api/locations", json={"name": "Other Hub", "is_hub": True, "lat": 30.0, "lon": 130.0}
+    )
+    other_hub_id = other_hub_resp.json()["id"]
+    client.post(
+        "/api/locations",
+        json={"name": "Satellite Kid", "is_hub": False, "parent_id": hub_id, "lat": 35.1, "lon": 135.1},
+    )
+
+    response = client.put(
+        f"/api/locations/{hub_id}",
+        json={"name": "Parent Hub", "is_hub": False, "parent_id": other_hub_id, "lat": 35.0, "lon": 135.0},
+    )
+    assert response.status_code == 409
+
+
+def test_update_hub_ignores_submitted_parent_id(client):
+    hub_resp = client.post(
+        "/api/locations", json={"name": "Hub A", "is_hub": True, "lat": 35.0, "lon": 135.0}
+    )
+    hub_id = hub_resp.json()["id"]
+    other_hub_resp = client.post(
+        "/api/locations", json={"name": "Hub B", "is_hub": True, "lat": 30.0, "lon": 130.0}
+    )
+    other_hub_id = other_hub_resp.json()["id"]
+
+    response = client.put(
+        f"/api/locations/{hub_id}",
+        json={"name": "Hub A", "is_hub": True, "parent_id": other_hub_id, "lat": 35.0, "lon": 135.0},
+    )
+    assert response.status_code == 200
+    assert response.json()["parent_id"] is None
