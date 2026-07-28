@@ -71,8 +71,17 @@ main {
     margin: 0.15rem;
     border: 1px solid var(--color-ink-medium);
     border-radius: 999px;
+    background-color: var(--color-ink-medium);
+    color: var(--color-paper);
     font-size: 0.85rem;
+    text-decoration: none;
     cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.chip:hover,
+.chip.active {
+    filter: brightness(0.85);
 }
 
 .leaflet-map {
