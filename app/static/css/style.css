@@ -28,6 +28,37 @@ header {
     border-bottom: 2px solid var(--color-ink-medium);
 }
 
+header nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+header nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 999px;
+    background: var(--color-ink-medium);
+    color: var(--color-paper);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: filter 0.15s ease;
+}
+
+header nav a:hover {
+    filter: brightness(1.15);
+}
+
+header nav a[href="/logout"] {
+    border-color: var(--color-hanko);
+    background: var(--color-hanko);
+    color: var(--color-paper);
+}
+
 main {
     padding: 1rem 1.5rem 5rem;
     max-width: 900px;
