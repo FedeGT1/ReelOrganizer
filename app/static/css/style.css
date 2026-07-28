@@ -189,29 +189,54 @@ button, .reel-list button {
     color: var(--color-paper);
 }
 
+#ai-chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
 .chat-bubble {
     padding: 0.5rem 0.75rem;
-    margin: 0.35rem 0;
-    border-radius: 8px;
+    border-radius: 14px;
     max-width: 80%;
+    line-height: 1.4;
 }
 
 .chat-bubble.user {
+    align-self: flex-end;
     background: var(--color-sea);
     color: var(--color-ink);
-    margin-left: auto;
+    border-bottom-right-radius: 3px;
 }
 
 .chat-bubble.assistant {
+    align-self: flex-start;
     background: var(--color-paper);
     border: 1px solid var(--color-ink-medium);
+    border-bottom-left-radius: 3px;
+}
+
+.chat-bubble .confidence {
+    display: inline-block;
+    margin-top: 0.25rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.75rem;
+    color: var(--color-ink-medium);
 }
 
 .ai-input-form textarea,
 .ai-input-form input[type="url"] {
     width: 100%;
     margin-bottom: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 6px;
+    background: var(--color-paper);
+    color: var(--color-ink);
     font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
 }
 
 .ai-notice {
