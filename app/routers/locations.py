@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import Location, Reel, ReelType
+from app.models import Location, Reel
 from app.web import templates
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
@@ -24,6 +24,13 @@ class LocationPayload(BaseModel):
 def _has_children(session: Session, location_id: str) -> bool:
     return (
         session.exec(select(Location).where(Location.parent_id == location_id)).first()
+        is not None
+    )
+
+
+def _has_reels(session: Session, location_id: str) -> bool:
+    return (
+        session.exec(select(Reel).where(Reel.location_id == location_id)).first()
         is not None
     )
 
@@ -101,12 +108,11 @@ def _delete_location(session: Session, location_id: str) -> None:
             status_code=409,
             detail="Cannot delete a location that still has child locations; reassign or delete them first",
         )
-    reels = session.exec(select(Reel).where(Reel.location_id == location_id)).all()
-    for reel in reels:
-        types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
-        for t in types:
-            session.delete(t)
-        session.delete(reel)
+    if _has_reels(session, location_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete a location that still has reels attached; move or delete them first",
+        )
     session.delete(location)
     session.commit()
 
@@ -151,9 +157,18 @@ def delete_location(location_id: str, session: Session = Depends(get_session)):
 def _location_list_context(session: Session, error: Optional[str] = None) -> dict:
     locations = session.exec(select(Location)).all()
     counts = _reel_counts(session)
-    hubs_by_id = {loc.id: loc for loc in locations if loc.is_hub}
-    entries = [
-        {
+    hubs = sorted((loc for loc in locations if loc.is_hub), key=lambda loc: loc.name)
+    hubs_by_id = {loc.id: loc for loc in hubs}
+
+    satellites_by_parent: dict = {}
+    for loc in locations:
+        if not loc.is_hub:
+            satellites_by_parent.setdefault(loc.parent_id, []).append(loc)
+    for satellites in satellites_by_parent.values():
+        satellites.sort(key=lambda loc: loc.name)
+
+    def _entry(loc: Location) -> dict:
+        return {
             "id": loc.id,
             "name": loc.name,
             "is_hub": loc.is_hub,
@@ -164,11 +179,23 @@ def _location_list_context(session: Session, error: Optional[str] = None) -> dic
             "lon": loc.lon,
             "reel_count": counts.get(loc.id, 0),
         }
-        for loc in locations
-    ]
+
+    entries = []
+    placed_ids = set()
+    for hub in hubs:
+        entries.append(_entry(hub))
+        placed_ids.add(hub.id)
+        for satellite in satellites_by_parent.get(hub.id, []):
+            entries.append(_entry(satellite))
+            placed_ids.add(satellite.id)
+
+    for loc in locations:
+        if loc.id not in placed_ids:
+            entries.append(_entry(loc))
+
     return {
         "locations": entries,
-        "hubs": [loc for loc in locations if loc.is_hub],
+        "hubs": hubs,
         "error": error,
     }
 
@@ -258,12 +285,14 @@ def ui_delete_location(
     except HTTPException as exc:
         if exc.status_code == 404:
             raise
+        if _has_children(session, location_id):
+            error = "Questa città ha città satellite collegate: riassegnale o eliminale prima."
+        else:
+            error = "Questa città ha reel collegati: spostali o eliminali prima dalla lista reel."
         return templates.TemplateResponse(
             request,
             "partials/location_list.html",
-            _location_list_context(
-                session, error="Questa città ha città satellite collegate: riassegnale o eliminale prima."
-            ),
+            _location_list_context(session, error=error),
         )
     return templates.TemplateResponse(
         request, "partials/location_list.html", _location_list_context(session)

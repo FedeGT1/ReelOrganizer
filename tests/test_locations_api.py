@@ -3,9 +3,9 @@ from sqlmodel import select
 from app.models import Location, Reel, ReelType
 
 
-def test_delete_location_cascades_reels(client, session):
+def test_delete_location_with_reels_returns_409(client, session):
     hub_resp = client.post(
-        "/api/locations", json={"name": "Doomed Hub", "is_hub": True, "lat": 35.0, "lon": 135.0}
+        "/api/locations", json={"name": "Hub With Reels", "is_hub": True, "lat": 35.0, "lon": 135.0}
     )
     hub_id = hub_resp.json()["id"]
 
@@ -17,11 +17,12 @@ def test_delete_location_cascades_reels(client, session):
     session.commit()
 
     response = client.delete(f"/api/locations/{hub_id}")
-    assert response.status_code == 204
+    assert response.status_code == 409
 
-    assert client.get("/api/locations").json() == []
-    assert session.exec(select(Reel).where(Reel.location_id == hub_id)).all() == []
-    assert session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all() == []
+    names = {loc["name"] for loc in client.get("/api/locations").json()}
+    assert "Hub With Reels" in names
+    assert session.exec(select(Reel).where(Reel.location_id == hub_id)).all() != []
+    assert session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all() != []
 
 
 def test_delete_missing_location_returns_404(client):

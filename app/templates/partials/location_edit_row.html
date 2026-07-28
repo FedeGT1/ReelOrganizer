@@ -1,4 +1,4 @@
-<li id="location-{{ location.id }}">
+<li id="location-{{ location.id }}" class="{{ 'satellite-row' if not location.is_hub else '' }}">
     <form hx-post="/ui/locations/{{ location.id }}" hx-target="#location-list" hx-swap="innerHTML">
         <input type="text" name="name" value="{{ location.name }}" required>
         <label><input type="radio" name="is_hub" value="true" {{ 'checked' if location.is_hub else '' }}> È un hub</label>

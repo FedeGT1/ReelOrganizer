@@ -1,4 +1,4 @@
-from app.models import Location
+from app.models import Location, Reel
 
 
 def test_ui_locations_list_renders_existing_locations(client, session):
@@ -84,6 +84,48 @@ def test_ui_locations_delete_removes_it_and_rerenders_list(client, session):
     response = client.delete(f"/ui/locations/{hub.id}")
     assert response.status_code == 200
     assert "Doomed" not in response.text
+
+
+def test_ui_locations_list_groups_satellites_under_their_hub_and_indents_them(client, session):
+    hub_b = Location(name="Zeta Hub", is_hub=True, lat=30.0, lon=130.0)
+    hub_a = Location(name="Alpha Hub", is_hub=True, lat=35.0, lon=135.0)
+    session.add(hub_b)
+    session.add(hub_a)
+    session.commit()
+    session.refresh(hub_b)
+    session.refresh(hub_a)
+
+    satellite_of_b = Location(name="Zeta Satellite", is_hub=False, parent_id=hub_b.id, lat=30.1, lon=130.1)
+    satellite_of_a = Location(name="Alpha Satellite", is_hub=False, parent_id=hub_a.id, lat=35.1, lon=135.1)
+    session.add(satellite_of_b)
+    session.add(satellite_of_a)
+    session.commit()
+
+    response = client.get("/ui/locations")
+    assert response.status_code == 200
+
+    text = response.text
+    positions = {
+        name: text.index(name)
+        for name in ["Alpha Hub", "Alpha Satellite", "Zeta Hub", "Zeta Satellite"]
+    }
+    assert positions["Alpha Hub"] < positions["Alpha Satellite"] < positions["Zeta Hub"]
+    assert positions["Zeta Hub"] < positions["Zeta Satellite"]
+    assert 'class="satellite-row"' in text
+
+
+def test_ui_locations_delete_with_reels_shows_inline_error(client, session):
+    hub = Location(name="Hub With Reels", is_hub=True, lat=35.0, lon=135.0)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.commit()
+
+    response = client.delete(f"/ui/locations/{hub.id}")
+    assert response.status_code == 200
+    assert "Hub With Reels" in response.text
+    assert "reel" in response.text.lower()
 
 
 def test_ui_locations_delete_with_children_shows_inline_error(client, session):

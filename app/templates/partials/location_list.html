@@ -3,7 +3,7 @@
 {% endif %}
 <ul class="location-list">
     {% for loc in locations %}
-    <li id="location-{{ loc.id }}">
+    <li id="location-{{ loc.id }}" class="{{ 'satellite-row' if not loc.is_hub else '' }}">
         <span class="chip">{{ loc.name }}{% if loc.parent_name %} · satellite di {{ loc.parent_name }}{% else %} · hub{% endif %}</span>
         <button hx-get="/ui/locations/{{ loc.id }}/edit" hx-target="#location-{{ loc.id }}" hx-swap="outerHTML">Modifica</button>
         <button hx-delete="/ui/locations/{{ loc.id }}" hx-target="#location-list" hx-swap="innerHTML">Elimina</button>

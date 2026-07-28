@@ -429,6 +429,10 @@ dialog#add-reel-dialog::backdrop {
     margin-left: auto;
 }
 
+.location-list .satellite-row {
+    margin-left: 1.5rem;
+}
+
 .category-form, .location-form {
     display: flex;
     flex-direction: column;
