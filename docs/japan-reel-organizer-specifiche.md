@@ -1,3 +1,5 @@
+> **Documento storico, pre-implementazione.** Questo è il brief originale dato in pasto a Claude Code per iniziare il progetto: descrive l'obiettivo di partenza, non lo stato attuale dell'app. Diversi punti sono superati (es. mappa SVG stile ferrovia → ora mappa Leaflet interattiva; autenticazione elencata come "fuori scope" → ora è una feature centrale). Per lo stato attuale del progetto, vedi [`README.md`](../README.md); per la cronologia delle feature vedi `docs/superpowers/specs/`.
+
 # Specifiche — Japan Reel Organizer (versione Python)
 
 ## 1. Obiettivo

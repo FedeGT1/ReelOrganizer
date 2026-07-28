@@ -1,13 +1,13 @@
 # Japan Reel Organizer
 
-A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map (Leaflet + OpenStreetMap). A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, asking clarifying questions when it doesn't have enough information, and never saving anything without confirmation. Login-protected (single fixed user) so it can be safely exposed on the internet for remote access.
+A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites — both fully manageable from the "Gestisci hub" page) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map. A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, falling back to a web search when its own knowledge isn't enough to place the location, presenting a clickable list to disambiguate if search finds more than one plausible match, and never saving anything without confirmation. Saved reels can be edited afterwards (link, note, location, categories) or deleted. Login-protected (single fixed user) so it can be safely exposed on the internet for remote access.
 
 ## Stack
 
 - **Backend**: Python 3.11+, FastAPI
 - **Persistence**: SQLite via SQLModel (single file, created fresh at startup)
-- **Frontend**: Jinja2 server-rendered templates + HTMX for interactivity, Leaflet + vanilla JS for the interactive map
-- **AI**: Anthropic Python SDK (`claude-haiku-4-5`) with structured JSON output for categorization
+- **Frontend**: Jinja2 server-rendered templates + HTMX for interactivity, Leaflet (Esri World Street Map tiles) + vanilla JS for the interactive map
+- **AI**: Anthropic Python SDK (`claude-haiku-4-5`) with structured JSON output and a web-search tool for categorization
 
 ## Running locally
 
@@ -23,6 +23,8 @@ uv run uvicorn app.main:app --reload
 `AUTH_USERNAME`/`AUTH_PASSWORD` gate every page and API route behind a login form. `SESSION_SECRET_KEY` signs the session cookie — generate it once and keep it stable across restarts (regenerating it invalidates every logged-in session). The app refuses to start if any of the three is missing.
 
 The app is served at `http://localhost:8000`.
+
+**Note:** the session cookie is marked `Secure` (HTTPS-only), so the login form won't actually work over plain `http://localhost:8000` — the browser will refuse to send the cookie back and you'll bounce back to `/login`. This is intentional for the real deployment (see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md), which puts nginx with TLS in front of the app); to exercise login locally you need HTTPS too, e.g. via a local self-signed cert passed to uvicorn (`--ssl-keyfile`/`--ssl-certfile`) or by testing against a real TLS-terminated deployment instead.
 
 ## Running the tests
 
