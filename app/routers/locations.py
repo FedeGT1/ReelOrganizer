@@ -237,7 +237,7 @@ def ui_update_location(
         error = (
             "Un satellite richiede una città padre."
             if exc.status_code == 400
-            else "Questa città ha satelliti o reel collegati: riassegnali o eliminali prima."
+            else "Questa città ha città satellite collegate: riassegnale o eliminale prima."
         )
         return templates.TemplateResponse(
             request,
@@ -262,7 +262,7 @@ def ui_delete_location(
             request,
             "partials/location_list.html",
             _location_list_context(
-                session, error="Questa città ha satelliti o reel collegati: riassegnali o eliminali prima."
+                session, error="Questa città ha città satellite collegate: riassegnale o eliminale prima."
             ),
         )
     return templates.TemplateResponse(

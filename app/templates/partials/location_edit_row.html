@@ -10,8 +10,8 @@
                 {% endfor %}
             </select>
         </label>
-        <input type="number" step="any" name="lat" value="{{ location.lat }}" required>
-        <input type="number" step="any" name="lon" value="{{ location.lon }}" required>
+        <input type="number" step="any" name="lat" value="{{ location.lat if location.lat is not none else '' }}" required>
+        <input type="number" step="any" name="lon" value="{{ location.lon if location.lon is not none else '' }}" required>
         <button type="submit">Salva</button>
         <button type="button" hx-get="/ui/locations" hx-target="#location-list" hx-swap="innerHTML">Annulla</button>
     </form>
