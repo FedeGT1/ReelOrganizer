@@ -143,3 +143,80 @@ def test_create_reel_rejects_javascript_link(client, session):
     )
     assert response.status_code == 400
     assert session.exec(select(Reel)).all() == []
+
+
+def test_update_reel_changes_fields(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    other_hub = Location(name="Other Hub", is_hub=True)
+    session.add(hub)
+    session.add(other_hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#8FA8B2"))
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+
+    create_resp = client.post(
+        "/api/reels",
+        json={
+            "link": "https://instagram.com/reel/old",
+            "location_id": hub.id,
+            "note": "Old note",
+            "types": ["food"],
+        },
+    )
+    reel_id = create_resp.json()["id"]
+
+    response = client.put(
+        f"/api/reels/{reel_id}",
+        json={
+            "link": "https://instagram.com/reel/new",
+            "location_id": other_hub.id,
+            "note": "New note",
+            "types": ["culture"],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["link"] == "https://instagram.com/reel/new"
+    assert data["location_id"] == other_hub.id
+    assert data["note"] == "New note"
+    assert data["types"] == ["culture"]
+
+    # The old "food" ReelType row must actually be gone, not just superseded.
+    remaining_types = session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all()
+    assert [t.type for t in remaining_types] == ["culture"]
+
+
+def test_update_missing_reel_returns_404(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.put(
+        "/api/reels/does-not-exist",
+        json={"link": "https://instagram.com/reel/x", "location_id": hub.id},
+    )
+    assert response.status_code == 404
+
+
+def test_update_reel_rejects_javascript_link(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+    session.refresh(hub)
+
+    create_resp = client.post(
+        "/api/reels",
+        json={"link": "https://instagram.com/reel/keep", "location_id": hub.id, "types": ["food"]},
+    )
+    reel_id = create_resp.json()["id"]
+
+    response = client.put(
+        f"/api/reels/{reel_id}",
+        json={"link": "javascript:alert(1)", "location_id": hub.id},
+    )
+    assert response.status_code == 400
+    assert client.get("/api/reels").json()[0]["link"] == "https://instagram.com/reel/keep"

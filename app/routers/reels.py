@@ -46,6 +46,33 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
     }
 
 
+def _update_reel(
+    session: Session, reel_id: str, link: str, location_id: str, note: Optional[str], types: list[str]
+) -> Reel:
+    reel = session.get(Reel, reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    reel.link = link
+    reel.location_id = location_id
+    reel.note = note
+    session.add(reel)
+
+    for t in session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all():
+        session.delete(t)
+    session.commit()
+
+    valid_type_keys = get_valid_type_keys(session)
+    for type_value in types:
+        if type_value in valid_type_keys:
+            session.add(ReelType(reel_id=reel_id, type=type_value))
+    session.commit()
+    session.refresh(reel)
+    return reel
+
+
 @router.get("")
 def list_reels(
     location_id: Optional[str] = None,
@@ -81,6 +108,12 @@ def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
 
+    return _serialize_reel(session, reel)
+
+
+@router.put("/{reel_id}")
+def update_reel(reel_id: str, payload: ReelCreate, session: Session = Depends(get_session)):
+    reel = _update_reel(session, reel_id, payload.link, payload.location_id, payload.note, payload.types)
     return _serialize_reel(session, reel)
 
 
