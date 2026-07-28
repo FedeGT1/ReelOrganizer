@@ -4,6 +4,8 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+const SATELLITE_HIDE_THRESHOLD_PX = 50;
+
 function initReelMap(containerId, dataId) {
     const dataEl = document.getElementById(dataId);
     const locations = JSON.parse(dataEl.textContent);
@@ -17,6 +19,8 @@ function initReelMap(containerId, dataId) {
             maxZoom: 18,
         }
     ).addTo(map);
+
+    const satelliteEntries = [];
 
     locations.forEach((loc) => {
         const classes = ["station", loc.is_hub ? "hub" : "satellite"];
@@ -48,13 +52,45 @@ function initReelMap(containerId, dataId) {
         });
 
         if (!loc.is_hub && loc.parent_lat !== null && loc.parent_lon !== null) {
-            L.polyline(
+            const line = L.polyline(
                 [
                     [loc.parent_lat, loc.parent_lon],
                     [loc.lat, loc.lon],
                 ],
                 { className: "satellite-line" }
             ).addTo(map);
+
+            satelliteEntries.push({
+                layers: [marker, hitArea, line],
+                ownLatLng: [loc.lat, loc.lon],
+                parentLatLng: [loc.parent_lat, loc.parent_lon],
+                visible: true,
+            });
         }
     });
+
+    function updateSatelliteVisibility() {
+        satelliteEntries.forEach((entry) => {
+            const ownPoint = map.latLngToContainerPoint(entry.ownLatLng);
+            const parentPoint = map.latLngToContainerPoint(entry.parentLatLng);
+            const dx = ownPoint.x - parentPoint.x;
+            const dy = ownPoint.y - parentPoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const shouldBeVisible = distance >= SATELLITE_HIDE_THRESHOLD_PX;
+
+            if (shouldBeVisible !== entry.visible) {
+                entry.layers.forEach((layer) => {
+                    if (shouldBeVisible) {
+                        layer.addTo(map);
+                    } else {
+                        layer.remove();
+                    }
+                });
+                entry.visible = shouldBeVisible;
+            }
+        });
+    }
+
+    updateSatelliteVisibility();
+    map.on("zoomend", updateSatelliteVisibility);
 }
