@@ -14,7 +14,7 @@ from app.db import get_session
 from app.models import AiMessage, AiSession, Location, Reel, ReelType
 from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.map import render_map_html
-from app.routers.reels import _is_safe_link, _reel_list_context
+from app.routers.reels import _is_safe_link, _reel_add_form_context, _reel_list_context
 from app.web import templates
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -325,11 +325,15 @@ def ui_ai_confirm(
         _reel_list_context(session)
     )
     map_html = render_map_html(session)
+    form_html = templates.get_template("partials/reel_add_form.html").render(
+        _reel_add_form_context(session)
+    )
 
     response = HTMLResponse(
         ai_chat_html
         + f'<div hx-swap-oob="innerHTML:#reel-list">{reel_list_html}</div>'
         + f'<div hx-swap-oob="innerHTML:#map-container">{map_html}</div>'
+        + f'<div hx-swap-oob="innerHTML:#reel-add-form-panel">{form_html}</div>'
     )
     response.headers["HX-Trigger"] = "reel-saved"
     return response

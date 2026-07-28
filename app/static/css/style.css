@@ -183,6 +183,8 @@ dialog#add-reel-dialog {
     margin: 0;
     background: var(--color-paper);
     color: var(--color-ink);
+    display: flex;
+    flex-direction: column;
 }
 
 dialog#add-reel-dialog::backdrop {
@@ -206,6 +208,13 @@ dialog#add-reel-dialog::backdrop {
     align-items: center;
     margin-bottom: 0.75rem;
     gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.tab-panel {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .tabs {
