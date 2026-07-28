@@ -126,20 +126,67 @@ button, .reel-list button {
 .reel-list {
     list-style: none;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 .reel-list li {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 10px;
+}
+
+.reel-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.reel-list li a {
+    display: block;
+    width: 100%;
+    color: var(--color-ink);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reel-meta {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--color-ink-medium);
+    flex-wrap: wrap;
 }
 
 .types, .reel-list .note {
     font-family: "JetBrains Mono", monospace;
     font-size: 0.8rem;
     color: var(--color-ink-medium);
+}
+
+.reel-list .btn-delete {
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--color-hanko);
+    border: 1px solid var(--color-hanko);
+    border-radius: 999px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.reel-list .btn-delete:hover {
+    background: var(--color-hanko);
+    color: var(--color-paper);
 }
 
 .chat-bubble {
@@ -299,10 +346,3 @@ dialog#add-reel-dialog::backdrop {
     max-width: 320px;
 }
 
-.reel-list li a {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}

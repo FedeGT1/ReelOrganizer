@@ -7,10 +7,14 @@
 <ul class="reel-list">
     {% for reel in reels %}
     <li>
-        <a href="{{ reel.link }}" target="_blank" rel="noopener noreferrer">{{ reel.link }}</a>
-        {% if reel.note %}<span class="note">{{ reel.note }}</span>{% endif %}
-        <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
-        <button hx-delete="/ui/reels/{{ reel.id }}" hx-target="#reel-list" hx-swap="innerHTML">Elimina</button>
+        <div class="reel-info">
+            <a href="{{ reel.link }}" target="_blank" rel="noopener noreferrer">{{ reel.link }}</a>
+            <div class="reel-meta">
+                {% if reel.note %}<span class="note">{{ reel.note }}</span>{% endif %}
+                <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
+            </div>
+        </div>
+        <button class="btn-delete" hx-delete="/ui/reels/{{ reel.id }}" hx-target="#reel-list" hx-swap="innerHTML" aria-label="Elimina">🗑</button>
     </li>
     {% endfor %}
 </ul>
