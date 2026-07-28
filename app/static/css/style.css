@@ -402,11 +402,39 @@ dialog#add-reel-dialog::backdrop {
     cursor: pointer;
 }
 
+.category-list {
+    list-style: none;
+    padding: 0;
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.category-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.category-list button {
+    flex-shrink: 0;
+    min-height: 36px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.category-list button:first-of-type {
+    margin-left: auto;
+}
+
 .category-form {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     align-items: stretch;
     max-width: 320px;
+    margin: 1.5rem auto 0;
 }
 
