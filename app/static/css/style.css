@@ -442,3 +442,13 @@ dialog#add-reel-dialog::backdrop {
     margin: 1.5rem auto 0;
 }
 
+.candidate-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.candidate-chips form {
+    display: inline;
+}

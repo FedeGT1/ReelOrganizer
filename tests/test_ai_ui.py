@@ -373,3 +373,74 @@ def test_ui_ai_message_does_not_show_confirm_button_when_candidates_present(clie
     )
     assert response.status_code == 200
     assert "Conferma e salva" not in response.text
+
+
+def test_ui_ai_message_renders_candidate_chips(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "medium",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/dbz", "message": "Dragon Ball store"},
+    )
+    assert response.status_code == 200
+    assert "Tokyo - Ikebukuro" in response.text
+    assert "Osaka - Namba" in response.text
+    assert response.text.count('name="message" value="Tokyo - Ikebukuro"') == 1
+
+
+def test_ui_ai_candidate_chip_click_continues_session_and_shows_confirm(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "medium",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+    client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/dbz", "message": "Dragon Ball store"},
+    )
+    session_id = session.exec(select(AiSession)).first().id
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store, Ikebukuro",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+        },
+    )
+    second = client.post(
+        "/ui/ai/message",
+        data={"session_id": session_id, "link": "https://instagram.com/reel/dbz", "message": "Tokyo - Ikebukuro"},
+    )
+    assert second.status_code == 200
+    assert "Conferma e salva" in second.text

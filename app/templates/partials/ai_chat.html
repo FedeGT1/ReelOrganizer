@@ -9,6 +9,8 @@
         <div class="chat-bubble assistant">
             {% if turn.result.question %}
             {{ turn.result.question }}
+            {% elif turn.result.candidates %}
+            Ho trovato più posti possibili: {{ turn.result.candidates | join(', ') }}
             {% else %}
             <strong>{{ turn.result.place_name }}</strong>{% if turn.result.near_hub %} (vicino a {{ turn.result.near_hub }}){% endif %}<br>
             <span class="types">{% for t in turn.result.types %}{{ taxonomy[t].icon }} {{ taxonomy[t].label }} {% endfor %}</span><br>
@@ -19,6 +21,19 @@
         {% endif %}
     {% endfor %}
 </div>
+
+{% if latest_result and latest_result.candidates %}
+<div class="candidate-chips">
+    {% for candidate in latest_result.candidates %}
+    <form hx-post="/ui/ai/message" hx-target="#ai-chat-panel" hx-swap="innerHTML">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="link" value="{{ link }}">
+        <input type="hidden" name="message" value="{{ candidate }}">
+        <button type="submit" class="chip">{{ candidate }}</button>
+    </form>
+    {% endfor %}
+</div>
+{% endif %}
 
 {% if can_confirm %}
 <form hx-post="/ui/ai/confirm" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-confirm-form">
