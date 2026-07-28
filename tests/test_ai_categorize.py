@@ -273,3 +273,113 @@ def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failu
     assert second_result["question"] is None
     assert second_result["lat"] == 35.6762
     assert second_result["lon"] == 139.6503
+
+
+def test_categorize_returns_candidates_without_triggering_missing_coordinates_question(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "Anime merchandise store",
+            "confidence": "medium",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+
+    response = client.post(
+        "/api/ai/categorize", json={"message": "The world's first dedicated Dragon Ball store"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question"] is None
+    assert data["candidates"] == ["Tokyo - Ikebukuro", "Osaka - Namba"]
+
+
+def test_categorize_response_omits_candidates_by_default(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Ichiran Ramen",
+            "near_hub": None,
+            "types": ["food"],
+            "note": "",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.0,
+            "lon": 135.0,
+        },
+    )
+
+    response = client.post("/api/ai/categorize", json={"message": "Ramen"})
+    assert response.json()["candidates"] is None
+
+
+def test_safety_net_does_not_trigger_when_candidates_present(session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "medium",
+            "question": None,
+            "lat": None,
+            "lon": None,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+
+    _, result, _ = _run_turn(session, None, "Dragon Ball store")
+    assert result["question"] is None
+    assert result["candidates"] == ["Tokyo - Ikebukuro", "Osaka - Namba"]
+
+
+def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "medium",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+    ai_session, _, _ = _run_turn(session, None, "Dragon Ball store")
+
+    captured = {}
+
+    def fake_categorize(hub_names, categories, messages):
+        captured["messages"] = messages
+        return {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+    _run_turn(session, ai_session.id, "Tokyo - Ikebukuro")
+
+    assistant_text = [m for m in captured["messages"] if m["role"] == "assistant"][0]["content"]
+    assert "Tokyo - Ikebukuro" in assistant_text
+    assert "Osaka - Namba" in assistant_text
+    assert not assistant_text.strip().startswith("{")

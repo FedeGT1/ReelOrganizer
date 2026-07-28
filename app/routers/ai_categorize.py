@@ -41,6 +41,7 @@ class CategorizeResponse(BaseModel):
     note: str
     confidence: str
     question: Optional[str]
+    candidates: Optional[list[str]] = None
     matched_location_id: Optional[str] = None
 
 
@@ -66,6 +67,8 @@ def _find_hub_by_name(session: Session, name: str) -> Optional[Location]:
 def _assistant_turn_text(result: dict) -> str:
     if result.get("question"):
         return result["question"]
+    if result.get("candidates"):
+        return "Ho trovato piu' posti possibili: " + ", ".join(result["candidates"]) + ". Quale?"
 
     parts = [f"Luogo proposto: {result.get('place_name', '')}."]
     if result.get("near_hub"):
@@ -152,6 +155,7 @@ def _run_turn(
     if (
         matched_location_id is None
         and result.get("question") is None
+        and not result.get("candidates")
         and (result.get("lat") is None or result.get("lon") is None)
     ):
         logger.debug(
@@ -210,7 +214,11 @@ def _build_ai_chat_context(
         if latest_result is not None
         else None
     )
-    can_confirm = latest_result is not None and latest_result.get("question") is None
+    can_confirm = (
+        latest_result is not None
+        and latest_result.get("question") is None
+        and not latest_result.get("candidates")
+    )
 
     return {
         "session_id": ai_session_id or "",

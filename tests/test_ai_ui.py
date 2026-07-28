@@ -348,3 +348,28 @@ def test_ui_ai_message_with_unknown_session_id_resets_panel_with_notice(client, 
     assert response.status_code == 200
     assert 'name="link"' in response.text
     assert "Sessione scaduta" in response.text
+
+
+def test_ui_ai_message_does_not_show_confirm_button_when_candidates_present(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Dragon Ball Store",
+            "near_hub": None,
+            "types": ["shopping"],
+            "note": "",
+            "confidence": "medium",
+            "question": None,
+            "lat": 35.7295,
+            "lon": 139.7109,
+            "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
+        },
+    )
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/dbz", "message": "Dragon Ball store"},
+    )
+    assert response.status_code == 200
+    assert "Conferma e salva" not in response.text
