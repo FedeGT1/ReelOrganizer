@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<section id="location-list" hx-get="/ui/locations" hx-trigger="load" hx-swap="innerHTML">
+    <p>Caricamento città...</p>
+</section>
+{% endblock %}
