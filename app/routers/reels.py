@@ -97,11 +97,20 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
     session.commit()
 
 
-def _reel_list_context(session: Session, location_id: Optional[str] = None) -> dict:
+def _reel_list_context(
+    session: Session, location_id: Optional[str] = None, type_value: Optional[str] = None
+) -> dict:
     query = select(Reel)
     if location_id is not None:
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
+
+    if type_value is not None:
+        matching_ids = set(
+            session.exec(select(ReelType.reel_id).where(ReelType.type == type_value)).all()
+        )
+        reels = [r for r in reels if r.id in matching_ids]
+
     filtered_location = session.get(Location, location_id) if location_id else None
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
@@ -126,10 +135,11 @@ def ui_reel_add_form(request: Request, session: Session = Depends(get_session)):
 def ui_list_reels(
     request: Request,
     location_id: Optional[str] = None,
+    type: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     return templates.TemplateResponse(
-        request, "partials/reel_list.html", _reel_list_context(session, location_id)
+        request, "partials/reel_list.html", _reel_list_context(session, location_id, type)
     )
 
 

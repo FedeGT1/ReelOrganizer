@@ -1,10 +1,12 @@
 <div class="map-filters">
     <a href="#" class="chip {{ 'active' if not active_type else '' }}"
-       hx-get="/ui/map" hx-target="#map-container" hx-swap="innerHTML">Tutti</a>
+       hx-get="/ui/map" hx-target="#map-container" hx-swap="innerHTML"
+       hx-on:click="htmx.ajax('GET', '/ui/reels', {target: '#reel-list', swap: 'innerHTML'})">Tutti</a>
     {% for key, info in taxonomy.items() %}
     <a href="#" class="chip {{ 'active' if active_type == key else '' }}"
        data-type="{{ key }}" style="background-color: {{ info.color }}; border-color: {{ info.color }};"
-       hx-get="/ui/map?type={{ key }}" hx-target="#map-container" hx-swap="innerHTML">
+       hx-get="/ui/map?type={{ key }}" hx-target="#map-container" hx-swap="innerHTML"
+       hx-on:click="htmx.ajax('GET', '/ui/reels?type={{ key }}', {target: '#reel-list', swap: 'innerHTML'})">
         {{ info.icon }} {{ info.label }}
     </a>
     {% endfor %}

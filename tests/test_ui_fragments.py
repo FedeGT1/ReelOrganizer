@@ -45,6 +45,7 @@ def test_ui_map_includes_type_filter_chips(client, session):
     assert response.status_code == 200
     assert "Cibo" in response.text
     assert 'hx-get="/ui/map?type=food"' in response.text
+    assert "htmx.ajax('GET', '/ui/reels?type=food'" in response.text
 
 
 def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):
@@ -229,3 +230,28 @@ def test_ui_reels_get_without_filter_shows_no_banner(client):
     response = client.get("/ui/reels")
     assert response.status_code == 200
     assert "Mostra tutti" not in response.text
+
+
+def test_ui_reels_get_filters_by_type(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#35496B"))
+    session.commit()
+    session.refresh(hub)
+
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub.id, note="Ramen spot")
+    reel_culture = Reel(link="https://instagram.com/reel/culture", location_id=hub.id, note="Shrine visit")
+    session.add(reel_food)
+    session.add(reel_culture)
+    session.commit()
+    session.refresh(reel_food)
+    session.refresh(reel_culture)
+    session.add(ReelType(reel_id=reel_food.id, type="food"))
+    session.add(ReelType(reel_id=reel_culture.id, type="culture"))
+    session.commit()
+
+    response = client.get("/ui/reels?type=food")
+    assert response.status_code == 200
+    assert "Ramen spot" in response.text
+    assert "Shrine visit" not in response.text
