@@ -232,6 +232,89 @@ def test_ui_reels_get_without_filter_shows_no_banner(client):
     assert "Mostra tutti" not in response.text
 
 
+def test_ui_reels_edit_form_renders_prefilled_data(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    session.add(ReelType(reel_id=reel.id, type="food"))
+    session.commit()
+
+    response = client.get(f"/ui/reels/{reel.id}/edit-form")
+    assert response.status_code == 200
+    assert 'value="https://instagram.com/reel/x"' in response.text
+    assert 'value="Nice spot"' in response.text
+    assert f'value="{hub.id}" selected' in response.text
+    assert 'value="food" checked' in response.text
+
+
+def test_ui_reels_edit_form_missing_reel_returns_404(client):
+    response = client.get("/ui/reels/does-not-exist/edit-form")
+    assert response.status_code == 404
+
+
+def test_ui_reels_put_resets_form_and_refreshes_list_and_map(client, session):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+    other_hub = Location(name="Other Hub", is_hub=True, lat=36.0, lon=136.0)
+    session.add(hub)
+    session.add(other_hub)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+    reel = Reel(link="https://instagram.com/reel/old", location_id=hub.id, note="Old note")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.put(
+        f"/ui/reels/{reel.id}",
+        data={"link": "https://instagram.com/reel/new", "location_id": other_hub.id, "note": "New note"},
+    )
+    assert response.status_code == 200
+    assert response.headers["hx-trigger"] == "reel-saved"
+    assert '<div hx-swap-oob="innerHTML:#reel-list">' in response.text
+    assert "New note" in response.text
+    assert '<div hx-swap-oob="innerHTML:#map-container">' in response.text
+    assert 'id="leaflet-map"' in response.text
+
+
+def test_ui_reels_put_rejects_javascript_link(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(link="https://instagram.com/reel/keep", location_id=hub.id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.put(
+        f"/ui/reels/{reel.id}",
+        data={"link": "javascript:alert(1)", "location_id": hub.id},
+    )
+    assert response.status_code == 400
+
+
+def test_ui_reels_list_includes_edit_button(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.get("/ui/reels")
+    assert response.status_code == 200
+    assert f"/ui/reels/{reel.id}/edit-form" in response.text
+
+
 def test_ui_reels_get_filters_by_type(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)

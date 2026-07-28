@@ -1,0 +1,17 @@
+<form class="reel-add-form" hx-put="/ui/reels/{{ reel.id }}" hx-target="#reel-add-form-panel" hx-swap="innerHTML">
+    <input type="url" name="link" value="{{ reel.link }}" placeholder="Link Instagram" required>
+    <select name="location_id" required>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}" {% if loc.id == reel.location_id %}selected{% endif %}>{{ loc.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="note" value="{{ reel.note or '' }}" placeholder="Nota (opzionale)">
+    <div class="type-options">
+        {% for key, info in taxonomy.items() %}
+        <label class="type-option"><input type="checkbox" name="types" value="{{ key }}" {% if key in reel_type_keys %}checked{% endif %}> {{ info.icon }} {{ info.label }}</label>
+        {% endfor %}
+    </div>
+    <button type="submit">Salva</button>
+    <button type="button" hx-get="/ui/reels/add-form" hx-target="#reel-add-form-panel" hx-swap="innerHTML"
+            onclick="document.getElementById('add-reel-dialog').close()">Annulla</button>
+</form>

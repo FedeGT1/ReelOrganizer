@@ -159,9 +159,58 @@ def _reel_add_form_context(session: Session) -> dict:
     }
 
 
+def _reel_edit_form_context(session: Session, reel: Reel) -> dict:
+    types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
+    return {
+        "reel": reel,
+        "locations": session.exec(select(Location)).all(),
+        "taxonomy": get_taxonomy(session),
+        "reel_type_keys": {t.type for t in types},
+    }
+
+
 @ui_router.get("/reels/add-form")
 def ui_reel_add_form(request: Request, session: Session = Depends(get_session)):
     return templates.TemplateResponse(request, "partials/reel_add_form.html", _reel_add_form_context(session))
+
+
+@ui_router.get("/reels/{reel_id}/edit-form")
+def ui_reel_edit_form(request: Request, reel_id: str, session: Session = Depends(get_session)):
+    reel = session.get(Reel, reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="Reel not found")
+    return templates.TemplateResponse(
+        request, "partials/reel_edit_form.html", _reel_edit_form_context(session, reel)
+    )
+
+
+@ui_router.put("/reels/{reel_id}")
+def ui_update_reel(
+    request: Request,
+    reel_id: str,
+    link: str = Form(...),
+    location_id: str = Form(...),
+    note: Optional[str] = Form(None),
+    types: list[str] = Form([]),
+    session: Session = Depends(get_session),
+):
+    _update_reel(session, reel_id, link, location_id, note, types)
+
+    form_html = templates.get_template("partials/reel_add_form.html").render(
+        _reel_add_form_context(session)
+    )
+    reel_list_html = templates.get_template("partials/reel_list.html").render(
+        _reel_list_context(session)
+    )
+    map_html = render_map_html(session)
+
+    response = HTMLResponse(
+        form_html
+        + f'<div hx-swap-oob="innerHTML:#reel-list">{reel_list_html}</div>'
+        + f'<div hx-swap-oob="innerHTML:#map-container">{map_html}</div>'
+    )
+    response.headers["HX-Trigger"] = "reel-saved"
+    return response
 
 
 @ui_router.get("/reels")

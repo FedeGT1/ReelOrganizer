@@ -198,6 +198,23 @@ button, .reel-list button {
     color: var(--color-paper);
 }
 
+.reel-list .btn-edit {
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--color-ink-medium);
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 999px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.reel-list .btn-edit:hover {
+    background: var(--color-ink-medium);
+    color: var(--color-paper);
+}
+
 #ai-chat-messages {
     display: flex;
     flex-direction: column;
