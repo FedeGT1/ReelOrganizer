@@ -1,14 +1,16 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
+from app.web import templates
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
+ui_router = APIRouter(prefix="/ui/locations", tags=["locations-ui"])
 
 
 class LocationPayload(BaseModel):
@@ -144,3 +146,125 @@ def update_location(
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_location(location_id: str, session: Session = Depends(get_session)):
     _delete_location(session, location_id)
+
+
+def _location_list_context(session: Session, error: Optional[str] = None) -> dict:
+    locations = session.exec(select(Location)).all()
+    counts = _reel_counts(session)
+    hubs_by_id = {loc.id: loc for loc in locations if loc.is_hub}
+    entries = [
+        {
+            "id": loc.id,
+            "name": loc.name,
+            "is_hub": loc.is_hub,
+            "parent_name": hubs_by_id[loc.parent_id].name
+            if loc.parent_id in hubs_by_id
+            else None,
+            "lat": loc.lat,
+            "lon": loc.lon,
+            "reel_count": counts.get(loc.id, 0),
+        }
+        for loc in locations
+    ]
+    return {
+        "locations": entries,
+        "hubs": [loc for loc in locations if loc.is_hub],
+        "error": error,
+    }
+
+
+@ui_router.get("")
+def ui_list_locations(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(
+        request, "partials/location_list.html", _location_list_context(session)
+    )
+
+
+@ui_router.post("")
+def ui_create_location(
+    request: Request,
+    name: str = Form(...),
+    is_hub: str = Form(...),
+    parent_id: str = Form(""),
+    lat: float = Form(...),
+    lon: float = Form(...),
+    session: Session = Depends(get_session),
+):
+    try:
+        _create_location(session, name, is_hub == "true", parent_id or None, lat, lon)
+    except HTTPException as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/location_list.html",
+            _location_list_context(session, error="Un satellite richiede una città padre."),
+        )
+    return templates.TemplateResponse(
+        request, "partials/location_list.html", _location_list_context(session)
+    )
+
+
+@ui_router.get("/{location_id}/edit")
+def ui_edit_location_form(
+    request: Request, location_id: str, session: Session = Depends(get_session)
+):
+    location = session.get(Location, location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    hubs = session.exec(
+        select(Location).where(Location.is_hub == True, Location.id != location_id)
+    ).all()
+    return templates.TemplateResponse(
+        request, "partials/location_edit_row.html", {"location": location, "hubs": hubs}
+    )
+
+
+@ui_router.post("/{location_id}")
+def ui_update_location(
+    request: Request,
+    location_id: str,
+    name: str = Form(...),
+    is_hub: str = Form(...),
+    parent_id: str = Form(""),
+    lat: float = Form(...),
+    lon: float = Form(...),
+    session: Session = Depends(get_session),
+):
+    try:
+        _update_location(session, location_id, name, is_hub == "true", parent_id or None, lat, lon)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            raise
+        error = (
+            "Un satellite richiede una città padre."
+            if exc.status_code == 400
+            else "Questa città ha satelliti o reel collegati: riassegnali o eliminali prima."
+        )
+        return templates.TemplateResponse(
+            request,
+            "partials/location_list.html",
+            _location_list_context(session, error=error),
+        )
+    return templates.TemplateResponse(
+        request, "partials/location_list.html", _location_list_context(session)
+    )
+
+
+@ui_router.delete("/{location_id}")
+def ui_delete_location(
+    request: Request, location_id: str, session: Session = Depends(get_session)
+):
+    try:
+        _delete_location(session, location_id)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            raise
+        return templates.TemplateResponse(
+            request,
+            "partials/location_list.html",
+            _location_list_context(
+                session, error="Questa città ha satelliti o reel collegati: riassegnali o eliminali prima."
+            ),
+        )
+    return templates.TemplateResponse(
+        request, "partials/location_list.html", _location_list_context(session)
+    )

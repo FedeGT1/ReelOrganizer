@@ -1,0 +1,27 @@
+{% if error %}
+<p class="ai-notice">{{ error }}</p>
+{% endif %}
+<ul class="location-list">
+    {% for loc in locations %}
+    <li id="location-{{ loc.id }}">
+        <span class="chip">{{ loc.name }}{% if loc.parent_name %} · satellite di {{ loc.parent_name }}{% else %} · hub{% endif %}</span>
+        <button hx-get="/ui/locations/{{ loc.id }}/edit" hx-target="#location-{{ loc.id }}" hx-swap="outerHTML">Modifica</button>
+        <button hx-delete="/ui/locations/{{ loc.id }}" hx-target="#location-list" hx-swap="innerHTML">Elimina</button>
+    </li>
+    {% endfor %}
+</ul>
+<form class="location-form" hx-post="/ui/locations" hx-target="#location-list" hx-swap="innerHTML">
+    <input type="text" name="name" placeholder="Nome città" required>
+    <label><input type="radio" name="is_hub" value="true" checked> È un hub</label>
+    <label>
+        <input type="radio" name="is_hub" value="false"> È un satellite di:
+        <select name="parent_id">
+            {% for hub in hubs %}
+            <option value="{{ hub.id }}">{{ hub.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <input type="number" step="any" name="lat" placeholder="Latitudine" required>
+    <input type="number" step="any" name="lon" placeholder="Longitudine" required>
+    <button type="submit">Aggiungi città</button>
+</form>

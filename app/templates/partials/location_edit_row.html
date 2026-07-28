@@ -1,0 +1,18 @@
+<li id="location-{{ location.id }}">
+    <form hx-post="/ui/locations/{{ location.id }}" hx-target="#location-list" hx-swap="innerHTML">
+        <input type="text" name="name" value="{{ location.name }}" required>
+        <label><input type="radio" name="is_hub" value="true" {{ 'checked' if location.is_hub else '' }}> È un hub</label>
+        <label>
+            <input type="radio" name="is_hub" value="false" {{ 'checked' if not location.is_hub else '' }}> È un satellite di:
+            <select name="parent_id">
+                {% for hub in hubs %}
+                <option value="{{ hub.id }}" {{ 'selected' if hub.id == location.parent_id else '' }}>{{ hub.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <input type="number" step="any" name="lat" value="{{ location.lat }}" required>
+        <input type="number" step="any" name="lon" value="{{ location.lon }}" required>
+        <button type="submit">Salva</button>
+        <button type="button" hx-get="/ui/locations" hx-target="#location-list" hx-swap="innerHTML">Annulla</button>
+    </form>
+</li>

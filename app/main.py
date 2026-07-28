@@ -55,6 +55,7 @@ app.include_router(ai_categorize.router)
 app.include_router(ai_categorize.ui_router)
 app.include_router(categories.router)
 app.include_router(categories.ui_router)
+app.include_router(locations.ui_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

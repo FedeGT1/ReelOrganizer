@@ -402,7 +402,7 @@ dialog#add-reel-dialog::backdrop {
     cursor: pointer;
 }
 
-.category-list {
+.category-list, .location-list {
     list-style: none;
     padding: 0;
     max-width: 500px;
@@ -412,24 +412,24 @@ dialog#add-reel-dialog::backdrop {
     gap: 0.5rem;
 }
 
-.category-list li {
+.category-list li, .location-list li {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.category-list button {
+.category-list button, .location-list button {
     flex-shrink: 0;
     min-height: 36px;
     padding: 0.3rem 0.75rem;
     font-size: 0.85rem;
 }
 
-.category-list button:first-of-type {
+.category-list button:first-of-type, .location-list button:first-of-type {
     margin-left: auto;
 }
 
-.category-form {
+.category-form, .location-form {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
