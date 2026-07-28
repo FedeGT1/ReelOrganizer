@@ -7,4 +7,4 @@ def test_locations_page_renders(client):
 def test_nav_includes_locations_link(client):
     response = client.get("/")
     assert 'href="/locations"' in response.text
-    assert "Gestisci città" in response.text
+    assert "Gestisci hub" in response.text
