@@ -131,7 +131,7 @@ def _run_turn(
 
     try:
         result = ai_client.categorize(hub_names, category_labels, api_messages)
-    except anthropic.AnthropicError:
+    except (anthropic.AnthropicError, RuntimeError):
         logger.exception("session=%s Anthropic call failed", ai_session.id)
         result = {
             "place_name": "",

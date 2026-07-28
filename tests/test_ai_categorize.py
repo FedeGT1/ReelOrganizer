@@ -137,6 +137,20 @@ def test_categorize_returns_friendly_question_when_ai_call_fails(client, session
     assert "riprova" in response.json()["question"].lower()
 
 
+def test_categorize_returns_friendly_question_when_ai_call_raises_runtime_error(client, session, monkeypatch):
+    # Regression: categorize() can raise RuntimeError (e.g. a pause_turn
+    # search loop that never resolves) — this must fall back to the same
+    # friendly question as anthropic.AnthropicError, not a raw 500.
+    def boom(hub_names, categories, messages):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post("/api/ai/categorize", json={"message": "Qualcosa"})
+    assert response.status_code == 200
+    assert "riprova" in response.json()["question"].lower()
+
+
 def test_empty_place_name_does_not_spuriously_match_location(client, session, monkeypatch):
     # Regression: when AI call fails, place_name is "" (empty string).
     # Before fix: "" in any location name is always True, so it would
@@ -275,7 +289,7 @@ def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failu
     assert second_result["lon"] == 139.6503
 
 
-def test_categorize_returns_candidates_without_triggering_missing_coordinates_question(client, session, monkeypatch):
+def test_categorize_response_round_trips_candidates(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,
         "categorize",
