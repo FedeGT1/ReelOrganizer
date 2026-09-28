@@ -45,10 +45,10 @@ def _read_latest_result(session: Session, session_id: str) -> Optional[dict]:
 
 
 def _build_multi_context(session: Session, session_ids: list[str], link: str) -> dict:
-    # The template repeats the `session_ids` hidden inputs in both the main
-    # confirm form and in each unresolved row's clarify form, so a submission
-    # from the rendered page can legitimately contain duplicate ids. Dedupe
-    # here (preserving order) so a place doesn't get rendered as two rows.
+    # Defensive dedup: the rendered page never produces duplicate ids in a
+    # real submission (the confirm form and each clarify form are sibling,
+    # non-nested <form> elements, so a browser only ever submits one form's
+    # own inputs). This guards only against a malformed/crafted request.
     seen: set[str] = set()
     session_ids = [sid for sid in session_ids if not (sid in seen or seen.add(sid))]
 
@@ -106,6 +106,9 @@ def ui_ai_multi_message(
     clarify_text: str = Form(""),
     session: Session = Depends(get_session),
 ):
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
     if clarify_session_id and clarify_text:
         _run_turn(session, clarify_session_id, clarify_text)
 
@@ -125,7 +128,11 @@ def ui_ai_multi_confirm(
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     for raw in place_json:
-        place = json.loads(raw)
+        try:
+            place = json.loads(raw)
+        except json.JSONDecodeError:
+            logger.exception("skipping malformed place_json entry")
+            continue
         _resolve_location_and_create_reel(
             session,
             link,

@@ -45,6 +45,20 @@ explicitly inside the `location /` block above to avoid spurious 504s:
 proxy_read_timeout 75s;
 ```
 
+The multi-place reel import (`POST /ui/ai/message` when a reel lists several
+distinct places, and `POST /ui/ai/multi/message`) can make up to 15
+sequential Claude API calls in one request — each place is resolved
+independently, some involving a web search round trip. A real "10+ places"
+reel can take well over a minute. Raise `proxy_read_timeout` further for
+this to complete reliably — `180s` comfortably covers the worst case:
+
+```nginx
+proxy_read_timeout 180s;
+```
+
+(This supersedes the `75s` suggested above if you're setting a single
+value for the whole `location /` block — 180s covers both features.)
+
 Unlike the more common `$proxy_add_x_forwarded_for`, this uses `$remote_addr`
 directly so nginx always overwrites the header rather than appending to it —
 the app trusts this header for its login rate-limiter, so it must not be

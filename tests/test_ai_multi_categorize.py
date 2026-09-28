@@ -280,3 +280,58 @@ def test_ui_ai_multi_confirm_cleans_up_all_sessions_in_the_batch(client, session
 
     assert response.status_code == 200
     assert session.exec(select(AiSession)).all() == []
+
+
+def test_ui_ai_multi_confirm_with_no_checked_places_creates_nothing(client, session):
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1", "s2"],
+            "place_json": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert session.exec(select(Reel)).all() == []
+
+
+def test_ui_ai_multi_confirm_cleans_up_unchecked_sessions_too(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "detect_places",
+        lambda message: {"is_multi_place": True, "place_names": ["Fushimi Inari Taisha", "Kiyomizu-dera"]},
+    )
+    results = iter([
+        {"place_name": "Fushimi Inari Taisha", "near_hub": None, "types": [], "note": "",
+         "confidence": "high", "question": None, "lat": 34.967, "lon": 135.772},
+        {"place_name": "Kiyomizu-dera", "near_hub": None, "types": [], "note": "",
+         "confidence": "high", "question": None, "lat": 34.9949, "lon": 135.785},
+    ])
+    monkeypatch.setattr(ai_client, "categorize", lambda hub_names, categories, messages: next(results))
+
+    first = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/kyoto10", "message": "2 posti a Kyoto"},
+    )
+    session_ids = re.findall(r'name="session_ids" value="([^"]+)"', first.text)
+    place_jsons = [
+        html.unescape(m) for m in re.findall(r"name=\"place_json\" value='([^']+)'", first.text)
+    ]
+    assert len(session_ids) == 2
+    assert len(place_jsons) == 2
+
+    # Confirm with only ONE of the two places checked (simulating the user
+    # unchecking the other) — both sessions must still be cleaned up.
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": session_ids,
+            "place_json": [place_jsons[0]],  # only the first place checked
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(session.exec(select(Reel)).all()) == 1
+    assert session.exec(select(AiSession)).all() == []
