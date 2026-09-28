@@ -40,6 +40,35 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
     assert session.exec(select(AiSession)).first() is not None
 
 
+def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_turn(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Mochimen UDON x MAGURO SUSHI",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Tuna specialist near Shinagawa",
+            "confidence": "high",
+            "question": None,
+            "lat": None,
+            "lon": None,
+        },
+    )
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/tuna", "message": "Sushi place near Shinagawa"},
+    )
+    assert response.status_code == 200
+    assert "coordinate" not in response.text.lower()
+    assert "Conferma e salva" in response.text
+
+
 def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,

@@ -4,6 +4,8 @@ __pycache__/
 .idea/
 data/*.db
 data/*.log
+data/whisper_models/
+*.pem
 .env
 
 .superpowers/

@@ -259,7 +259,7 @@ def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypa
     assert not assistant_text.strip().startswith("{")
 
 
-def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failure(session, monkeypatch):
+def test_safety_net_backfills_hub_coordinates_immediately_when_near_hub_is_known(session, monkeypatch):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
     session.commit()
@@ -280,8 +280,49 @@ def test_safety_net_falls_back_to_hub_coordinates_after_second_consecutive_failu
     )
 
     ai_session, first_result, _ = _run_turn(session, None, "Cibo di strada a Shinjuku")
+    assert first_result["question"] is None
+    assert first_result["lat"] == 35.6762
+    assert first_result["lon"] == 139.6503
+
+
+def test_safety_net_falls_back_to_hub_coordinates_once_near_hub_becomes_known(session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Shinjuku",
+            "near_hub": None,
+            "types": ["food"],
+            "note": "Street food area",
+            "confidence": "medium",
+            "question": None,
+            "lat": None,
+            "lon": None,
+        },
+    )
+
+    ai_session, first_result, _ = _run_turn(session, None, "Cibo di strada a Shinjuku")
     assert first_result["question"] is not None
     assert first_result["lat"] is None
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Shinjuku",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Street food area",
+            "confidence": "medium",
+            "question": None,
+            "lat": None,
+            "lon": None,
+        },
+    )
 
     ai_session2, second_result, matched = _run_turn(session, ai_session.id, "Shinjuku, Tokyo")
     assert second_result["question"] is None

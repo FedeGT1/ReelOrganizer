@@ -110,19 +110,6 @@ def _run_turn(
         for m in history
     ]
 
-    previous_result = None
-    for m in reversed(history[:-1]):
-        if m.role == "assistant":
-            previous_result = json.loads(m.content)
-            break
-    previous_safety_net_triggered = (
-        previous_result is not None and previous_result.get("question") == MISSING_COORDINATES_QUESTION
-    )
-    logger.debug(
-        "session=%s previous_safety_net_triggered=%s",
-        ai_session.id, previous_safety_net_triggered,
-    )
-
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
 
@@ -162,7 +149,7 @@ def _run_turn(
             "session=%s safety net condition met (unmatched place, no question, missing lat/lon)",
             ai_session.id,
         )
-        if previous_safety_net_triggered and result.get("near_hub"):
+        if result.get("near_hub"):
             hub = _find_hub_by_name(session, result["near_hub"])
             logger.debug(
                 "session=%s attempting hub fallback for near_hub=%r -> hub=%s",
