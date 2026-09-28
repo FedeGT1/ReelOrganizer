@@ -256,23 +256,17 @@ def ui_ai_message(
     )
 
 
-@ui_router.post("/confirm")
-def ui_ai_confirm(
-    request: Request,
-    session_id: str = Form(...),
-    link: str = Form(...),
-    place_name: str = Form(...),
-    near_hub: str = Form(""),
-    types: list[str] = Form([]),
-    note: str = Form(""),
-    lat: str = Form(""),
-    lon: str = Form(""),
-    matched_location_id: str = Form(""),
-    session: Session = Depends(get_session),
-):
-    if not _is_safe_link(link):
-        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
-
+def _resolve_location_and_create_reel(
+    session: Session,
+    link: str,
+    place_name: str,
+    near_hub: str,
+    types: list[str],
+    note: str,
+    lat,
+    lon,
+    matched_location_id: str,
+) -> Reel:
     if matched_location_id:
         location_id = matched_location_id
     else:
@@ -305,6 +299,30 @@ def ui_ai_confirm(
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
+
+    return reel
+
+
+@ui_router.post("/confirm")
+def ui_ai_confirm(
+    request: Request,
+    session_id: str = Form(...),
+    link: str = Form(...),
+    place_name: str = Form(...),
+    near_hub: str = Form(""),
+    types: list[str] = Form([]),
+    note: str = Form(""),
+    lat: str = Form(""),
+    lon: str = Form(""),
+    matched_location_id: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    _resolve_location_and_create_reel(
+        session, link, place_name, near_hub, types, note, lat, lon, matched_location_id
+    )
 
     stale_ai_session = session.get(AiSession, session_id)
     if stale_ai_session is not None:

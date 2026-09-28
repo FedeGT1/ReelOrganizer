@@ -1,10 +1,11 @@
 import json
 
 import anthropic
+from sqlmodel import select
 
 from app.ai import client as ai_client
-from app.models import Category, Location
-from app.routers.ai_categorize import _run_turn
+from app.models import Category, Location, Reel
+from app.routers.ai_categorize import _resolve_location_and_create_reel, _run_turn
 
 
 def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
@@ -438,3 +439,52 @@ def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkey
     assert "Tokyo - Ikebukuro" in assistant_text
     assert "Osaka - Namba" in assistant_text
     assert not assistant_text.strip().startswith("{")
+
+
+def test_resolve_location_and_create_reel_uses_matched_location(session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+    session.refresh(hub)
+
+    reel = _resolve_location_and_create_reel(
+        session,
+        "https://instagram.com/reel/abc",
+        "Tokyo / Kanto",
+        "",
+        ["food"],
+        "Ramen chain",
+        "",
+        "",
+        hub.id,
+    )
+
+    assert reel.location_id == hub.id
+    assert session.exec(select(Location)).all() == [hub]
+
+
+def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.add(Category(key="nature", label="Natura", icon="🌸", color="#7A8F5E"))
+    session.commit()
+    session.refresh(hub)
+
+    reel = _resolve_location_and_create_reel(
+        session,
+        "https://instagram.com/reel/nikko",
+        "Nikko",
+        "Tokyo / Kanto",
+        ["nature"],
+        "Shrine town",
+        "36.7198",
+        "139.6982",
+        "",
+    )
+
+    satellite = session.exec(select(Location).where(Location.name == "Nikko")).first()
+    assert satellite is not None
+    assert satellite.is_hub is False
+    assert satellite.parent_id == hub.id
+    assert reel.location_id == satellite.id
