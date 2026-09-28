@@ -485,6 +485,21 @@ dialog#add-reel-dialog::backdrop {
     margin: 0.4rem 0;
 }
 
+.multi-place-row input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 0.3rem;
+}
+
+.multi-place-row-content {
+    display: block;
+    min-width: 0;
+}
+
+.multi-place-row-content .types,
+.multi-place-row-content .note {
+    display: block;
+}
+
 .multi-place-clarify {
     display: flex;
     flex-direction: column;

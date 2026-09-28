@@ -7,9 +7,11 @@
         {% if row.resolved %}
         <label class="multi-place-row">
             <input type="checkbox" name="place_json" value='{{ row.place_json }}' checked>
-            <strong>{{ row.result.place_name }}</strong>{% if row.result.near_hub %} (vicino a {{ row.result.near_hub }}){% endif %}
-            <span class="types">{% for t in row.result.types %}{{ taxonomy[t].icon }} {{ taxonomy[t].label }} {% endfor %}</span>
-            {% if row.result.note %}<span class="note">{{ row.result.note }}</span>{% endif %}
+            <span class="multi-place-row-content">
+                <strong>{{ row.result.place_name }}</strong>{% if row.result.near_hub %} (vicino a {{ row.result.near_hub }}){% endif %}
+                <span class="types">{% for t in row.result.types %}{{ taxonomy[t].icon }} {{ taxonomy[t].label }} {% endfor %}</span>
+                {% if row.result.note %}<span class="note">{{ row.result.note }}</span>{% endif %}
+            </span>
         </label>
         {% endif %}
     {% endfor %}
