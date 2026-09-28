@@ -1,9 +1,11 @@
+import html
+import json
 import re
 
 from sqlmodel import select
 
 from app.ai import client as ai_client
-from app.models import AiSession, Location
+from app.models import AiSession, Category, Location, Reel
 
 
 def test_ui_ai_message_routes_to_multi_place_batch_when_detected(client, session, monkeypatch):
@@ -187,3 +189,94 @@ def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session
 
     assert second.status_code == 200
     assert second.text.count('name="place_json"') == 2
+
+
+def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(client, session):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#35496B"))
+    session.commit()
+    session.refresh(hub)
+
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "near_hub": "", "types": ["culture"],
+        "note": "Torii gates", "lat": None, "lon": None, "matched_location_id": hub.id,
+    })
+    place_two = json.dumps({
+        "place_name": "Kiyomizu-dera", "near_hub": "Kyoto - Osaka / Kansai", "types": ["culture"],
+        "note": "Historic temple", "lat": 34.9949, "lon": 135.785, "matched_location_id": "",
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1", "s2"],
+            "place_json": [place_one, place_two],
+        },
+    )
+
+    assert response.status_code == 200
+    reels = session.exec(select(Reel)).all()
+    assert len(reels) == 2
+    assert {r.link for r in reels} == {"https://instagram.com/reel/kyoto10"}
+    kiyomizu = session.exec(select(Location).where(Location.name == "Kiyomizu-dera")).first()
+    assert {r.location_id for r in reels} == {hub.id, kiyomizu.id}
+
+
+def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, session):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "near_hub": "", "types": [],
+        "note": "", "lat": None, "lon": None, "matched_location_id": hub.id,
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1", "s2"],
+            "place_json": [place_one],
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(session.exec(select(Reel)).all()) == 1
+
+
+def test_ui_ai_multi_confirm_cleans_up_all_sessions_in_the_batch(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "detect_places",
+        lambda message: {"is_multi_place": True, "place_names": ["Fushimi Inari Taisha", "Kiyomizu-dera"]},
+    )
+    results = iter([
+        {"place_name": "Fushimi Inari Taisha", "near_hub": None, "types": [], "note": "",
+         "confidence": "high", "question": None, "lat": 34.967, "lon": 135.772},
+        {"place_name": "Kiyomizu-dera", "near_hub": None, "types": [], "note": "",
+         "confidence": "high", "question": None, "lat": 34.9949, "lon": 135.785},
+    ])
+    monkeypatch.setattr(ai_client, "categorize", lambda hub_names, categories, messages: next(results))
+
+    first = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/kyoto10", "message": "2 posti a Kyoto"},
+    )
+    session_ids = re.findall(r'name="session_ids" value="([^"]+)"', first.text)
+    place_jsons = [
+        html.unescape(m) for m in re.findall(r"name=\"place_json\" value='([^']+)'", first.text)
+    ]
+    assert len(session_ids) == 2
+    assert len(place_jsons) == 2
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={"link": "https://instagram.com/reel/kyoto10", "session_ids": session_ids, "place_json": place_jsons},
+    )
+
+    assert response.status_code == 200
+    assert session.exec(select(AiSession)).all() == []

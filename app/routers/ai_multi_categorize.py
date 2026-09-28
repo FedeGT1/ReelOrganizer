@@ -2,13 +2,21 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import AiMessage
-from app.routers.ai_categorize import _find_matching_location, _run_turn
+from app.models import AiMessage, AiSession
+from app.routers.ai_categorize import (
+    _build_ai_chat_context,
+    _find_matching_location,
+    _resolve_location_and_create_reel,
+    _run_turn,
+)
 from app.routers.categories import get_taxonomy
+from app.routers.map import render_map_html
+from app.routers.reels import _is_safe_link, _reel_add_form_context, _reel_list_context
 from app.web import templates
 
 router = APIRouter(prefix="/ui/ai/multi", tags=["ai-multi"])
@@ -103,3 +111,57 @@ def ui_ai_multi_message(
 
     context = _build_multi_context(session, session_ids, link)
     return templates.TemplateResponse(request, "partials/ai_chat_multi.html", context)
+
+
+@router.post("/confirm")
+def ui_ai_multi_confirm(
+    request: Request,
+    link: str = Form(...),
+    session_ids: list[str] = Form([]),
+    place_json: list[str] = Form([]),
+    session: Session = Depends(get_session),
+):
+    if not _is_safe_link(link):
+        raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    for raw in place_json:
+        place = json.loads(raw)
+        _resolve_location_and_create_reel(
+            session,
+            link,
+            place["place_name"],
+            place.get("near_hub", ""),
+            place.get("types", []),
+            place.get("note", ""),
+            place.get("lat"),
+            place.get("lon"),
+            place.get("matched_location_id", ""),
+        )
+
+    for session_id in session_ids:
+        stale_ai_session = session.get(AiSession, session_id)
+        if stale_ai_session is not None:
+            for msg in session.exec(select(AiMessage).where(AiMessage.session_id == session_id)).all():
+                session.delete(msg)
+            session.delete(stale_ai_session)
+            session.commit()
+
+    ai_chat_html = templates.get_template("partials/ai_chat.html").render(
+        _build_ai_chat_context(session, None, "")
+    )
+    reel_list_html = templates.get_template("partials/reel_list.html").render(
+        _reel_list_context(session)
+    )
+    map_html = render_map_html(session)
+    form_html = templates.get_template("partials/reel_add_form.html").render(
+        _reel_add_form_context(session)
+    )
+
+    response = HTMLResponse(
+        ai_chat_html
+        + f'<div hx-swap-oob="innerHTML:#reel-list">{reel_list_html}</div>'
+        + f'<div hx-swap-oob="innerHTML:#map-container">{map_html}</div>'
+        + f'<div hx-swap-oob="innerHTML:#reel-add-form-panel">{form_html}</div>'
+    )
+    response.headers["HX-Trigger"] = "reel-saved"
+    return response
