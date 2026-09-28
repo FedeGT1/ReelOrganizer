@@ -19,3 +19,20 @@ dev = [
     "pytest>=8.3.0",
     "httpx>=0.27.0",
 ]
+
+[tool.uv]
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+# required-environments only guarantees *some* wheel exists for the arch/os
+# markers above; it can't express a minimum macOS deployment target. Newer
+# onnxruntime releases (1.20+) ship macosx_13_0-tagged wheels, which are
+# incompatible with older macOS x86_64 hosts (e.g. macOS 12.x) even though
+# the arch/os marker matches. Pin to the last release confirmed to ship
+# macosx_10_15_x86_64 wheels for cp311, still within faster-whisper's
+# `onnxruntime>=1.14,<2` constraint.
+constraint-dependencies = [
+    "onnxruntime==1.16.3",
+]

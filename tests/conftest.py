@@ -1,14 +1,4 @@
 import os
-import sys
-
-# Mock optional dependencies for testing on platforms where they're not available
-if "faster_whisper" not in sys.modules:
-    from unittest.mock import MagicMock
-    sys.modules["faster_whisper"] = MagicMock()
-
-if "yt_dlp" not in sys.modules:
-    from unittest.mock import MagicMock
-    sys.modules["yt_dlp"] = MagicMock()
 
 os.environ["AUTH_USERNAME"] = "testuser"
 os.environ["AUTH_PASSWORD"] = "testpass"
