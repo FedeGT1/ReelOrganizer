@@ -1,4 +1,5 @@
 from app.ingest import instagram, transcribe
+from app.routers import instagram_import
 
 
 def test_ui_ai_panel_shows_import_button_before_any_session(client):
@@ -63,3 +64,31 @@ def test_ui_ai_import_proceeds_with_caption_only_when_transcription_fails(client
     assert response.status_code == 200
     assert "Tempio a Kyoto" in response.text
     assert "trascrizione non disponibile" in response.text
+
+
+def test_ui_ai_import_falls_back_to_manual_entry_on_unexpected_error(client, session, monkeypatch):
+    def buggy_fetch(url, download_dir):
+        raise KeyError("something yt-dlp internals changed")
+
+    monkeypatch.setattr(instagram, "fetch", buggy_fetch)
+
+    response = client.post("/ui/ai/import", data={"link": "https://instagram.com/reel/abc"})
+
+    assert response.status_code == 200
+    assert "Non sono riuscito a importare" in response.text
+
+
+def test_ui_ai_import_falls_back_to_manual_entry_on_timeout(client, session, monkeypatch):
+    import time
+
+    def slow_fetch(url, download_dir):
+        time.sleep(0.2)
+        raise AssertionError("should have timed out before reaching this point")
+
+    monkeypatch.setattr(instagram, "fetch", slow_fetch)
+    monkeypatch.setattr(instagram_import, "IMPORT_TIMEOUT_SECONDS", 0.05)
+
+    response = client.post("/ui/ai/import", data={"link": "https://instagram.com/reel/abc"})
+
+    assert response.status_code == 200
+    assert "impiegato troppo tempo" in response.text

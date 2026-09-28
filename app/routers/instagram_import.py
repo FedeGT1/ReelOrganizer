@@ -1,6 +1,6 @@
 import logging
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -24,6 +24,10 @@ FETCH_FAILED_NOTICE = (
 )
 TIMEOUT_NOTICE = "L'importazione ha impiegato troppo tempo — inserisci la didascalia a mano qui sotto."
 NOT_INSTAGRAM_NOTICE = "Il link deve essere un reel Instagram (instagram.com)."
+
+
+class _ImportTimeout(Exception):
+    pass
 
 
 def _is_instagram_link(link: str) -> bool:
@@ -53,6 +57,25 @@ def _run_import(link: str) -> str:
     return "\n\n".join(parts)
 
 
+def _run_import_with_timeout(link: str, timeout_seconds: float) -> str:
+    outcome: dict = {}
+
+    def worker():
+        try:
+            outcome["value"] = _run_import(link)
+        except Exception as exc:
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    thread.join(timeout_seconds)
+    if thread.is_alive():
+        raise _ImportTimeout()
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome["value"]
+
+
 @router.post("/import")
 def ui_ai_import(request: Request, link: str = Form(...), session: Session = Depends(get_session)):
     if not _is_instagram_link(link):
@@ -61,18 +84,17 @@ def ui_ai_import(request: Request, link: str = Form(...), session: Session = Dep
 
     prefill_message = ""
     notice = None
-    executor = ThreadPoolExecutor(max_workers=1)
     try:
-        future = executor.submit(_run_import, link)
-        prefill_message = future.result(timeout=IMPORT_TIMEOUT_SECONDS)
+        prefill_message = _run_import_with_timeout(link, IMPORT_TIMEOUT_SECONDS)
     except instagram.InstagramFetchError:
         logger.exception("instagram fetch failed for link=%s", link)
         notice = FETCH_FAILED_NOTICE
-    except FutureTimeoutError:
+    except _ImportTimeout:
         logger.warning("instagram import timed out for link=%s", link)
         notice = TIMEOUT_NOTICE
-    finally:
-        executor.shutdown(wait=False)
+    except Exception:
+        logger.exception("unexpected error during instagram import for link=%s", link)
+        notice = FETCH_FAILED_NOTICE
 
     context = _build_ai_chat_context(session, None, link, notice=notice)
     context["prefill_message"] = prefill_message
