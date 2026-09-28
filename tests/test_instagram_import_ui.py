@@ -34,6 +34,13 @@ def test_ui_ai_import_rejects_non_instagram_link(client, session):
     assert "reel Instagram" in response.text
 
 
+def test_ui_ai_import_rejects_malformed_url_without_500(client, session):
+    response = client.post("/ui/ai/import", data={"link": "https://["})
+
+    assert response.status_code == 200
+    assert "reel Instagram" in response.text
+
+
 def test_ui_ai_import_falls_back_to_manual_entry_on_fetch_error(client, session, monkeypatch):
     def failing_fetch(url, download_dir):
         raise instagram.InstagramFetchError("private reel")

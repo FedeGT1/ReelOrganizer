@@ -31,7 +31,10 @@ class _ImportTimeout(Exception):
 
 
 def _is_instagram_link(link: str) -> bool:
-    parsed = urlparse(link)
+    try:
+        parsed = urlparse(link)
+    except ValueError:
+        return False
     return parsed.scheme.lower() in ("http", "https") and parsed.hostname in (
         "instagram.com",
         "www.instagram.com",
