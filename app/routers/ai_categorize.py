@@ -238,6 +238,20 @@ def ui_ai_message(
         if not _is_safe_link(link):
             raise HTTPException(status_code=400, detail="link must be an http(s) URL")
         combined_message = f"Link: {link}\nDescrizione: {message}"
+
+        try:
+            detection = ai_client.detect_places(combined_message)
+        except (anthropic.AnthropicError, RuntimeError):
+            logger.exception("detect_places call failed, treating as single-place")
+            detection = {"is_multi_place": False, "place_names": None}
+
+        place_names = detection.get("place_names") or []
+        if detection.get("is_multi_place") and len(place_names) >= 2:
+            # Deferred import: ai_multi_categorize imports helpers from this module,
+            # so importing it at module load time would create a circular import.
+            from app.routers.ai_multi_categorize import start_multi_place_batch
+
+            return start_multi_place_batch(request, session, combined_message, link, place_names)
     else:
         combined_message = message
 

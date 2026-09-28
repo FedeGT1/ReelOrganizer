@@ -17,6 +17,9 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
     session.commit()
 
     monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
+    monkeypatch.setattr(
         ai_client,
         "categorize",
         lambda hub_names, categories, messages: {
@@ -46,6 +49,9 @@ def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_
     session.commit()
 
     monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
+    monkeypatch.setattr(
         ai_client,
         "categorize",
         lambda hub_names, categories, messages: {
@@ -70,6 +76,9 @@ def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_
 
 
 def test_ui_ai_message_continues_existing_session(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -128,6 +137,9 @@ def test_ui_ai_message_forces_question_when_new_location_missing_coordinates(cli
     session.commit()
 
     monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
+    monkeypatch.setattr(
         ai_client,
         "categorize",
         lambda hub_names, categories, messages: {
@@ -155,6 +167,9 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
     session.add(Location(name="Tokyo / Kanto", is_hub=True))
     session.commit()
 
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -317,6 +332,9 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
     session.commit()
 
     monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
+    monkeypatch.setattr(
         ai_client,
         "categorize",
         lambda hub_names, categories, messages: {
@@ -360,6 +378,9 @@ def test_ui_ai_message_shows_friendly_error_when_ai_call_fails(client, session, 
         raise anthropic.AnthropicError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
 
     response = client.post(
         "/ui/ai/message",
@@ -380,6 +401,9 @@ def test_ui_ai_message_with_unknown_session_id_resets_panel_with_notice(client, 
 
 
 def test_ui_ai_message_does_not_show_confirm_button_when_candidates_present(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -405,6 +429,9 @@ def test_ui_ai_message_does_not_show_confirm_button_when_candidates_present(clie
 
 
 def test_ui_ai_message_renders_candidate_chips(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -432,6 +459,9 @@ def test_ui_ai_message_renders_candidate_chips(client, session, monkeypatch):
 
 
 def test_ui_ai_candidate_chip_click_continues_session_and_shows_confirm(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
     monkeypatch.setattr(
         ai_client,
         "categorize",
