@@ -241,7 +241,7 @@ def ui_ai_message(
 
         try:
             detection = ai_client.detect_places(combined_message)
-        except (anthropic.AnthropicError, RuntimeError):
+        except (anthropic.AnthropicError, RuntimeError, json.JSONDecodeError):
             logger.exception("detect_places call failed, treating as single-place")
             detection = {"is_multi_place": False, "place_names": None}
 

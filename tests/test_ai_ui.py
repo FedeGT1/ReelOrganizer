@@ -1,3 +1,5 @@
+import json
+
 import anthropic
 from sqlmodel import select
 
@@ -41,6 +43,35 @@ def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, ses
     assert response.status_code == 200
     assert "Ichiran Ramen" in response.text
     assert session.exec(select(AiSession)).first() is not None
+
+
+def test_ui_ai_message_falls_back_to_single_place_when_detect_places_returns_malformed_json(client, session, monkeypatch):
+    def bad_json(message):
+        raise json.JSONDecodeError("bad json", "not json", 0)
+
+    monkeypatch.setattr(ai_client, "detect_places", bad_json)
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Ichiran Ramen",
+            "near_hub": None,
+            "types": ["food"],
+            "note": "Ramen chain",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.0,
+            "lon": 135.0,
+        },
+    )
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/abc", "message": "Ramen a Tokyo"},
+    )
+
+    assert response.status_code == 200
+    assert "Ichiran Ramen" in response.text
 
 
 def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_turn(client, session, monkeypatch):
