@@ -1,6 +1,6 @@
 # Japan Reel Organizer
 
-A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites — both fully manageable from the "Gestisci hub" page) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map. A generative AI chat flow helps categorize new reels: paste a link and a caption, and it proposes a place, category tags, and coordinates, falling back to a web search when its own knowledge isn't enough to place the location, presenting a clickable list to disambiguate if search finds more than one plausible match, and never saving anything without confirmation. Saved reels can be edited afterwards (link, note, location, categories) or deleted. Login-protected (single fixed user) so it can be safely exposed on the internet for remote access.
+A small FastAPI app for organizing Instagram reels saved while planning a trip to Japan. Reels are categorized by location (a hub city/region, optionally with nearby day-trip satellites — both fully manageable from the "Gestisci hub" page) and by content type (food, culture, nature, etc. — user-editable from the "Gestisci categorie" page), then displayed on an interactive map. Pasting a reel link can auto-import its caption and an audio transcript (via yt-dlp + a local Whisper speech-to-text model) instead of typing them by hand. A generative AI chat flow then categorizes the reel: it proposes a place, category tags, and coordinates, falling back to a web search when its own knowledge isn't enough to place the location, presenting a clickable list to disambiguate if search finds more than one plausible match, splitting a reel that lists several distinct places (e.g. "10 places to see in Kyoto") into a checklist of individually-resolved pins, and never saving anything without confirmation. Saved reels can be edited afterwards (link, note, location, categories) or deleted. Login-protected (single fixed user) so it can be safely exposed on the internet for remote access.
 
 ## Stack
 
@@ -8,6 +8,7 @@ A small FastAPI app for organizing Instagram reels saved while planning a trip t
 - **Persistence**: SQLite via SQLModel (single file, created fresh at startup)
 - **Frontend**: Jinja2 server-rendered templates + HTMX for interactivity, Leaflet (Esri World Street Map tiles) + vanilla JS for the interactive map
 - **AI**: Anthropic Python SDK (`claude-haiku-4-5`) with structured JSON output and a web-search tool for categorization
+- **Reel import**: `yt-dlp` (caption + video download, anonymous) and `faster-whisper` (local CPU speech-to-text) for the auto-import feature — both require `ffmpeg`, already installed in the Docker image
 
 ## Running locally
 
@@ -53,13 +54,15 @@ docker run --rm -d \
   --name reel-organizer japan-reel-organizer
 ```
 
-Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) for putting nginx with TLS in front of it so it can be reached remotely.
+Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) for putting nginx with TLS in front of it so it can be reached remotely. That guide also covers a required nginx timeout bump (`proxy_read_timeout 180s`) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
 
 Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"}`.
 
+The first-ever Instagram auto-import also downloads the ~140MB Whisper speech-to-text model into the `/data` volume — it's cached there afterwards, so this only happens once (not on every container restart), but that first import will be noticeably slower than later ones. Triggering one import manually right after deploying warms the cache ahead of real use.
+
 ## Persistence
 
-There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs and default categories if empty (both seeded independently, so clearing one doesn't require re-seeding the other). If you have an existing local `data/*.db` from before a schema change, delete it (`rm data/*.db`) so it gets recreated with the current schema — there is no migration path for schema changes.
+There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs and default categories if empty (both seeded independently, so clearing one doesn't require re-seeding the other). If you have an existing local `data/*.db` from before a schema *or seed data* change, delete it (`rm data/*.db`) so it gets recreated with the current schema/seed — there is no migration path for schema or seed-data changes. The downloaded Whisper model is cached separately (path configurable via `WHISPER_MODEL_CACHE_DIR`, defaults to `/data/whisper_models` in Docker) and isn't affected by resetting the database.
 
 ## AI debug log
 

@@ -36,28 +36,29 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-The Instagram auto-import feature (`POST /ui/ai/import`) can take up to 60
-seconds to download and transcribe a reel. nginx's default
-`proxy_read_timeout` is also 60s, which is right at the edge — raise it
-explicitly inside the `location /` block above to avoid spurious 504s:
-
-```nginx
-proxy_read_timeout 75s;
-```
-
-The multi-place reel import (`POST /ui/ai/message` when a reel lists several
-distinct places, and `POST /ui/ai/multi/message`) can make up to 15
-sequential Claude API calls in one request — each place is resolved
-independently, some involving a web search round trip. A real "10+ places"
-reel can take well over a minute. Raise `proxy_read_timeout` further for
-this to complete reliably — `180s` comfortably covers the worst case:
+Two features in this app make long-running requests, so nginx's default
+`proxy_read_timeout` (60s) is too tight — set it to `180s` inside the
+`location /` block above:
 
 ```nginx
 proxy_read_timeout 180s;
 ```
 
-(This supersedes the `75s` suggested above if you're setting a single
-value for the whole `location /` block — 180s covers both features.)
+- The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
+  transcribes a reel, capped at 60 seconds internally.
+- The multi-place reel import (when a reel lists several distinct places —
+  `POST /ui/ai/message` and `POST /ui/ai/multi/message`) can make up to 15
+  sequential Claude API calls in one request, each place resolved
+  independently and some involving a web search round trip. A real
+  "10+ places" reel can take well over a minute.
+
+`180s` comfortably covers both. Also note: the **very first** Instagram
+import after a fresh deploy additionally downloads the ~140MB Whisper
+speech-to-text model (cached afterwards in the `/data` volume, so this only
+happens once, not on every restart) — that first request can be
+noticeably slower than later ones. If you want to avoid a slow/timed-out
+first real import, trigger one yourself right after deploying to warm the
+cache.
 
 Unlike the more common `$proxy_add_x_forwarded_for`, this uses `$remote_addr`
 directly so nginx always overwrites the header rather than appending to it —
