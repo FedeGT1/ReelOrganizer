@@ -36,6 +36,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+The Instagram auto-import feature (`POST /ui/ai/import`) can take up to 60
+seconds to download and transcribe a reel. nginx's default
+`proxy_read_timeout` is also 60s, which is right at the edge — raise it
+explicitly inside the `location /` block above to avoid spurious 504s:
+
+```nginx
+proxy_read_timeout 75s;
+```
+
 Unlike the more common `$proxy_add_x_forwarded_for`, this uses `$remote_addr`
 directly so nginx always overwrites the header rather than appending to it —
 the app trusts this header for its login rate-limiter, so it must not be

@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import require_env
 from app.auth_middleware import AuthMiddleware
 from app.db import create_db_and_tables, engine
-from app.routers import ai_categorize, auth, categories, locations, map as map_router, reels
+from app.routers import ai_categorize, auth, categories, instagram_import, locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -53,6 +53,7 @@ app.include_router(map_router.ui_router)
 app.include_router(reels.ui_router)
 app.include_router(ai_categorize.router)
 app.include_router(ai_categorize.ui_router)
+app.include_router(instagram_import.router)
 app.include_router(categories.router)
 app.include_router(categories.ui_router)
 app.include_router(locations.ui_router)

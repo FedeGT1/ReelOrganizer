@@ -53,8 +53,15 @@
 <form hx-post="/ui/ai/message" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-input-form">
     <input type="hidden" name="session_id" value="{{ session_id }}">
     {% if not session_id %}
-    <input type="url" name="link" placeholder="Link Instagram" required>
-    <textarea name="message" placeholder="Descrizione o didascalia del reel" required></textarea>
+    <input type="url" name="link" id="ai-import-link" placeholder="Link Instagram" required value="{{ link }}">
+    <button type="button" class="btn-import"
+            hx-post="/ui/ai/import"
+            hx-include="#ai-import-link"
+            hx-target="#ai-chat-panel"
+            hx-swap="innerHTML"
+            hx-indicator="#ai-import-indicator">Importa da Instagram</button>
+    <span id="ai-import-indicator" class="htmx-indicator">Scarico e trascrivo…</span>
+    <textarea name="message" placeholder="Descrizione o didascalia del reel" required>{{ prefill_message|default('') }}</textarea>
     {% else %}
     <input type="hidden" name="link" value="{{ link }}">
     <textarea name="message" placeholder="Scrivi..." required></textarea>
