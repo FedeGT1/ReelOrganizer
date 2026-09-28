@@ -133,6 +133,7 @@ def test_multi_place_row_shows_clarify_form_for_unresolved_place(client, session
 
     assert response.status_code == 200
     assert "coordinate" in response.text.lower()
+    assert "Posto Misterioso" in response.text
     assert 'name="clarify_session_id"' in response.text
     assert response.text.count('name="place_json"') == 1
 

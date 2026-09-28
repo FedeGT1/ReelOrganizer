@@ -21,6 +21,7 @@
 {% for row in rows %}
     {% if not row.resolved %}
     <div class="multi-place-clarify">
+        <strong>{{ row.result.place_name }}</strong>
         <span>{{ row.result.question }}</span>
         <form hx-post="/ui/ai/multi/message" hx-target="#ai-chat-panel" hx-swap="innerHTML">
             <input type="hidden" name="link" value="{{ link }}">
