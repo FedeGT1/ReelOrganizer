@@ -5,7 +5,12 @@ from typing import Any, Optional
 
 from anthropic import Anthropic
 
-from app.ai.prompts import build_response_schema, build_system_prompt
+from app.ai.prompts import (
+    build_places_response_schema,
+    build_places_system_prompt,
+    build_response_schema,
+    build_system_prompt,
+)
 
 MODEL = "claude-haiku-4-5"
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search"}
@@ -55,4 +60,27 @@ def categorize(
             f"categorize: no text block in final response (stop_reason={response.stop_reason!r})"
         )
     logger.debug("categorize raw response text=%s", text_block.text)
+    return json.loads(text_block.text)
+
+
+def detect_places(message: str) -> dict[str, Any]:
+    client = get_client()
+    system = build_places_system_prompt()
+    schema = build_places_response_schema()
+    logger.debug("detect_places request message=%s", message)
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
+        system=system,
+        messages=[{"role": "user", "content": message}],
+        output_config={"format": {"type": "json_schema", "schema": schema}},
+    )
+
+    text_block = next((block for block in response.content if block.type == "text"), None)
+    if text_block is None:
+        raise RuntimeError(
+            f"detect_places: no text block in response (stop_reason={response.stop_reason!r})"
+        )
+    logger.debug("detect_places raw response text=%s", text_block.text)
     return json.loads(text_block.text)

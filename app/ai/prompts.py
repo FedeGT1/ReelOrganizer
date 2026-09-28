@@ -59,3 +59,33 @@ def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) ->
         "Se il luogo corrisponde a un hub o tappa gia' esistente, puoi lasciare lat e lon a null: non verranno usate. "
         "Rispondi seguendo esattamente lo schema JSON fornito."
     )
+
+
+def build_places_response_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "is_multi_place": {"type": "boolean"},
+            "place_names": {
+                "type": ["array", "null"],
+                "items": {"type": "string"},
+            },
+        },
+        "required": ["is_multi_place", "place_names"],
+        "additionalProperties": False,
+    }
+
+
+def build_places_system_prompt() -> str:
+    return (
+        "Analizzi un testo (link, didascalia e/o trascrizione audio) di un reel Instagram su viaggi in "
+        "Giappone. Il tuo unico compito e' capire se il testo elenca ESPLICITAMENTE piu' luoghi distinti "
+        "da visitare (per esempio una lista tipo '10 posti da vedere a Kyoto', con nomi di luoghi diversi "
+        "elencati uno per uno), oppure se descrive un solo luogo (anche se in modo molto dettagliato). "
+        "Se il testo elenca chiaramente piu' luoghi distinti, valorizza 'is_multi_place' a true e "
+        "'place_names' con i nomi dei luoghi esattamente come appaiono nel testo (massimo 15 nomi; se ce "
+        "ne sono di piu', scegli i primi 15). Se il testo descrive un solo luogo, o non elenca luoghi "
+        "specifici, valorizza 'is_multi_place' a false e 'place_names' a null. Nel dubbio, se non sei "
+        "sicuro che si tratti di un vero elenco di luoghi diversi, preferisci rispondere false. Rispondi "
+        "seguendo esattamente lo schema JSON fornito."
+    )

@@ -112,3 +112,28 @@ def test_categorize_raises_after_second_consecutive_pause_turn(monkeypatch):
 
     with pytest.raises(RuntimeError):
         ai_client.categorize([], {}, [{"role": "user", "content": "x"}])
+
+
+def test_detect_places_returns_single_place_result(monkeypatch):
+    expected = {"is_multi_place": False, "place_names": None}
+    fake_client = FakeAnthropicClient(response_json=expected)
+    monkeypatch.setattr(ai_client, "get_client", lambda: fake_client)
+
+    result = ai_client.detect_places("Un tempio bellissimo a Kyoto")
+
+    assert result == expected
+    assert fake_client.messages.last_call_kwargs["model"] == ai_client.MODEL
+    assert fake_client.messages.last_call_kwargs["output_config"]["format"]["type"] == "json_schema"
+
+
+def test_detect_places_returns_multi_place_list(monkeypatch):
+    expected = {
+        "is_multi_place": True,
+        "place_names": ["Fushimi Inari Taisha", "Kiyomizu-dera", "Kinkaku-ji"],
+    }
+    fake_client = FakeAnthropicClient(response_json=expected)
+    monkeypatch.setattr(ai_client, "get_client", lambda: fake_client)
+
+    result = ai_client.detect_places("10 luoghi imperdibili a Kyoto: ...")
+
+    assert result == expected
