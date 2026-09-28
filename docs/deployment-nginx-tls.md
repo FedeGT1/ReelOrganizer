@@ -8,6 +8,8 @@ control already pointing (DNS A record) at this VM's IP. Replace
 This adds one new, isolated nginx server block for this app only — it does
 not touch your existing sites' server blocks or `nginx.conf`.
 
+(If your VM uses Apache instead, see [`docs/deployment-apache-tls.md`](deployment-apache-tls.md) — same steps, different config syntax.)
+
 ## 1. Run the app container bound to localhost only
 
 Follow the README's Docker section, making sure the port is published as

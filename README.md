@@ -25,7 +25,7 @@ uv run uvicorn app.main:app --reload
 
 The app is served at `http://localhost:8000`.
 
-**Note:** the session cookie is marked `Secure` (HTTPS-only), so the login form won't actually work over plain `http://localhost:8000` — the browser will refuse to send the cookie back and you'll bounce back to `/login`. This is intentional for the real deployment (see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md), which puts nginx with TLS in front of the app); to exercise login locally you need HTTPS too, e.g. via a local self-signed cert passed to uvicorn (`--ssl-keyfile`/`--ssl-certfile`) or by testing against a real TLS-terminated deployment instead.
+**Note:** the session cookie is marked `Secure` (HTTPS-only), so the login form won't actually work over plain `http://localhost:8000` — the browser will refuse to send the cookie back and you'll bounce back to `/login`. This is intentional for the real deployment (see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of the app); to exercise login locally you need HTTPS too, e.g. via a local self-signed cert passed to uvicorn (`--ssl-keyfile`/`--ssl-certfile`) or by testing against a real TLS-terminated deployment instead.
 
 ## Running the tests
 
@@ -54,7 +54,7 @@ docker run --rm -d \
   --name reel-organizer japan-reel-organizer
 ```
 
-Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) for putting nginx with TLS in front of it so it can be reached remotely. That guide also covers a required nginx timeout bump (`proxy_read_timeout 180s`) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
+Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of it so it can be reached remotely. That guide also covers a required reverse-proxy read-timeout bump (180s) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
 
 Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"}`.
 
