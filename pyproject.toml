@@ -10,6 +10,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "anthropic>=0.69.0",
     "yt-dlp>=2024.12.0",
+    "faster-whisper>=1.0.0",
     "itsdangerous>=2.2.0",
 ]
 
