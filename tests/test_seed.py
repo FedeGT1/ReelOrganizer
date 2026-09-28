@@ -13,7 +13,7 @@ def test_seed_if_empty_creates_hubs_and_satellites():
         hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
         satellites = session.exec(select(Location).where(Location.is_hub == False)).all()
 
-        assert len(hubs) == 9
+        assert len(hubs) == 10
         assert len(satellites) == 10
         tokyo = next(h for h in hubs if h.name == "Tokyo / Kanto")
         nikko = next(s for s in satellites if s.name == "Nikko")
@@ -27,7 +27,7 @@ def test_seed_if_empty_is_idempotent():
         seed_if_empty(session)
         seed_if_empty(session)
         all_locations = session.exec(select(Location)).all()
-        assert len(all_locations) == 19
+        assert len(all_locations) == 20
 
 
 def test_seed_if_empty_creates_default_categories():
