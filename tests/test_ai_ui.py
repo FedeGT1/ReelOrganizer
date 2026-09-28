@@ -14,6 +14,13 @@ def test_ui_ai_panel_renders_empty_state(client):
     assert 'name="message"' in response.text
 
 
+def test_ui_ai_panel_send_button_has_its_own_scoped_indicator(client):
+    response = client.get("/ui/ai/panel")
+    assert response.status_code == 200
+    assert 'hx-indicator="#ai-send-indicator"' in response.text
+    assert 'id="ai-send-indicator"' in response.text
+
+
 def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, session, monkeypatch):
     session.add(Location(name="Tokyo / Kanto", is_hub=True))
     session.commit()
