@@ -57,6 +57,47 @@ def test_list_reels_returns_null_coordinates_when_location_has_none(client, sess
     assert data[0]["lon"] is None
 
 
+def test_list_reels_maps_query_uses_location_name_by_default(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.commit()
+
+    response = client.get("/api/reels")
+    assert response.json()[0]["maps_query"] == "Tokyo / Kanto"
+
+
+def test_list_reels_maps_query_uses_coordinates_when_confidence_is_low(client, session):
+    hub = Location(
+        name="Mystery Alley", is_hub=True, lat=35.0067, lon=135.7727, geocode_confidence="low"
+    )
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.commit()
+
+    response = client.get("/api/reels")
+    assert response.json()[0]["maps_query"] == "35.0067,135.7727"
+
+
+def test_list_reels_maps_query_is_none_when_low_confidence_and_no_coordinates(client, session):
+    hub = Location(name="Hub", is_hub=True, geocode_confidence="low")
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.commit()
+
+    response = client.get("/api/reels")
+    assert response.json()[0]["maps_query"] is None
+
+
 def test_filter_reels_by_location_id(client, session):
     hub_a = Location(name="Hub A", is_hub=True)
     hub_b = Location(name="Hub B", is_hub=True)

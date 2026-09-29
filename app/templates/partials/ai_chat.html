@@ -46,6 +46,7 @@
     <input type="hidden" name="lat" value="{{ latest_result.lat if latest_result.lat is not none else '' }}">
     <input type="hidden" name="lon" value="{{ latest_result.lon if latest_result.lon is not none else '' }}">
     <input type="hidden" name="matched_location_id" value="{{ matched_location_id }}">
+    <input type="hidden" name="confidence" value="{{ latest_result.confidence or '' }}">
     <button type="submit">Conferma e salva</button>
 </form>
 {% endif %}

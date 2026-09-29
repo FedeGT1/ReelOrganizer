@@ -67,6 +67,7 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
             "lat": result.get("lat"),
             "lon": result.get("lon"),
             "matched_location_id": matched_location_id or "",
+            "confidence": result.get("confidence"),
         }
         rows.append(
             {
@@ -143,6 +144,7 @@ def ui_ai_multi_confirm(
             place.get("lat"),
             place.get("lon"),
             place.get("matched_location_id", ""),
+            place.get("confidence"),
         )
 
     for session_id in session_ids:

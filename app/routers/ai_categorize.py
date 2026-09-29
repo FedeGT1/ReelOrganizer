@@ -280,6 +280,7 @@ def _resolve_location_and_create_reel(
     lat,
     lon,
     matched_location_id: str,
+    confidence: Optional[str] = None,
 ) -> Reel:
     if matched_location_id:
         location_id = matched_location_id
@@ -297,6 +298,7 @@ def _resolve_location_and_create_reel(
             parent_id=hub.id if hub else None,
             lat=float(lat),
             lon=float(lon),
+            geocode_confidence=confidence or None,
         )
         session.add(new_location)
         session.commit()
@@ -329,13 +331,14 @@ def ui_ai_confirm(
     lat: str = Form(""),
     lon: str = Form(""),
     matched_location_id: str = Form(""),
+    confidence: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     _resolve_location_and_create_reel(
-        session, link, place_name, near_hub, types, note, lat, lon, matched_location_id
+        session, link, place_name, near_hub, types, note, lat, lon, matched_location_id, confidence
     )
 
     stale_ai_session = session.get(AiSession, session_id)

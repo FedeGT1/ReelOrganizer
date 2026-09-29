@@ -228,6 +228,7 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
         data={"link": "https://instagram.com/reel/abc", "message": "Ramen a Tokyo"},
     )
     assert "Conferma e salva" in response.text
+    assert 'name="confidence" value="high"' in response.text
 
 
 def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(client, session):
@@ -313,6 +314,31 @@ def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
     assert location is not None
     assert location.is_hub is True
     assert location.parent_id is None
+
+
+def test_ui_ai_confirm_stores_confidence_on_new_location(client, session):
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://instagram.com/reel/sapporo",
+            "place_name": "Sapporo Ramen Alley",
+            "near_hub": "",
+            "types": ["food"],
+            "note": "Ramen alley",
+            "lat": "43.0618",
+            "lon": "141.3545",
+            "matched_location_id": "",
+            "confidence": "low",
+        },
+    )
+    assert response.status_code == 200
+
+    location = session.exec(select(Location).where(Location.name == "Sapporo Ramen Alley")).first()
+    assert location.geocode_confidence == "low"
 
 
 def test_ui_ai_confirm_rejects_invalid_link(client, session):

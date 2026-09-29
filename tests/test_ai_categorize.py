@@ -488,3 +488,42 @@ def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(sessio
     assert satellite.is_hub is False
     assert satellite.parent_id == hub.id
     assert reel.location_id == satellite.id
+
+
+def test_resolve_location_and_create_reel_stores_confidence_on_new_location(session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    _resolve_location_and_create_reel(
+        session,
+        "https://instagram.com/reel/mystery",
+        "Mystery Alley",
+        "Tokyo / Kanto",
+        [],
+        "",
+        "35.7",
+        "139.7",
+        "",
+        "low",
+    )
+
+    location = session.exec(select(Location).where(Location.name == "Mystery Alley")).first()
+    assert location.geocode_confidence == "low"
+
+
+def test_resolve_location_and_create_reel_leaves_matched_location_confidence_untouched(session):
+    hub = Location(
+        name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, geocode_confidence="high"
+    )
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    _resolve_location_and_create_reel(
+        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", "", [], "", "", "", hub.id, "low"
+    )
+
+    session.refresh(hub)
+    assert hub.geocode_confidence == "high"

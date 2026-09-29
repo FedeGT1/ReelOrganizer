@@ -223,6 +223,27 @@ def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(cli
     assert {r.link for r in reels} == {"https://instagram.com/reel/kyoto10"}
     kiyomizu = session.exec(select(Location).where(Location.name == "Kiyomizu-dera")).first()
     assert {r.location_id for r in reels} == {hub.id, kiyomizu.id}
+    assert kiyomizu.geocode_confidence is None
+
+
+def test_ui_ai_multi_confirm_stores_confidence_on_newly_created_location(client, session):
+    place = json.dumps({
+        "place_name": "Mystery Alley", "near_hub": "", "types": [],
+        "note": "", "lat": 35.7, "lon": 139.7, "matched_location_id": "", "confidence": "low",
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1"],
+            "place_json": [place],
+        },
+    )
+
+    assert response.status_code == 200
+    location = session.exec(select(Location).where(Location.name == "Mystery Alley")).first()
+    assert location.geocode_confidence == "low"
 
 
 def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, session):

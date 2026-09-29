@@ -34,6 +34,16 @@ class ReelCreate(BaseModel):
     types: list[str] = []
 
 
+def _maps_query(location: Optional[Location]) -> Optional[str]:
+    if location is None:
+        return None
+    if location.geocode_confidence != "low" and location.name:
+        return location.name
+    if location.lat is not None and location.lon is not None:
+        return f"{location.lat},{location.lon}"
+    return None
+
+
 def _serialize_reel(session: Session, reel: Reel) -> dict:
     types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
     location = session.get(Location, reel.location_id)
@@ -46,6 +56,7 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
         "types": [t.type for t in types],
         "lat": location.lat if location else None,
         "lon": location.lon if location else None,
+        "maps_query": _maps_query(location),
     }
 
 
