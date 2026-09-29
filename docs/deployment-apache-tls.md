@@ -55,7 +55,7 @@ never be left settable by a client-supplied header.
 of which web server sits in front of it:
 
 - The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
-  transcribes a reel, capped at 60 seconds internally.
+  transcribes a reel, capped at 120 seconds internally.
 - The multi-place reel import (a reel listing several distinct places) can
   make up to 15 sequential Claude API calls in one request, each place
   resolved independently and some involving a web search round trip. A

@@ -16,7 +16,7 @@ router = APIRouter(prefix="/ui/ai", tags=["ai-import"])
 
 logger = logging.getLogger("app.ingest")
 
-IMPORT_TIMEOUT_SECONDS = 60
+IMPORT_TIMEOUT_SECONDS = 120
 
 FETCH_FAILED_NOTICE = (
     "Non sono riuscito a importare in automatico questo reel — "

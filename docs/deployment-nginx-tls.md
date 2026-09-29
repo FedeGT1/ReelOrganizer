@@ -47,7 +47,7 @@ proxy_read_timeout 180s;
 ```
 
 - The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
-  transcribes a reel, capped at 60 seconds internally.
+  transcribes a reel, capped at 120 seconds internally.
 - The multi-place reel import (when a reel lists several distinct places —
   `POST /ui/ai/message` and `POST /ui/ai/multi/message`) can make up to 15
   sequential Claude API calls in one request, each place resolved
