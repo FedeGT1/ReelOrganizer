@@ -41,12 +41,13 @@ Build the image:
 docker build -t japan-reel-organizer .
 ```
 
-Run it with a mounted data volume so the SQLite database persists across container restarts:
+Run it with a mounted data volume so the SQLite database persists across container restarts. Use an **absolute path** for the volume mount, not `$(pwd)/data` — if you (or a script) ever run the `docker run` command from a different working directory, `$(pwd)` silently resolves to wherever you happen to be, mounting an unrelated empty directory instead of your real data and making it look like all your reels vanished. `--restart unless-stopped` (not `--rm`) makes the container survive a VM reboot:
 
 ```bash
-docker run --rm -d \
+docker run -d \
+  --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
-  -v "$(pwd)/data:/data" \
+  -v "/absolute/path/to/reelorganizer/data:/data" \
   -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   -e AUTH_USERNAME="$AUTH_USERNAME" \
   -e AUTH_PASSWORD="$AUTH_PASSWORD" \
@@ -55,6 +56,8 @@ docker run --rm -d \
 ```
 
 Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of it so it can be reached remotely. That guide also covers a required reverse-proxy read-timeout bump (180s) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
+
+**No domain yet?** [sslip.io](https://sslip.io) gives you a working public hostname for free, no registration or DNS propagation wait: `<ip-with-dashes>.sslip.io` (e.g. `203-0-113-42.sslip.io` for IP `203.0.113.42`) resolves instantly to that IP, and Let's Encrypt/certbot will happily issue a real certificate for it. Handy for testing a deployment end-to-end (including real HTTPS login) before you have a real domain pointed at the VM.
 
 Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"}`.
 
