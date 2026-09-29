@@ -56,7 +56,13 @@ def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) ->
         "riconoscibile (per esempio 'Asakusa', 'Senso-ji', 'Dotonbori', 'Shinjuku'), stima le coordinate di quella "
         "zona invece di lasciare i campi vuoti. Lascia lat e lon a null solo se il testo non permette di individuare "
         "nemmeno una zona approssimativa. "
-        "Se il luogo corrisponde a un hub o tappa gia' esistente, puoi lasciare lat e lon a null: non verranno usate. "
+        "Lascia lat e lon a null SOLO se 'place_name' e' esso stesso il nome di un hub o tappa gia' esistente "
+        "(cioe' il reel parla della citta'/zona in generale, non di un luogo specifico al suo interno) -- in "
+        "quel caso non servono, verra' usata la posizione gia' salvata per quella tappa. Se invece stai "
+        "proponendo un luogo NUOVO e specifico (un negozio, tempio, ristorante, punto di interesse, stazione, "
+        "ecc.), anche se si trova vicino o dentro una tappa gia' esistente che hai indicato in 'near_hub', "
+        "DEVI comunque stimare lat e lon per quel luogo specifico seguendo le istruzioni sopra: 'near_hub' "
+        "serve solo a indicare sotto quale tappa raggrupparlo, non ti esenta dallo stimare le sue coordinate. "
         "Rispondi seguendo esattamente lo schema JSON fornito."
     )
 
