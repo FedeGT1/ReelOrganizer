@@ -94,6 +94,66 @@ def test_categorize_matches_existing_location_case_insensitive(client, session, 
     assert response.json()["matched_location_id"] == hub.id
 
 
+def test_categorize_does_not_match_hub_when_hub_name_is_only_a_substring_of_a_new_place(
+    client, session, monkeypatch
+):
+    # Regression: "Hakone" is a substring of "Hakone-Yumoto Eva Store", but
+    # the store is a brand-new, distinct place, not the hub itself. Matching
+    # it to the hub would discard the AI's own estimated coordinates for the
+    # store and silently attach the reel to the hub's generic location.
+    hub = Location(name="Hakone", is_hub=True, lat=35.2323, lon=139.1069)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Hakone-Yumoto Eva Store",
+            "near_hub": "Hakone",
+            "types": ["shopping"],
+            "note": "Official Evangelion merchandise store",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.20139,
+            "lon": 139.04361,
+        },
+    )
+
+    response = client.post("/api/ai/categorize", json={"message": "Eva store a Hakone"})
+    data = response.json()
+    assert data["matched_location_id"] is None
+    assert data["place_name"] == "Hakone-Yumoto Eva Store"
+
+
+def test_categorize_still_matches_hub_when_place_name_is_contained_in_hub_label(
+    client, session, monkeypatch
+):
+    # The reverse direction must still work: a short proposal like "Tokyo"
+    # should match the "Tokyo / Kanto" hub label that contains it.
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Tokyo",
+            "near_hub": None,
+            "types": [],
+            "note": "",
+            "confidence": "high",
+            "question": None,
+        },
+    )
+
+    response = client.post("/api/ai/categorize", json={"message": "Tokyo in generale"})
+    assert response.json()["matched_location_id"] == hub.id
+
+
 def test_categorize_with_unknown_session_id_returns_404(client):
     response = client.post(
         "/api/ai/categorize",
