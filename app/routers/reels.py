@@ -36,6 +36,7 @@ class ReelCreate(BaseModel):
 
 def _serialize_reel(session: Session, reel: Reel) -> dict:
     types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
+    location = session.get(Location, reel.location_id)
     return {
         "id": reel.id,
         "link": reel.link,
@@ -43,6 +44,8 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
         "note": reel.note,
         "created_at": reel.created_at.isoformat(),
         "types": [t.type for t in types],
+        "lat": location.lat if location else None,
+        "lon": location.lon if location else None,
     }
 
 

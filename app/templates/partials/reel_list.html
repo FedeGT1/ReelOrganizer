@@ -14,6 +14,9 @@
                 <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
             </div>
         </div>
+        {% if reel.lat is not none and reel.lon is not none %}
+        <a class="btn-maps" href="https://www.google.com/maps/search/?api=1&query={{ reel.lat }},{{ reel.lon }}" target="_blank" rel="noopener noreferrer" aria-label="Apri in Google Maps">🗺️</a>
+        {% endif %}
         <button class="btn-edit" hx-get="/ui/reels/{{ reel.id }}/edit-form" hx-target="#reel-add-form-panel" hx-swap="innerHTML"
                 onclick="document.getElementById('add-reel-dialog').showModal(); document.querySelector('.tab-btn[data-tab=manual]').click();"
                 aria-label="Modifica">✏️</button>

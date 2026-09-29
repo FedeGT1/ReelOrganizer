@@ -215,6 +215,28 @@ button, .reel-list button {
     color: var(--color-paper);
 }
 
+.reel-list .btn-maps {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    background: transparent;
+    color: var(--color-ink-medium);
+    border: 1px solid var(--color-ink-medium);
+    border-radius: 999px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+.reel-list .btn-maps:hover {
+    background: var(--color-ink-medium);
+    color: var(--color-paper);
+}
+
 #ai-chat-messages {
     display: flex;
     flex-direction: column;

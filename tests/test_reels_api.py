@@ -23,6 +23,40 @@ def test_list_reels_with_types(client, session):
     assert data[0]["types"] == ["food"]
 
 
+def test_list_reels_includes_location_coordinates(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id)
+    session.add(reel)
+    session.commit()
+
+    response = client.get("/api/reels")
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["lat"] == 35.6762
+    assert data[0]["lon"] == 139.6503
+
+
+def test_list_reels_returns_null_coordinates_when_location_has_none(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=None, lon=None)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id)
+    session.add(reel)
+    session.commit()
+
+    response = client.get("/api/reels")
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["lat"] is None
+    assert data[0]["lon"] is None
+
+
 def test_filter_reels_by_location_id(client, session):
     hub_a = Location(name="Hub A", is_hub=True)
     hub_b = Location(name="Hub B", is_hub=True)
