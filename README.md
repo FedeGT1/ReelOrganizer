@@ -7,7 +7,7 @@ A small FastAPI app for organizing Instagram reels saved while planning a trip t
 - **Backend**: Python 3.11+, FastAPI
 - **Persistence**: SQLite via SQLModel (single file, created fresh at startup)
 - **Frontend**: Jinja2 server-rendered templates + HTMX for interactivity, Leaflet (Esri World Street Map tiles) + vanilla JS for the interactive map
-- **AI**: Anthropic Python SDK (`claude-haiku-4-5`) with structured JSON output and a web-search tool for categorization
+- **AI**: configurable provider via `AI_PROVIDER` env var — Anthropic Python SDK (`claude-haiku-4-5`, default) or OpenAI Python SDK (`gpt-6-luna`); both use structured JSON output and a web-search tool for categorization
 - **Reel import**: `yt-dlp` (caption + video download, anonymous) and `faster-whisper` (local CPU speech-to-text) for the auto-import feature — both require `ffmpeg`, already installed in the Docker image
 
 ## Running locally
@@ -22,6 +22,8 @@ uv run uvicorn app.main:app --reload
 ```
 
 `AUTH_USERNAME`/`AUTH_PASSWORD` gate every page and API route behind a login form. `SESSION_SECRET_KEY` signs the session cookie — generate it once and keep it stable across restarts (regenerating it invalidates every logged-in session). The app refuses to start if any of the three is missing.
+
+By default the app uses Anthropic (`ANTHROPIC_API_KEY` required, as above). To use OpenAI's `gpt-6-luna` instead, set `AI_PROVIDER=openai` and `OPENAI_API_KEY=sk-...`; `AI_REASONING_EFFORT` (`none`/`low`/`medium`/`high`/`xhigh`/`max`, default `medium`) tunes its cost/latency/quality trade-off and is ignored when using Anthropic.
 
 The app is served at `http://localhost:8000`.
 
@@ -56,6 +58,8 @@ docker run -d \
 ```
 
 Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of it so it can be reached remotely. That guide also covers a required reverse-proxy read-timeout bump (180s) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
+
+To run with the OpenAI provider instead, add `-e AI_PROVIDER="$AI_PROVIDER" -e OPENAI_API_KEY="$OPENAI_API_KEY"` (and optionally `-e AI_REASONING_EFFORT="$AI_REASONING_EFFORT"`) to the `docker run` command above.
 
 **No domain yet?** [sslip.io](https://sslip.io) gives you a working public hostname for free, no registration or DNS propagation wait: `<ip-with-dashes>.sslip.io` (e.g. `203-0-113-42.sslip.io` for IP `203.0.113.42`) resolves instantly to that IP, and Let's Encrypt/certbot will happily issue a real certificate for it. Handy for testing a deployment end-to-end (including real HTTPS login) before you have a real domain pointed at the VM.
 
