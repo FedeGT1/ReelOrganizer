@@ -124,3 +124,17 @@ def test_call_json_wraps_anthropic_error(monkeypatch):
         AnthropicProvider().call_json(
             system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=True
         )
+
+
+def test_get_client_configures_a_request_timeout(monkeypatch):
+    # Regression guard: without a bounded timeout, a stalled upstream call
+    # hangs the underlying SDK request indefinitely instead of failing into
+    # the app's existing AIProviderError fallback (observed live: a
+    # multi-place import's synchronous per-place loop blocked for 4+
+    # minutes on one categorize() call with no error, no timeout).
+    monkeypatch.setattr(anthropic_provider, "_client", None)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-dummy")
+
+    client = anthropic_provider.get_client()
+
+    assert client.timeout == 60.0

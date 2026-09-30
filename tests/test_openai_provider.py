@@ -119,3 +119,17 @@ def test_call_json_raises_ai_provider_error_when_output_text_is_none(monkeypatch
         OpenAIProvider().call_json(
             system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=False
         )
+
+
+def test_get_client_configures_a_request_timeout(monkeypatch):
+    # Regression guard: without a bounded timeout, a stalled upstream call
+    # hangs the underlying SDK request indefinitely instead of failing into
+    # the app's existing AIProviderError fallback (observed live: a
+    # multi-place import's synchronous per-place loop blocked for 4+
+    # minutes on one categorize() call with no error, no timeout).
+    monkeypatch.setattr(openai_provider, "_client", None)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy")
+
+    client = openai_provider.get_client()
+
+    assert client.timeout == 60.0
