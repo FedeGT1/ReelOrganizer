@@ -1,8 +1,11 @@
 import json
 import logging
 import os
-from typing import Any, Optional
+import socket
+import sys
+from typing import Any, Optional, Union
 
+import httpx2
 import openai
 from openai import OpenAI
 
@@ -15,10 +18,40 @@ _client: Optional[OpenAI] = None
 logger = logging.getLogger("app.ai")
 
 
+def _keepalive_http_client() -> httpx2.Client:
+    # Unlike the Anthropic SDK, the OpenAI SDK's default transport doesn't
+    # enable TCP keepalive. Without it, a NAT gateway or load balancer that
+    # silently drops an idle pooled connection leaves the client blocked
+    # with no way to detect it until the outer request timeout fires,
+    # minutes later (known upstream issue: openai/openai-python#3269;
+    # observed live here during rapid sequential multi-place-import calls).
+    # Mirrors the socket options the Anthropic SDK already enables by
+    # default (see `anthropic._base_client._DefaultHttpxClient`).
+    socket_options: list[tuple[int, int, Union[int, bool]]] = [
+        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, True)
+    ]
+    tcp_keepintvl = getattr(socket, "TCP_KEEPINTVL", None)
+    if tcp_keepintvl is not None:
+        socket_options.append((socket.IPPROTO_TCP, tcp_keepintvl, 60))
+    elif sys.platform == "darwin":
+        tcp_keepalive = getattr(socket, "TCP_KEEPALIVE", 0x10)
+        socket_options.append((socket.IPPROTO_TCP, tcp_keepalive, 60))
+    tcp_keepcnt = getattr(socket, "TCP_KEEPCNT", None)
+    if tcp_keepcnt is not None:
+        socket_options.append((socket.IPPROTO_TCP, tcp_keepcnt, 5))
+    tcp_keepidle = getattr(socket, "TCP_KEEPIDLE", None)
+    if tcp_keepidle is not None:
+        socket_options.append((socket.IPPROTO_TCP, tcp_keepidle, 60))
+    transport = httpx2.HTTPTransport(socket_options=socket_options)
+    return httpx2.Client(transport=transport)
+
+
 def get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=60.0)
+        _client = OpenAI(
+            api_key=os.environ["OPENAI_API_KEY"], timeout=60.0, http_client=_keepalive_http_client()
+        )
     return _client
 
 

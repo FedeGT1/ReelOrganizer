@@ -1,4 +1,5 @@
 import json
+import socket
 from types import SimpleNamespace
 
 import openai
@@ -133,3 +134,23 @@ def test_get_client_configures_a_request_timeout(monkeypatch):
     client = openai_provider.get_client()
 
     assert client.timeout == 60.0
+
+
+def test_get_client_enables_tcp_keepalive(monkeypatch):
+    # Regression guard: unlike the Anthropic SDK (which enables SO_KEEPALIVE
+    # by default, app/ai/providers/anthropic_provider.py's underlying
+    # client), the OpenAI SDK's default transport does not -- so when a NAT
+    # gateway or load balancer silently drops an idle pooled connection
+    # during a burst of sequential calls (our multi-place import), the
+    # client blocks on a dead connection with no way to detect it (observed
+    # live, twice, during real multi-place imports). Without OS-level
+    # keepalive probes this can only be caught by the outer request
+    # timeout, minutes late. TCP keepalive lets the OS detect and drop the
+    # dead connection itself, well before that.
+    monkeypatch.setattr(openai_provider, "_client", None)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy")
+
+    client = openai_provider.get_client()
+
+    socket_options = client._client._transport._pool._socket_options
+    assert (socket.SOL_SOCKET, socket.SO_KEEPALIVE, True) in socket_options
