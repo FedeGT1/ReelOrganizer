@@ -5,7 +5,12 @@ from sqlmodel import select
 from app.ai import client as ai_client
 from app.ai.providers.base import AIProviderError
 from app.models import Category, Location, Reel
-from app.routers.ai_categorize import _resolve_location_and_create_reel, _run_turn
+from app.routers.ai_categorize import (
+    _categorize_new_session_message,
+    _persist_categorize_result,
+    _resolve_location_and_create_reel,
+    _run_turn,
+)
 
 
 def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
@@ -587,3 +592,110 @@ def test_resolve_location_and_create_reel_leaves_matched_location_confidence_unt
 
     session.refresh(hub)
     assert hub.geocode_confidence == "high"
+
+
+def test_categorize_new_session_message_returns_provider_result(monkeypatch):
+    expected = {
+        "place_name": "Ichiran Ramen", "near_hub": "Tokyo / Kanto", "types": ["food"],
+        "note": "Famous ramen chain", "confidence": "high", "question": None,
+        "lat": None, "lon": None,
+    }
+
+    def fake_categorize(hub_names, categories, messages):
+        assert messages == [{"role": "user", "content": "Ramen a Tokyo"}]
+        return expected
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+
+    result = _categorize_new_session_message("Ramen a Tokyo", ["Tokyo / Kanto"], {"food": "Cibo"})
+
+    assert result == expected
+
+
+def test_categorize_new_session_message_returns_friendly_fallback_on_provider_error(monkeypatch):
+    def boom(hub_names, categories, messages):
+        raise AIProviderError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    result = _categorize_new_session_message("Qualcosa", [], {})
+
+    assert result["question"] == "Errore nel contattare l'assistente, riprova."
+    assert result["place_name"] == ""
+
+
+def test_categorize_new_session_message_does_not_touch_the_db(monkeypatch):
+    # Regression guard for the whole point of splitting this out of
+    # _run_turn: this half must be safe to call from a worker thread
+    # concurrently with other calls, so it must never take or use a
+    # Session. Its signature not accepting one is the enforcement; this
+    # test just pins that the call succeeds standalone, proving nothing
+    # inside it implicitly reaches for a session some other way.
+    monkeypatch.setattr(
+        ai_client, "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "x", "near_hub": None, "types": [], "note": "",
+            "confidence": "low", "question": None, "lat": None, "lon": None,
+        },
+    )
+
+    result = _categorize_new_session_message("msg", [], {})
+
+    assert result["place_name"] == "x"
+
+
+def test_persist_categorize_result_creates_session_and_applies_type_filter(client, session):
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+
+    result = {
+        "place_name": "Ichiran Ramen", "near_hub": "Tokyo / Kanto", "types": ["food", "not-a-real-type"],
+        "note": "Famous ramen chain", "confidence": "high", "question": None,
+        "lat": None, "lon": None,
+    }
+
+    ai_session, persisted_result, matched_location_id = _persist_categorize_result(
+        session, "Ramen a Tokyo", result
+    )
+
+    assert ai_session.id is not None
+    assert persisted_result["types"] == ["food"]
+    assert matched_location_id is None
+
+
+def test_persist_categorize_result_applies_missing_coordinates_safety_net(session):
+    result = {
+        "place_name": "Un vicolo misterioso", "near_hub": None, "types": [], "note": "",
+        "confidence": "low", "question": None, "lat": None, "lon": None,
+    }
+
+    _, persisted_result, _ = _persist_categorize_result(session, "Un vicolo di street food", result)
+
+    assert persisted_result["question"] is not None
+    assert "coordinate" in persisted_result["question"].lower()
+
+
+def test_persist_categorize_result_matches_run_turn_behavior_for_equivalent_input(client, session, monkeypatch):
+    # _run_turn and the split (_categorize_new_session_message +
+    # _persist_categorize_result) must produce identical persisted state
+    # for the same first-turn input -- this is the regression guard that
+    # the split didn't change behavior, only when the DB gets touched.
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+
+    canned = {
+        "place_name": "Ichiran Ramen", "near_hub": "Tokyo / Kanto", "types": ["food"],
+        "note": "Famous ramen chain", "confidence": "high", "question": None,
+        "lat": None, "lon": None,
+    }
+    monkeypatch.setattr(ai_client, "categorize", lambda hub_names, categories, messages: dict(canned))
+
+    run_turn_session, run_turn_result, run_turn_matched = _run_turn(session, None, "Ramen a Tokyo")
+
+    result = _categorize_new_session_message("Ramen a Tokyo", ["Tokyo / Kanto"], {"food": "Cibo"})
+    split_session, split_result, split_matched = _persist_categorize_result(session, "Ramen a Tokyo", result)
+
+    assert split_result == run_turn_result
+    assert split_matched == run_turn_matched
+    assert split_session.id != run_turn_session.id  # distinct sessions, same shape of outcome

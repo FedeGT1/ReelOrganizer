@@ -1,11 +1,90 @@
 import html
 import json
 import re
+import time
 
 from sqlmodel import select
 
 from app.ai import client as ai_client
 from app.models import AiSession, Category, Location, Reel
+
+
+def test_start_multi_place_batch_pairs_results_correctly_despite_out_of_order_completion(
+    client, session, monkeypatch
+):
+    # Regression guard for running categorize() calls in parallel: they can
+    # finish in any order, so the batch must attach each result to the
+    # place it was actually asked about, not to whichever call happened to
+    # return first.
+    monkeypatch.setattr(
+        ai_client,
+        "detect_places",
+        lambda message: {
+            "is_multi_place": True,
+            "place_names": ["Slow Place", "Medium Place", "Fast Place"],
+        },
+    )
+
+    def fake_categorize(hub_names, categories, messages):
+        text = messages[0]["content"]
+        if "Slow Place" in text:
+            time.sleep(0.3)
+            name = "Slow Place"
+        elif "Medium Place" in text:
+            time.sleep(0.15)
+            name = "Medium Place"
+        else:
+            name = "Fast Place"
+        return {
+            "place_name": name, "near_hub": None, "types": [], "note": "",
+            "confidence": "high", "question": None, "lat": 35.0, "lon": 135.0,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/order-test", "message": "3 posti"},
+    )
+
+    assert response.status_code == 200
+    place_jsons = [
+        html.unescape(m) for m in re.findall(r"name=\"place_json\" value='([^']+)'", response.text)
+    ]
+    place_names_in_order = [json.loads(pj)["place_name"] for pj in place_jsons]
+    assert place_names_in_order == ["Slow Place", "Medium Place", "Fast Place"]
+
+
+def test_start_multi_place_batch_runs_categorize_calls_concurrently(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "detect_places",
+        lambda message: {
+            "is_multi_place": True,
+            "place_names": ["Posto 1", "Posto 2", "Posto 3", "Posto 4"],
+        },
+    )
+
+    def fake_categorize(hub_names, categories, messages):
+        time.sleep(0.2)
+        return {
+            "place_name": "x", "near_hub": None, "types": [], "note": "",
+            "confidence": "high", "question": None, "lat": 35.0, "lon": 135.0,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+
+    start = time.monotonic()
+    response = client.post(
+        "/ui/ai/message",
+        data={"link": "https://instagram.com/reel/speed-test", "message": "4 posti"},
+    )
+    elapsed = time.monotonic() - start
+
+    assert response.status_code == 200
+    # 4 calls x 0.2s each: sequential would take >=0.8s; concurrent should
+    # take close to one call's duration. Generous ceiling to avoid flakiness.
+    assert elapsed < 0.6
 
 
 def test_ui_ai_message_routes_to_multi_place_batch_when_detected(client, session, monkeypatch):

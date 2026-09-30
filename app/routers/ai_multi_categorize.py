@@ -1,5 +1,6 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -7,10 +8,12 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import AiMessage, AiSession
+from app.models import AiMessage, AiSession, Location
 from app.routers.ai_categorize import (
     _build_ai_chat_context,
+    _categorize_new_session_message,
     _find_matching_location,
+    _persist_categorize_result,
     _resolve_location_and_create_reel,
     _run_turn,
 )
@@ -24,6 +27,10 @@ router = APIRouter(prefix="/ui/ai/multi", tags=["ai-multi"])
 logger = logging.getLogger("app.ai")
 
 MAX_PLACES = 15
+# Bounds how many categorize() calls run at once for one batch. Keeps the
+# parallel speedup (vs. one-at-a-time) while avoiding firing all MAX_PLACES
+# requests at the provider in one burst.
+MAX_CONCURRENT_CATEGORIZE_CALLS = 5
 
 
 def _seed_message(original_message: str, place_name: str) -> str:
@@ -89,9 +96,30 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
 def start_multi_place_batch(
     request: Request, session: Session, original_message: str, link: str, place_names: list[str]
 ):
+    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hub_names = [h.name for h in hubs]
+    taxonomy = get_taxonomy(session)
+    category_labels = {key: info["label"] for key, info in taxonomy.items()}
+
+    seeded_messages = [
+        _seed_message(original_message, place_name) for place_name in place_names[:MAX_PLACES]
+    ]
+
+    # The slow part -- the AI calls -- runs concurrently, DB-free. Results
+    # come back in the same order as seeded_messages regardless of which
+    # call actually finished first (concurrent.futures.Executor.map
+    # guarantee), so pairing with the right place is preserved.
+    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_CATEGORIZE_CALLS) as executor:
+        results = list(
+            executor.map(
+                lambda m: _categorize_new_session_message(m, hub_names, category_labels),
+                seeded_messages,
+            )
+        )
+
     session_ids = []
-    for place_name in place_names[:MAX_PLACES]:
-        ai_session, _, _ = _run_turn(session, None, _seed_message(original_message, place_name))
+    for message, result in zip(seeded_messages, results):
+        ai_session, _, _ = _persist_categorize_result(session, message, result)
         session_ids.append(ai_session.id)
 
     context = _build_multi_context(session, session_ids, link)

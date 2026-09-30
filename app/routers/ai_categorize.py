@@ -93,6 +93,45 @@ def _assistant_turn_text(result: dict) -> str:
     return " ".join(parts)
 
 
+def _apply_result_post_processing(session: Session, ai_session: AiSession, result: dict) -> Optional[str]:
+    """Shared post-AI-call bookkeeping: type filtering, location matching,
+    and the missing-coordinates safety net. Mutates `result` in place and
+    returns matched_location_id. DB reads only -- callers own commit()."""
+    logger.debug("session=%s parsed model result=%s", ai_session.id, result)
+
+    valid_type_keys = get_valid_type_keys(session)
+    result["types"] = [t for t in result.get("types", []) if t in valid_type_keys]
+
+    matched_location_id = _find_matching_location(session, result["place_name"])
+    logger.debug("session=%s matched_location_id=%s", ai_session.id, matched_location_id)
+
+    if (
+        matched_location_id is None
+        and result.get("question") is None
+        and not result.get("candidates")
+        and (result.get("lat") is None or result.get("lon") is None)
+    ):
+        logger.debug(
+            "session=%s safety net condition met (unmatched place, no question, missing lat/lon)",
+            ai_session.id,
+        )
+        if result.get("near_hub"):
+            hub = _find_hub_by_name(session, result["near_hub"])
+            logger.debug(
+                "session=%s attempting hub fallback for near_hub=%r -> hub=%s",
+                ai_session.id, result["near_hub"], hub.name if hub else None,
+            )
+            if hub is not None:
+                result["lat"] = hub.lat
+                result["lon"] = hub.lon
+
+        if result.get("lat") is None or result.get("lon") is None:
+            result["question"] = MISSING_COORDINATES_QUESTION
+
+    logger.debug("session=%s final result=%s", ai_session.id, result)
+    return matched_location_id
+
+
 def _run_turn(
     session: Session, session_id: Optional[str], message: str
 ) -> tuple[AiSession, dict, Optional[str]]:
@@ -143,38 +182,52 @@ def _run_turn(
             "lon": None,
         }
 
-    logger.debug("session=%s parsed model result=%s", ai_session.id, result)
+    matched_location_id = _apply_result_post_processing(session, ai_session, result)
 
-    valid_type_keys = get_valid_type_keys(session)
-    result["types"] = [t for t in result.get("types", []) if t in valid_type_keys]
+    session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
+    session.commit()
 
-    matched_location_id = _find_matching_location(session, result["place_name"])
-    logger.debug("session=%s matched_location_id=%s", ai_session.id, matched_location_id)
+    return ai_session, result, matched_location_id
 
-    if (
-        matched_location_id is None
-        and result.get("question") is None
-        and not result.get("candidates")
-        and (result.get("lat") is None or result.get("lon") is None)
-    ):
-        logger.debug(
-            "session=%s safety net condition met (unmatched place, no question, missing lat/lon)",
-            ai_session.id,
-        )
-        if result.get("near_hub"):
-            hub = _find_hub_by_name(session, result["near_hub"])
-            logger.debug(
-                "session=%s attempting hub fallback for near_hub=%r -> hub=%s",
-                ai_session.id, result["near_hub"], hub.name if hub else None,
-            )
-            if hub is not None:
-                result["lat"] = hub.lat
-                result["lon"] = hub.lon
 
-        if result.get("lat") is None or result.get("lon") is None:
-            result["question"] = MISSING_COORDINATES_QUESTION
+def _categorize_new_session_message(
+    message: str, hub_names: list[str], category_labels: dict[str, str]
+) -> dict:
+    """The DB-free half of a fresh-session (no history) categorize turn --
+    safe to call concurrently from multiple threads, since it never reads
+    or writes a Session. Used by the multi-place batch to run the slow AI
+    calls for several places in parallel before persisting any of them."""
+    try:
+        return ai_client.categorize(hub_names, category_labels, [{"role": "user", "content": message}])
+    except (AIProviderError, RuntimeError):
+        logger.exception("categorize call failed for new-session message")
+        return {
+            "place_name": "",
+            "near_hub": None,
+            "types": [],
+            "note": "",
+            "confidence": "low",
+            "question": "Errore nel contattare l'assistente, riprova.",
+            "lat": None,
+            "lon": None,
+        }
 
-    logger.debug("session=%s final result=%s", ai_session.id, result)
+
+def _persist_categorize_result(
+    session: Session, message: str, result: dict
+) -> tuple[AiSession, dict, Optional[str]]:
+    """The DB-only half: creates the session/messages and applies the same
+    post-processing _run_turn does, for a result already computed by
+    _categorize_new_session_message. Must run sequentially against a
+    single shared Session -- not thread-safe."""
+    ai_session = AiSession()
+    session.add(ai_session)
+    session.commit()
+    session.refresh(ai_session)
+
+    session.add(AiMessage(session_id=ai_session.id, role="user", content=message))
+
+    matched_location_id = _apply_result_post_processing(session, ai_session, result)
 
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
