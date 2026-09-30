@@ -49,8 +49,12 @@ def _keepalive_http_client() -> httpx2.Client:
 def get_client() -> OpenAI:
     global _client
     if _client is None:
+        # 15s per attempt, not a generous ceiling: the SDK's own max_retries
+        # (default 2) already retries on a plain timeout, so a stalled
+        # attempt gets cut and re-sent automatically rather than making the
+        # caller wait a long time for one slow attempt to maybe recover.
         _client = OpenAI(
-            api_key=os.environ["OPENAI_API_KEY"], timeout=60.0, http_client=_keepalive_http_client()
+            api_key=os.environ["OPENAI_API_KEY"], timeout=15.0, http_client=_keepalive_http_client()
         )
     return _client
 

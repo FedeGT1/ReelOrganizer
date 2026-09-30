@@ -133,7 +133,7 @@ def test_get_client_configures_a_request_timeout(monkeypatch):
 
     client = openai_provider.get_client()
 
-    assert client.timeout == 60.0
+    assert client.timeout == 15.0
 
 
 def test_get_client_enables_tcp_keepalive(monkeypatch):

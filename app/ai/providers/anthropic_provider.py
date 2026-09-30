@@ -20,7 +20,11 @@ logger = logging.getLogger("app.ai")
 def get_client() -> Anthropic:
     global _client
     if _client is None:
-        _client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=60.0)
+        # 15s per attempt, not a generous ceiling: the SDK's own max_retries
+        # (default 2) already retries on a plain timeout, so a stalled
+        # attempt gets cut and re-sent automatically rather than making the
+        # caller wait a long time for one slow attempt to maybe recover.
+        _client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=15.0)
     return _client
 
 
