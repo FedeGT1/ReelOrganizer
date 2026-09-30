@@ -63,6 +63,9 @@ def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) ->
         "ecc.), anche se si trova vicino o dentro una tappa gia' esistente che hai indicato in 'near_hub', "
         "DEVI comunque stimare lat e lon per quel luogo specifico seguendo le istruzioni sopra: 'near_hub' "
         "serve solo a indicare sotto quale tappa raggrupparlo, non ti esenta dallo stimare le sue coordinate. "
+        "Nel campo 'note' scrivi solo una breve descrizione testuale in prosa semplice: anche se hai usato "
+        "la ricerca web per trovare l'informazione, non includere mai link, URL, citazioni o riferimenti a "
+        "fonti in stile markdown (per esempio niente '[testo](url)' o '(nomesito.it)') -- solo testo semplice. "
         "Rispondi seguendo esattamente lo schema JSON fornito."
     )
 

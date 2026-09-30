@@ -85,3 +85,16 @@ def test_build_system_prompt_explains_candidates_field_for_ambiguous_search():
     prompt = build_system_prompt(["Tokyo / Kanto"], CATEGORIES)
     assert "candidates" in prompt
     assert "question" in prompt
+
+
+def test_build_system_prompt_forbids_citations_and_links_in_note():
+    # Regression guard: some providers' web-search tools (observed with
+    # GPT-6 Luna) default to embedding inline markdown citations like
+    # "([kyoto-tower.jp](https://...?utm_source=openai))" into generated
+    # text once search results are involved. Nothing told the model what
+    # 'note' should look like, so it fell back to that habit. The prompt
+    # must say explicitly: plain text, no links/citations, in 'note'.
+    prompt = build_system_prompt(["Tokyo / Kanto"], CATEGORIES)
+    assert "note" in prompt
+    assert "link" in prompt.lower()
+    assert "citazion" in prompt.lower()
