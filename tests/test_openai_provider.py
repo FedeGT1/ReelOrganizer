@@ -109,3 +109,13 @@ def test_call_json_wraps_openai_error(monkeypatch):
         OpenAIProvider().call_json(
             system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=False
         )
+
+
+def test_call_json_raises_ai_provider_error_when_output_text_is_none(monkeypatch):
+    fake_client = FakeOpenAIClient(output_text=None)
+    monkeypatch.setattr(openai_provider, "get_client", lambda: fake_client)
+
+    with pytest.raises(AIProviderError):
+        OpenAIProvider().call_json(
+            system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=False
+        )

@@ -43,4 +43,6 @@ class OpenAIProvider:
             raise AIProviderError(str(e)) from e
 
         logger.debug("call_json raw response output_text=%s", response.output_text)
+        if response.output_text is None:
+            raise AIProviderError("openai: empty response (no output_text)")
         return json.loads(response.output_text)
