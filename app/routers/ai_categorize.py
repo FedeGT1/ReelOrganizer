@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Optional
 
-import anthropic
+from app.ai.providers.base import AIProviderError
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -130,7 +130,7 @@ def _run_turn(
 
     try:
         result = ai_client.categorize(hub_names, category_labels, api_messages)
-    except (anthropic.AnthropicError, RuntimeError):
+    except (AIProviderError, RuntimeError):
         logger.exception("session=%s Anthropic call failed", ai_session.id)
         result = {
             "place_name": "",
@@ -253,7 +253,7 @@ def ui_ai_message(
 
         try:
             detection = ai_client.detect_places(combined_message)
-        except (anthropic.AnthropicError, RuntimeError, json.JSONDecodeError):
+        except (AIProviderError, RuntimeError, json.JSONDecodeError):
             logger.exception("detect_places call failed, treating as single-place")
             detection = {"is_multi_place": False, "place_names": None}
 

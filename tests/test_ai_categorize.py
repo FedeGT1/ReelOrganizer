@@ -1,9 +1,9 @@
 import json
 
-import anthropic
 from sqlmodel import select
 
 from app.ai import client as ai_client
+from app.ai.providers.base import AIProviderError
 from app.models import Category, Location, Reel
 from app.routers.ai_categorize import _resolve_location_and_create_reel, _run_turn
 
@@ -189,7 +189,7 @@ def test_categorize_forces_question_when_new_location_missing_coordinates(client
 
 def test_categorize_returns_friendly_question_when_ai_call_fails(client, session, monkeypatch):
     def boom(hub_names, categories, messages):
-        raise anthropic.AnthropicError("boom")
+        raise AIProviderError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
 
@@ -222,7 +222,7 @@ def test_empty_place_name_does_not_spuriously_match_location(client, session, mo
     session.refresh(location)
 
     def boom(hub_names, categories, messages):
-        raise anthropic.AnthropicError("boom")
+        raise AIProviderError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
 

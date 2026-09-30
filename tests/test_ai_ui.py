@@ -1,9 +1,9 @@
 import json
 
-import anthropic
 from sqlmodel import select
 
 from app.ai import client as ai_client
+from app.ai.providers.base import AIProviderError
 from app.models import AiMessage, AiSession, Category, Location, Reel
 
 
@@ -439,7 +439,7 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
 
 def test_ui_ai_message_shows_friendly_error_when_ai_call_fails(client, session, monkeypatch):
     def boom(hub_names, categories, messages):
-        raise anthropic.AnthropicError("boom")
+        raise AIProviderError("boom")
 
     monkeypatch.setattr(ai_client, "categorize", boom)
     monkeypatch.setattr(
