@@ -27,6 +27,13 @@ By default the app uses Anthropic (`ANTHROPIC_API_KEY` required, as above). To u
 
 The app is served at `http://localhost:8000`.
 
+**Note:** the Whisper speech-to-text model cache defaults to `/data/whisper_models` (`WHISPER_MODEL_CACHE_DIR`), an absolute path meant for the Docker deployment's mounted volume. Running locally outside Docker, `/data` usually doesn't exist or isn't writable, and the first reel transcription will fail with a read-only-filesystem error. Point it at a local, writable directory instead:
+
+```bash
+export WHISPER_MODEL_CACHE_DIR="$(pwd)/data/whisper_models"
+mkdir -p "$WHISPER_MODEL_CACHE_DIR"
+```
+
 **Note:** the session cookie is marked `Secure` (HTTPS-only), so the login form won't actually work over plain `http://localhost:8000` — the browser will refuse to send the cookie back and you'll bounce back to `/login`. This is intentional for the real deployment (see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of the app); to exercise login locally you need HTTPS too, e.g. via a local self-signed cert passed to uvicorn (`--ssl-keyfile`/`--ssl-certfile`) or by testing against a real TLS-terminated deployment instead.
 
 ## Running the tests

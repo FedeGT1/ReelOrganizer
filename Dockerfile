@@ -14,6 +14,7 @@ COPY app ./app
 
 ENV REEL_DB_PATH=/data/japan_reels.db
 ENV WHISPER_MODEL_CACHE_DIR=/data/whisper_models
+ENV AI_DEBUG_LOG_PATH=/data/ai_debug.log
 VOLUME ["/data"]
 
 EXPOSE 8000

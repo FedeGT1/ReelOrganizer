@@ -57,9 +57,13 @@ of which web server sits in front of it:
 - The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
   transcribes a reel, capped at 120 seconds internally.
 - The multi-place reel import (a reel listing several distinct places) can
-  make up to 15 sequential Claude API calls in one request, each place
-  resolved independently and some involving a web search round trip. A
-  real "10+ places" reel can take well over a minute.
+  make up to 15 AI provider calls in one request (up to 5 running
+  concurrently at a time — see `MAX_CONCURRENT_CATEGORIZE_CALLS` in
+  `app/routers/ai_multi_categorize.py`), each place resolved independently
+  and some involving a web search round trip. This is usually well under a
+  minute, but a single slow call (each bounded to ~15s plus one automatic
+  retry) can still push a real "10+ places" reel past a minute in the
+  worst case, regardless of which provider (`AI_PROVIDER`) is active.
 
 Also note: the **very first** Instagram import after a fresh deploy
 additionally downloads the ~140MB Whisper speech-to-text model (cached

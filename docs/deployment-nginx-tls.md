@@ -50,9 +50,13 @@ proxy_read_timeout 180s;
   transcribes a reel, capped at 120 seconds internally.
 - The multi-place reel import (when a reel lists several distinct places —
   `POST /ui/ai/message` and `POST /ui/ai/multi/message`) can make up to 15
-  sequential Claude API calls in one request, each place resolved
-  independently and some involving a web search round trip. A real
-  "10+ places" reel can take well over a minute.
+  AI provider calls in one request (up to 5 running concurrently at a time
+  — see `MAX_CONCURRENT_CATEGORIZE_CALLS` in
+  `app/routers/ai_multi_categorize.py`), each place resolved independently
+  and some involving a web search round trip. This is usually well under a
+  minute, but a single slow call (each bounded to ~15s plus one automatic
+  retry) can still push a real "10+ places" reel past a minute in the
+  worst case, regardless of which provider (`AI_PROVIDER`) is active.
 
 `180s` comfortably covers both. Also note: the **very first** Instagram
 import after a fresh deploy additionally downloads the ~140MB Whisper
