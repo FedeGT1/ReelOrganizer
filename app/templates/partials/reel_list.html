@@ -1,7 +1,7 @@
 {% if filtered_location %}
 <div class="reel-filter-banner">
     <strong>Reel — {{ filtered_location.name }}</strong>
-    <a href="#" hx-get="/ui/reels" hx-target="#reel-list" hx-swap="innerHTML">✕ Mostra tutti</a>
+    <a href="#" hx-on:click="window.setCurrentLocationId(null); htmx.ajax('GET', '/ui/reels' + (window.getCurrentType() ? '?type=' + window.getCurrentType() : ''), {target: '#reel-list', swap: 'innerHTML'})">✕ Mostra tutti</a>
 </div>
 {% endif %}
 <ul class="reel-list">

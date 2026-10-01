@@ -6,7 +6,18 @@ function escapeHtml(str) {
 
 const SATELLITE_HIDE_THRESHOLD_PX = 50;
 
-function initReelMap(containerId, dataId) {
+let currentLocationId = null;
+let currentType = null;
+
+window.getCurrentLocationId = () => currentLocationId;
+window.setCurrentLocationId = (id) => {
+    currentLocationId = id;
+};
+window.getCurrentType = () => currentType;
+
+function initReelMap(containerId, dataId, typeValue) {
+    currentType = typeValue || null;
+
     const dataEl = document.getElementById(dataId);
     const locations = JSON.parse(dataEl.textContent);
 
@@ -45,7 +56,10 @@ function initReelMap(containerId, dataId) {
         }).addTo(map);
 
         hitArea.on("click", () => {
-            htmx.ajax("GET", "/ui/reels?location_id=" + loc.id, {
+            currentLocationId = loc.id;
+            const url =
+                "/ui/reels?location_id=" + loc.id + (currentType ? "&type=" + currentType : "");
+            htmx.ajax("GET", url, {
                 target: "#reel-list",
                 swap: "innerHTML",
             });
