@@ -270,3 +270,31 @@ def test_ui_ask_message_response_includes_filter_selects_for_next_turn(client, s
     )
     assert 'name="location_id"' in response.text
     assert 'name="category_key"' in response.text
+
+
+def test_ui_ask_message_renders_assistant_markdown_as_clickable_html(client, session, monkeypatch):
+    monkeypatch.setattr(
+        ai_client,
+        "ask",
+        lambda *a, **k: {
+            "answer": "Ti consiglio **Asakusa**. Fonte: [gotokyo.org](https://www.gotokyo.org/asakusa/)"
+        },
+    )
+
+    response = client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "cosa vedo a Tokyo?"}
+    )
+    assert "<strong>Asakusa</strong>" in response.text
+    assert '<a href="https://www.gotokyo.org/asakusa/" target="_blank"' in response.text
+    assert "**Asakusa**" not in response.text
+    assert "[gotokyo.org]" not in response.text
+
+
+def test_ui_ask_message_does_not_render_markdown_in_user_turn(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta"})
+
+    response = client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "domanda con **asterischi**"}
+    )
+    assert "domanda con **asterischi**" in response.text
+    assert "<strong>asterischi</strong>" not in response.text

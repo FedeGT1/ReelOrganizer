@@ -19,7 +19,7 @@
 
 <div id="ask-chat-messages">
     {% for turn in history %}
-    <div class="chat-bubble {{ turn.role }}">{{ turn.text }}</div>
+    <div class="chat-bubble {{ turn.role }}">{% if turn.role == 'assistant' %}{{ turn.text | answer_markdown }}{% else %}{{ turn.text }}{% endif %}</div>
     {% endfor %}
 </div>
 

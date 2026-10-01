@@ -85,7 +85,8 @@ Nuovo file `app/routers/ai_ask.py`, seguendo lo stile di `ai_categorize.py`:
 ## Template e UI
 
 - `app/templates/ask.html`: estende `base.html`, pagina intera come `locations.html`/`categories.html`. Contiene le due `<select>` (città — opzioni: "Tutte le città" + elenco hub; categoria — opzioni: "Tutte le categorie" + taxonomy) con `hx-get="/ui/ask/panel"` su `change`, target il pannello chat; e il bottone "Nuova conversazione" che rifà la stessa GET con i valori correnti dei select.
-- `app/templates/partials/ask_chat.html`: bolle di chat per lo storico (`role == 'user'` / `'assistant'`), con `white-space: pre-wrap` in CSS per preservare i ritorni a capo della risposta — niente rendering markdown, per evitare complessità di escaping/XSS. Form di invio messaggio con campi hidden `session_id`, `location_id`, `category_key`.
+- `app/templates/partials/ask_chat.html`: bolle di chat per lo storico (`role == 'user'` / `'assistant'`). Form di invio messaggio con campi hidden `session_id`, `location_id`, `category_key`.
+- **Revisione post-implementazione (2026-10-01):** la decisione iniziale "niente rendering markdown" è stata invertita su richiesta esplicita dell'utente, che preferisce vedere grassetto e link cliccabili nelle risposte. Il turno `user` resta testo semplice (auto-escaped da Jinja, nessun rendering); il turno `assistant` passa invece dal filtro Jinja `answer_markdown` (`app/ai/answer_markdown.py`), che: 1) converte il markdown in HTML con la libreria `markdown`; 2) sanifica l'HTML con `nh3` (tag consentiti: `p, strong, em, a, ul, ol, li, code, pre, blockquote, br, h3-h6, hr`; solo `href` su `a`; solo schema `http`/`https`; `target="_blank"` e `rel="noopener noreferrer"` forzati sui link). Il prompt in `build_ask_system_prompt` ora incoraggia esplicitamente **grassetto** e link in stile markdown per le citazioni, invece di proibirli.
 - `app/templates/base.html`: nuova voce `<a href="/ask">Chiedi all'AI</a>` nel `<nav>`.
 
 Cambiare uno dei due select azzera la conversazione corrente (nuova `GET /ui/ask/panel` con `session_id` implicitamente vuoto), perché il contesto reel passato all'AI cambierebbe a metà conversazione.
@@ -111,4 +112,4 @@ Cambiare uno dei due select azzera la conversazione corrente (nuova `GET /ui/ask
 
 - Nessuna possibilità di creare/modificare reel da questa chat (è read-only).
 - Nessuna cancellazione/gestione manuale delle sessioni `AskSession` esistenti (si accumulano nel DB come già fa `AiSession`; non diverso dal comportamento attuale).
-- Nessun rendering markdown della risposta AI.
+- Rendering markdown del turno `user` (solo il turno `assistant` viene renderizzato; vedi revisione post-implementazione sopra).

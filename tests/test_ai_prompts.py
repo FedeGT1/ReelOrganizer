@@ -153,16 +153,13 @@ def test_ask_system_prompt_prioritizes_saved_reels_over_web_search():
     assert "web" in prompt.lower()
 
 
-def test_ask_system_prompt_forbids_markdown_and_citations_in_answer():
-    # Regression guard: some providers' web-search tools (observed with
-    # GPT-6 Luna) default to embedding markdown formatting and inline
-    # citations like "**bold**" or "([site.com](https://...?utm_source=openai))"
-    # into generated text once search results are involved. The chat UI
-    # renders 'answer' as plain text (no markdown renderer, to avoid an XSS
-    # surface), so the prompt must say explicitly: plain text, no markdown,
-    # no links/citations -- mirroring build_system_prompt's existing
-    # instruction for the 'note' field.
+def test_ask_system_prompt_encourages_markdown_bold_and_links():
+    # The chat UI renders 'answer' through a markdown-to-HTML pipeline
+    # (app/ai/answer_markdown.py) with links made clickable, so -- unlike
+    # the categorization chat's plain-text 'note' field -- this prompt
+    # should actively invite markdown formatting and markdown-style
+    # citation links rather than forbid them.
     prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
     assert "markdown" in prompt.lower()
-    assert "link" in prompt.lower()
-    assert "citazion" in prompt.lower()
+    assert "**" in prompt
+    assert "[testo](url)" in prompt
