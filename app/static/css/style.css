@@ -237,6 +237,20 @@ button, .reel-list button {
     color: var(--color-paper);
 }
 
+.btn-load-more {
+    display: block;
+    width: 100%;
+    margin-top: 0.75rem;
+    background: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--color-ink-medium);
+}
+
+.btn-load-more:hover {
+    background: var(--color-ink-medium);
+    color: var(--color-paper);
+}
+
 #ai-chat-messages {
     display: flex;
     flex-direction: column;
