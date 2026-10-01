@@ -314,6 +314,23 @@ button, .reel-list button {
     gap: 0.5rem;
 }
 
+.ask-history-list .btn-delete {
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--color-hanko);
+    border: 1px solid var(--color-hanko);
+    border-radius: 999px;
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.ask-history-list .btn-delete:hover {
+    background: var(--color-hanko);
+    color: var(--color-paper);
+}
+
 .ask-history-link {
     color: var(--color-ink);
     text-decoration: none;
