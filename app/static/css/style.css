@@ -150,6 +150,10 @@ button, .reel-list button {
     border-radius: 10px;
 }
 
+.reel-list li[hidden] {
+    display: none;
+}
+
 .reel-info {
     flex: 1 1 auto;
     min-width: 0;
