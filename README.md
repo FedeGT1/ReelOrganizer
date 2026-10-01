@@ -47,8 +47,10 @@ uv run pytest -v
 Build the image:
 
 ```bash
-docker build -t japan-reel-organizer .
+docker build -t reel-organizer .
 ```
+
+Use the **same name** for the image tag and the container (`reel-organizer` for both, as below) — don't follow older examples that name them differently (e.g. image `japan-reel-organizer` / container `reel-organizer`). A mismatched name is exactly what let a stale image run silently after a rebuild once: the build succeeded, `/health` returned `{"status":"ok"}`, logs looked normal, but `docker run` referenced the old image tag by habit, so none of the new code was actually live. Using one consistent name removes that whole failure mode.
 
 Run it with a mounted data volume so the SQLite database persists across container restarts. Use an **absolute path** for the volume mount, not `$(pwd)/data` — if you (or a script) ever run the `docker run` command from a different working directory, `$(pwd)` silently resolves to wherever you happen to be, mounting an unrelated empty directory instead of your real data and making it look like all your reels vanished. `--restart unless-stopped` (not `--rm`) makes the container survive a VM reboot:
 
@@ -61,7 +63,7 @@ docker run -d \
   -e AUTH_USERNAME="$AUTH_USERNAME" \
   -e AUTH_PASSWORD="$AUTH_PASSWORD" \
   -e SESSION_SECRET_KEY="$SESSION_SECRET_KEY" \
-  --name reel-organizer japan-reel-organizer
+  --name reel-organizer reel-organizer
 ```
 
 Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of it so it can be reached remotely. That guide also covers a required reverse-proxy read-timeout bump (180s) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
@@ -73,6 +75,48 @@ To run with the OpenAI provider instead, add `-e AI_PROVIDER="$AI_PROVIDER" -e O
 Check it's up: `curl http://localhost:8000/health` should return `{"status":"ok"}`.
 
 The first-ever Instagram auto-import also downloads the ~140MB Whisper speech-to-text model into the `/data` volume — it's cached there afterwards, so this only happens once (not on every container restart), but that first import will be noticeably slower than later ones. Triggering one import manually right after deploying warms the cache ahead of real use.
+
+### Updating after a code change
+
+`docker restart` reuses the existing container's already-loaded image — it never picks up new code, no matter how you got the new code onto the VM. Rebuild and recreate the container instead:
+
+```bash
+git pull   # or however you get the updated code onto the VM
+
+docker build -t reel-organizer .   # add --no-cache if you suspect a stale cached layer (see below)
+
+docker stop reel-organizer
+docker rm reel-organizer
+
+docker run -d \
+  --restart unless-stopped \
+  -p 127.0.0.1:8000:8000 \
+  -v "/absolute/path/to/reelorganizer/data:/data" \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -e AUTH_USERNAME="$AUTH_USERNAME" \
+  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
+  -e SESSION_SECRET_KEY="$SESSION_SECRET_KEY" \
+  --name reel-organizer reel-organizer
+```
+
+Then verify the running container is actually on the image you just built — `/health` returning `{"status":"ok"}` only proves the server started, not that it's running your latest code:
+
+```bash
+docker images reel-organizer                        # note the freshest IMAGE ID
+docker inspect -f '{{.Image}}' reel-organizer        # must match that IMAGE ID
+```
+
+If they don't match, the `docker run` above referenced the wrong image name/tag (double-check for typos or an old tag like `japan-reel-organizer` lingering in a saved command) — fix the image name and re-run.
+
+If `docker build` reports `Using cache` on the `COPY app ./app` step right after you know the code changed, rebuild with `docker build --no-cache -t reel-organizer .` to force every layer to actually re-run, then repeat the stop/rm/run/verify above.
+
+Once confirmed, old images pile up fast (each is ~1GB) and this VM's disk is small — list them and remove the ones no container references:
+
+```bash
+docker images
+docker rmi <old-image-id-or-tag> [<old-image-id-or-tag> ...]
+docker df   # or: df -h /
+```
 
 ## Persistence
 
