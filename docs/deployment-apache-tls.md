@@ -32,7 +32,7 @@ sudo tee /etc/apache2/sites-available/reelorganizer.conf > /dev/null <<'EOF'
     ProxyPreserveHost On
     ProxyPass / http://127.0.0.1:8000/
     ProxyPassReverse / http://127.0.0.1:8000/
-    ProxyTimeout 180
+    ProxyTimeout 210
 
     RequestHeader set X-Forwarded-Proto "%{REQUEST_SCHEME}s"
     RequestHeader set X-Forwarded-For "%{REMOTE_ADDR}s"
@@ -51,11 +51,15 @@ explicitly). `RequestHeader set` (not `append`/`merge`) always *overwrites*
 trusts this header for its login rate-limiter (`app/auth.py`), so it must
 never be left settable by a client-supplied header.
 
-`ProxyTimeout 180` matches the `proxy_read_timeout` this app needs regardless
-of which web server sits in front of it:
+`ProxyTimeout 210` gives a 30s margin over the slowest thing this app does
+regardless of which web server sits in front of it:
 
 - The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
-  transcribes a reel, capped at 120 seconds internally.
+  transcribes a reel, capped at 180 seconds internally
+  (`IMPORT_TIMEOUT_SECONDS` in `app/routers/instagram_import.py`). The proxy
+  timeout must stay comfortably above this — if the two are equal, the
+  app's own timeout firing at the wire and the proxy's own clock expiring
+  at the same instant is a real race, not just a theoretical one.
 - The multi-place reel import (a reel listing several distinct places) can
   make up to 15 AI provider calls in one request (up to 5 running
   concurrently at a time — see `MAX_CONCURRENT_CATEGORIZE_CALLS` in

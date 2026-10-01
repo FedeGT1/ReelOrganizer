@@ -39,15 +39,19 @@ sudo systemctl reload nginx
 ```
 
 Two features in this app make long-running requests, so nginx's default
-`proxy_read_timeout` (60s) is too tight — set it to `180s` inside the
+`proxy_read_timeout` (60s) is too tight — set it to `210s` inside the
 `location /` block above:
 
 ```nginx
-proxy_read_timeout 180s;
+proxy_read_timeout 210s;
 ```
 
 - The Instagram auto-import feature (`POST /ui/ai/import`) downloads and
-  transcribes a reel, capped at 120 seconds internally.
+  transcribes a reel, capped at 180 seconds internally
+  (`IMPORT_TIMEOUT_SECONDS` in `app/routers/instagram_import.py`). The proxy
+  timeout must stay comfortably above this — if the two are equal, the
+  app's own timeout firing and the proxy's own clock expiring at the same
+  instant is a real race, not just a theoretical one.
 - The multi-place reel import (when a reel lists several distinct places —
   `POST /ui/ai/message` and `POST /ui/ai/multi/message`) can make up to 15
   AI provider calls in one request (up to 5 running concurrently at a time
@@ -58,7 +62,7 @@ proxy_read_timeout 180s;
   retry) can still push a real "10+ places" reel past a minute in the
   worst case, regardless of which provider (`AI_PROVIDER`) is active.
 
-`180s` comfortably covers both. Also note: the **very first** Instagram
+`210s` comfortably covers both. Also note: the **very first** Instagram
 import after a fresh deploy additionally downloads the ~140MB Whisper
 speech-to-text model (cached afterwards in the `/data` volume, so this only
 happens once, not on every restart) — that first request can be
