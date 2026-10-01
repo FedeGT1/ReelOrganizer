@@ -3,7 +3,14 @@ from sqlmodel import select
 from app.ai import client as ai_client
 from app.ai.providers.base import AIProviderError
 from app.models import AskMessage, AskSession, Category, Location, Reel, ReelType
-from app.routers.ai_ask import _build_ask_chat_context, _run_ask_turn, _scoped_reel_context
+from app.routers.ai_ask import (
+    _build_ask_chat_context,
+    _list_ask_sessions,
+    _run_ask_turn,
+    _scoped_reel_context,
+    _session_message_label,
+    _session_scope_label,
+)
 
 
 def test_scoped_reel_context_filters_by_city_and_includes_satellites(session):
@@ -298,3 +305,70 @@ def test_ui_ask_message_does_not_render_markdown_in_user_turn(client, session, m
     )
     assert "domanda con **asterischi**" in response.text
     assert "<strong>asterischi</strong>" not in response.text
+
+
+def test_run_ask_turn_bumps_updated_at_on_each_turn(session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "prima risposta"})
+    ask_session = _run_ask_turn(session, None, None, None, "prima domanda")
+    first_updated_at = ask_session.updated_at
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "seconda risposta"})
+    ask_session = _run_ask_turn(session, ask_session.id, None, None, "seconda domanda")
+
+    assert ask_session.updated_at > first_updated_at
+
+
+def test_session_message_label_returns_short_text_unchanged():
+    assert _session_message_label("Ciao, dove mangio?") == "Ciao, dove mangio?"
+
+
+def test_session_message_label_truncates_long_text_with_ellipsis():
+    long_text = "x" * 80
+    label = _session_message_label(long_text)
+    assert label == "x" * 60 + "…"
+    assert len(label) == 61
+
+
+def test_session_scope_label_with_both_filters():
+    assert _session_scope_label("Tokyo / Kanto", "Cibo") == "Tokyo / Kanto — Cibo"
+
+
+def test_session_scope_label_with_no_filters():
+    assert _session_scope_label(None, None) == "Tutte le città — Tutte le categorie"
+
+
+def test_list_ask_sessions_orders_by_updated_at_descending(session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    older = _run_ask_turn(session, None, None, None, "prima conversazione")
+    newer = _run_ask_turn(session, None, None, None, "seconda conversazione")
+
+    summaries = _list_ask_sessions(session)
+
+    assert [s["id"] for s in summaries] == [newer.id, older.id]
+
+
+def test_list_ask_sessions_includes_scope_and_message_label(session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+    session.refresh(hub)
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    _run_ask_turn(session, None, hub.id, "food", "Dove mangio a Tokyo?")
+
+    summaries = _list_ask_sessions(session)
+
+    assert summaries[0]["message_label"] == "Dove mangio a Tokyo?"
+    assert summaries[0]["scope_label"] == "Tokyo / Kanto — Cibo"
+    assert summaries[0]["date_label"]
+
+
+def test_build_ask_chat_context_includes_sessions_list(session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    ask_session = _run_ask_turn(session, None, None, None, "domanda")
+
+    context = _build_ask_chat_context(session, ask_session.id, None, None)
+
+    assert len(context["sessions"]) == 1
+    assert context["sessions"][0]["id"] == ask_session.id

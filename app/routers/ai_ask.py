@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -91,9 +92,45 @@ def _run_ask_turn(
         answer = FALLBACK_ANSWER
 
     session.add(AskMessage(session_id=ask_session.id, role="assistant", content=answer))
+    ask_session.updated_at = datetime.utcnow()
+    session.add(ask_session)
     session.commit()
 
     return ask_session
+
+
+def _session_message_label(first_message: str, max_len: int = 60) -> str:
+    text = (first_message or "").strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rstrip() + "…"
+
+
+def _session_scope_label(location_name: Optional[str], category_label: Optional[str]) -> str:
+    return f"{location_name or 'Tutte le città'} — {category_label or 'Tutte le categorie'}"
+
+
+def _list_ask_sessions(session: Session) -> list[dict]:
+    sessions = session.exec(select(AskSession).order_by(AskSession.updated_at.desc())).all()
+    taxonomy = get_taxonomy(session)
+    summaries = []
+    for s in sessions:
+        first_message = session.exec(
+            select(AskMessage.content)
+            .where(AskMessage.session_id == s.id, AskMessage.role == "user")
+            .order_by(AskMessage.created_at)
+        ).first()
+        location = session.get(Location, s.location_id) if s.location_id else None
+        category_label = (
+            taxonomy[s.category_key]["label"] if s.category_key and s.category_key in taxonomy else None
+        )
+        summaries.append({
+            "id": s.id,
+            "message_label": _session_message_label(first_message or ""),
+            "scope_label": _session_scope_label(location.name if location else None, category_label),
+            "date_label": s.updated_at.strftime("%d/%m/%Y %H:%M"),
+        })
+    return summaries
 
 
 def _build_ask_chat_context(
@@ -119,6 +156,7 @@ def _build_ask_chat_context(
         "taxonomy": get_taxonomy(session),
         "history": history,
         "notice": notice,
+        "sessions": _list_ask_sessions(session),
     }
 
 
