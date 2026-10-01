@@ -192,3 +192,59 @@ def test_ui_ask_panel_renders_empty_state(client):
     assert 'name="message"' in response.text
     assert 'name="location_id"' in response.text
     assert 'name="category_key"' in response.text
+
+
+def test_ui_ask_message_first_turn_creates_session_and_shows_answer(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "Ti consiglio Ichiran Ramen."})
+
+    response = client.post(
+        "/ui/ask/message",
+        data={"location_id": hub.id, "category_key": "", "message": "Dove mangio?"},
+    )
+    assert response.status_code == 200
+    assert "Ti consiglio Ichiran Ramen." in response.text
+    assert session.exec(select(AskSession)).first() is not None
+
+
+def test_ui_ask_message_continues_existing_session(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "prima risposta"})
+    first = client.post("/ui/ask/message", data={"location_id": "", "category_key": "", "message": "ciao"})
+    assert "prima risposta" in first.text
+    session_id = session.exec(select(AskSession)).first().id
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "seconda risposta"})
+    second = client.post(
+        "/ui/ask/message",
+        data={"session_id": session_id, "location_id": "", "category_key": "", "message": "e poi?"},
+    )
+    assert second.status_code == 200
+    assert "prima risposta" in second.text
+    assert "seconda risposta" in second.text
+
+
+def test_ui_ask_message_with_unknown_session_id_resets_panel_with_notice(client, session):
+    response = client.post(
+        "/ui/ask/message",
+        data={"session_id": "does-not-exist", "location_id": "", "category_key": "", "message": "Ciao"},
+    )
+    assert response.status_code == 200
+    assert 'name="message"' in response.text
+    assert "Sessione scaduta" in response.text
+
+
+def test_ui_ask_message_shows_friendly_error_when_ai_call_fails(client, session, monkeypatch):
+    def boom(*a, **k):
+        raise AIProviderError("boom")
+
+    monkeypatch.setattr(ai_client, "ask", boom)
+
+    response = client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "Qualcosa"}
+    )
+    assert response.status_code == 200
+    assert "riprova" in response.text.lower()

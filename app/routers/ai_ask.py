@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select
 
 from app.ai import client as ai_client
@@ -133,4 +133,33 @@ def ui_ask_panel(
         request,
         "partials/ask_chat.html",
         _build_ask_chat_context(session, None, location_id or None, category_key or None),
+    )
+
+
+@ui_router.post("/message")
+def ui_ask_message(
+    request: Request,
+    session_id: str = Form(""),
+    location_id: str = Form(""),
+    category_key: str = Form(""),
+    message: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    try:
+        ask_session = _run_ask_turn(
+            session, session_id or None, location_id or None, category_key or None, message
+        )
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            context = _build_ask_chat_context(
+                session, None, location_id or None, category_key or None,
+                notice="Sessione scaduta, ricomincia pure da qui.",
+            )
+            return templates.TemplateResponse(request, "partials/ask_chat.html", context)
+        raise
+
+    return templates.TemplateResponse(
+        request,
+        "partials/ask_chat.html",
+        _build_ask_chat_context(session, ask_session.id, ask_session.location_id, ask_session.category_key),
     )
