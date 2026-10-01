@@ -462,3 +462,45 @@ def test_ui_ask_delete_history_of_already_deleted_session_is_idempotent(client):
         data={"current_session_id": "", "location_id": "", "category_key": ""},
     )
     assert response.status_code == 200
+
+
+def test_ui_ask_delete_history_of_other_session_preserves_current_sessions_real_scope(
+    client, session, monkeypatch
+):
+    # Create a hub location
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    # Create a session scoped to that hub
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "Tokyo response"})
+    hub_scoped_response = client.post(
+        "/ui/ask/message",
+        data={"location_id": hub.id, "category_key": "", "message": "Tell me about Tokyo"},
+    )
+    hub_scoped_id = session.exec(select(AskSession)).first().id
+    assert f'value="{hub.id}" selected' in hub_scoped_response.text
+
+    # Create a second, unrelated session (no scope)
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "Generic response"})
+    unrelated_response = client.post(
+        "/ui/ask/message",
+        data={"location_id": "", "category_key": "", "message": "Generic question"},
+    )
+    unrelated_id = [s.id for s in session.exec(select(AskSession)).all() if s.id != hub_scoped_id][0]
+    assert "Generic response" in unrelated_response.text
+
+    # Delete the unrelated session, but submit location_id="" (stale client state)
+    # The response should still show the hub as selected (from DB, not from the submitted form)
+    delete_response = client.request(
+        "DELETE",
+        f"/ui/ask/history/{unrelated_id}",
+        data={"current_session_id": hub_scoped_id, "location_id": "", "category_key": ""},
+    )
+    assert delete_response.status_code == 200
+    # The hub should be selected because we re-derived scope from the DB, not from the form
+    assert f'value="{hub.id}" selected' in delete_response.text
+    # Verify the unrelated session is deleted but the hub-scoped one remains
+    assert session.exec(select(AskSession).where(AskSession.id == unrelated_id)).first() is None
+    assert session.exec(select(AskSession).where(AskSession.id == hub_scoped_id)).first() is not None

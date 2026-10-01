@@ -232,6 +232,19 @@ def ui_ask_delete_history(
         session.delete(ask_session)
         session.commit()
 
-    reopen_session_id = None if current_session_id == session_id else (current_session_id or None)
-    context = _build_ask_chat_context(session, reopen_session_id, location_id or None, category_key or None)
+    # If deleting the current session, reset to empty with submitted filters
+    if current_session_id == session_id:
+        context = _build_ask_chat_context(session, None, location_id or None, category_key or None)
+    # If deleting a different session, re-render the still-open one using its DB-stored scope
+    elif current_session_id:
+        still_open = session.get(AskSession, current_session_id)
+        if still_open is not None:
+            context = _build_ask_chat_context(session, still_open.id, still_open.location_id, still_open.category_key)
+        else:
+            # Fallback if the "still-open" session is gone for some reason
+            context = _build_ask_chat_context(session, None, location_id or None, category_key or None)
+    else:
+        # No current session, render empty panel with submitted filters
+        context = _build_ask_chat_context(session, None, location_id or None, category_key or None)
+
     return templates.TemplateResponse(request, "partials/ask_chat.html", context)
