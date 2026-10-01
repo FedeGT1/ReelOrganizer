@@ -1,4 +1,4 @@
-from app.ai.prompts import build_response_schema, build_system_prompt
+from app.ai.prompts import build_response_schema, build_system_prompt, build_ask_response_schema, build_ask_system_prompt
 
 VALID_TYPES = {"food", "culture", "nature", "shopping", "stay", "transport", "experience"}
 CATEGORIES = {
@@ -98,3 +98,56 @@ def test_build_system_prompt_forbids_citations_and_links_in_note():
     assert "note" in prompt
     assert "link" in prompt.lower()
     assert "citazion" in prompt.lower()
+
+
+SAMPLE_REELS = [
+    {"place_name": "Ichiran Ramen", "categories": ["Cibo"], "note": "Ramen famoso", "link": "https://instagram.com/reel/abc"},
+    {"place_name": "Nikko", "categories": ["Natura", "Cultura"], "note": "", "link": "https://instagram.com/reel/def"},
+]
+
+
+def test_ask_response_schema_requires_answer_only():
+    schema = build_ask_response_schema()
+    assert schema["properties"] == {"answer": {"type": "string"}}
+    assert schema["required"] == ["answer"]
+    assert schema["additionalProperties"] is False
+
+
+def test_ask_system_prompt_includes_reel_place_names_and_links():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
+    assert "Ichiran Ramen" in prompt
+    assert "Nikko" in prompt
+    assert "https://instagram.com/reel/abc" in prompt
+    assert "https://instagram.com/reel/def" in prompt
+
+
+def test_ask_system_prompt_mentions_active_city_and_category_filter():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", "Cibo", False)
+    assert "Tokyo / Kanto" in prompt
+    assert "Cibo" in prompt
+
+
+def test_ask_system_prompt_states_no_filter_when_both_are_none():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, None, None, False)
+    assert "nessun filtro" in prompt.lower()
+
+
+def test_ask_system_prompt_states_no_reels_when_list_is_empty():
+    prompt = build_ask_system_prompt([], "Osaka", None, False)
+    assert "nessun reel" in prompt.lower()
+
+
+def test_ask_system_prompt_warns_about_truncation_when_flagged():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, True)
+    assert "parziale" in prompt.lower()
+
+
+def test_ask_system_prompt_omits_truncation_warning_when_not_flagged():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
+    assert "parziale" not in prompt.lower()
+
+
+def test_ask_system_prompt_prioritizes_saved_reels_over_web_search():
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
+    assert "priorita" in prompt.lower()
+    assert "web" in prompt.lower()

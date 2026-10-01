@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 def build_response_schema(valid_type_keys: Iterable[str]) -> dict:
@@ -97,4 +97,62 @@ def build_places_system_prompt() -> str:
         "specifici, valorizza 'is_multi_place' a false e 'place_names' a null. Nel dubbio, se non sei "
         "sicuro che si tratti di un vero elenco di luoghi diversi, preferisci rispondere false. Rispondi "
         "seguendo esattamente lo schema JSON fornito."
+    )
+
+
+MAX_REELS_IN_CONTEXT = 150
+
+
+def build_ask_response_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {"answer": {"type": "string"}},
+        "required": ["answer"],
+        "additionalProperties": False,
+    }
+
+
+def build_ask_system_prompt(
+    reels: list[dict],
+    location_name: Optional[str],
+    category_label: Optional[str],
+    truncated: bool,
+) -> str:
+    scope_parts = []
+    if location_name:
+        scope_parts.append(f"citta': {location_name}")
+    if category_label:
+        scope_parts.append(f"categoria: {category_label}")
+    scope = ", ".join(scope_parts) if scope_parts else "nessun filtro (tutte le citta' e tutte le categorie)"
+
+    if reels:
+        lines = []
+        for r in reels:
+            categories = ", ".join(r["categories"]) if r["categories"] else "senza categoria"
+            note = r["note"] or "(nessuna nota)"
+            lines.append(f"- {r['place_name']} -- {categories} -- {note} ({r['link']})")
+        reels_block = "\n".join(lines)
+    else:
+        reels_block = "Nessun reel salvato corrisponde a questo filtro."
+
+    truncation_note = (
+        " L'elenco qui sotto e' parziale: ci sono altri reel salvati che corrispondono al filtro ma non "
+        "sono stati inclusi per limiti di spazio; non assumere che sia completo."
+        if truncated else ""
+    )
+
+    return (
+        "Sei un assistente che aiuta l'utente a consultare e progettare un viaggio in Giappone usando "
+        "i reel Instagram che ha gia' salvato e categorizzato in questa app. "
+        f"Il filtro attivo e': {scope}.{truncation_note} "
+        "Questi sono i reel salvati che corrispondono al filtro, uno per riga "
+        "(luogo -- categorie -- nota (link)):\n"
+        f"{reels_block}\n"
+        "Rispondi basandoti PRIORITARIAMENTE su questi reel salvati: sono la fonte di verita' su cosa "
+        "l'utente ha gia' trovato e vuole fare. Puoi usare la ricerca web solo per completare informazioni "
+        "che non sono nei reel salvati (per esempio orari di apertura aggiornati o novita' recenti), ma "
+        "dai sempre priorita' e maggior peso a quanto riportato nei reel salvati rispetto a quanto trovi "
+        "sul web, e segnala chiaramente quando un'informazione viene dal web e non dai reel dell'utente. "
+        "Se non ci sono reel che corrispondono al filtro, dillo esplicitamente invece di inventare contenuti. "
+        "Rispondi in italiano, in prosa semplice, seguendo esattamente lo schema JSON fornito."
     )
