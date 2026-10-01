@@ -51,6 +51,7 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
         "id": reel.id,
         "link": reel.link,
         "location_id": reel.location_id,
+        "location_name": location.name if location else None,
         "note": reel.note,
         "created_at": reel.created_at.isoformat(),
         "types": [t.type for t in types],

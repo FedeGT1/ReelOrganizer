@@ -9,7 +9,7 @@
     {% for reel in reels %}
     <li>
         <div class="reel-info">
-            <a href="{{ reel.link }}" target="_blank" rel="noopener noreferrer">{{ reel.link }}</a>
+            <a href="{{ reel.link }}" target="_blank" rel="noopener noreferrer">{{ reel.location_name }}</a>
             <div class="reel-meta">
                 {% if reel.note %}<span class="note">{{ reel.note }}</span>{% endif %}
                 <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
