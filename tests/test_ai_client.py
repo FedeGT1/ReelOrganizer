@@ -77,3 +77,19 @@ def test_get_provider_returns_openai_when_env_set(monkeypatch):
     from app.ai.providers.openai_provider import OpenAIProvider
 
     assert isinstance(ai_client.get_provider(), OpenAIProvider)
+
+
+def test_ask_delegates_to_provider_with_built_prompt_and_schema(monkeypatch):
+    expected = {"answer": "Ti consiglio Ichiran Ramen."}
+    fake_provider = FakeProvider(expected)
+    monkeypatch.setattr(ai_client, "get_provider", lambda: fake_provider)
+
+    reels = [{"place_name": "Ichiran Ramen", "categories": ["Cibo"], "note": "", "link": "https://instagram.com/reel/abc"}]
+    result = ai_client.ask(reels, "Tokyo / Kanto", "Cibo", False, [{"role": "user", "content": "Dove mangio?"}])
+
+    assert result == expected
+    call = fake_provider.calls[0]
+    assert call["enable_web_search"] is True
+    assert call["messages"] == [{"role": "user", "content": "Dove mangio?"}]
+    assert "Ichiran Ramen" in call["system"]
+    assert call["schema"]["properties"] == {"answer": {"type": "string"}}
