@@ -163,6 +163,7 @@ def _reel_list_context(
         "reels": [_serialize_reel(session, r) for r in reels],
         "taxonomy": get_taxonomy(session),
         "filtered_location": filtered_location,
+        "active_type": type_value,
     }
 
 
