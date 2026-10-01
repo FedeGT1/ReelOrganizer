@@ -1,0 +1,19 @@
+<details class="ask-history">
+    <summary>Conversazioni precedenti</summary>
+    <ul class="ask-history-list">
+        {% for s in sessions %}
+        <li>
+            <a href="#" class="ask-history-link" hx-get="/ui/ask/panel?session_id={{ s.id }}"
+               hx-target="#ask-chat-panel" hx-swap="innerHTML">
+                {{ s.message_label }} — {{ s.scope_label }} — {{ s.date_label }}
+            </a>
+            <button type="button" class="btn-delete" hx-delete="/ui/ask/history/{{ s.id }}"
+                    hx-include="#ask-filters" hx-target="#ask-chat-panel" hx-swap="innerHTML"
+                    aria-label="Elimina conversazione">🗑</button>
+        </li>
+        {% endfor %}
+        {% if not sessions %}
+        <li class="ask-history-empty">Nessuna conversazione salvata.</li>
+        {% endif %}
+    </ul>
+</details>

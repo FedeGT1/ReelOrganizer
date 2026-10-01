@@ -15,7 +15,10 @@
         {% endfor %}
     </select>
     <button type="button" hx-get="/ui/ask/panel" hx-target="#ask-chat-panel" hx-swap="innerHTML" hx-include="#ask-filters">Nuova conversazione</button>
+    <input type="hidden" id="ask-current-session-id" name="current_session_id" value="{{ session_id }}">
 </div>
+
+{% include "partials/ask_history_list.html" %}
 
 <div id="ask-chat-messages">
     {% for turn in history %}

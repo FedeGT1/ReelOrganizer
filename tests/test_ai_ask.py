@@ -504,3 +504,38 @@ def test_ui_ask_delete_history_of_other_session_preserves_current_sessions_real_
     # Verify the unrelated session is deleted but the hub-scoped one remains
     assert session.exec(select(AskSession).where(AskSession.id == unrelated_id)).first() is None
     assert session.exec(select(AskSession).where(AskSession.id == hub_scoped_id)).first() is not None
+
+
+def test_ui_ask_panel_renders_history_section_with_entries(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta"})
+    client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "domanda nello storico"}
+    )
+
+    response = client.get("/ui/ask/panel")
+    assert "Conversazioni precedenti" in response.text
+    assert "domanda nello storico" in response.text
+    assert "ask-history-link" in response.text
+
+
+def test_ui_ask_panel_renders_empty_history_message_when_no_sessions(client):
+    response = client.get("/ui/ask/panel")
+    assert "Nessuna conversazione salvata." in response.text
+
+
+def test_ui_ask_panel_includes_current_session_hidden_input(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    client.post("/ui/ask/message", data={"location_id": "", "category_key": "", "message": "ciao"})
+    ask_session_id = session.exec(select(AskSession)).first().id
+
+    response = client.get(f"/ui/ask/panel?session_id={ask_session_id}")
+    assert f'id="ask-current-session-id" name="current_session_id" value="{ask_session_id}"' in response.text
+
+
+def test_ui_ask_history_delete_button_present_for_each_entry(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    client.post("/ui/ask/message", data={"location_id": "", "category_key": "", "message": "ciao"})
+    ask_session_id = session.exec(select(AskSession)).first().id
+
+    response = client.get("/ui/ask/panel")
+    assert f'hx-delete="/ui/ask/history/{ask_session_id}"' in response.text

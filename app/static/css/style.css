@@ -294,6 +294,41 @@ button, .reel-list button {
     font-size: 0.85rem;
 }
 
+.ask-history {
+    margin-bottom: 0.75rem;
+}
+
+.ask-history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ask-history-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.ask-history-link {
+    color: var(--color-ink);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.ask-history-link:hover {
+    text-decoration: underline;
+}
+
+.ask-history-empty {
+    color: var(--color-ink-medium);
+    font-size: 0.9rem;
+}
+
 @media (max-width: 480px) {
     main {
         padding: 0.5rem;
