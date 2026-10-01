@@ -154,5 +154,10 @@ def build_ask_system_prompt(
         "dai sempre priorita' e maggior peso a quanto riportato nei reel salvati rispetto a quanto trovi "
         "sul web, e segnala chiaramente quando un'informazione viene dal web e non dai reel dell'utente. "
         "Se non ci sono reel che corrispondono al filtro, dillo esplicitamente invece di inventare contenuti. "
+        "Nel campo 'answer' scrivi solo testo semplice in prosa: anche se hai usato la ricerca web per "
+        "trovare un'informazione, non includere mai markdown (niente '**grassetto**', elenchi con asterischi "
+        "o simili), link, URL, citazioni o riferimenti a fonti in stile markdown (per esempio niente "
+        "'[testo](url)' o '(nomesito.it)') -- se vuoi citare una fonte, nominala semplicemente in prosa "
+        "(per esempio 'secondo il sito ufficiale del turismo di Tokyo'), senza link. "
         "Rispondi in italiano, in prosa semplice, seguendo esattamente lo schema JSON fornito."
     )

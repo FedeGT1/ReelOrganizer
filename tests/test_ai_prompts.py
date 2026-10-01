@@ -151,3 +151,18 @@ def test_ask_system_prompt_prioritizes_saved_reels_over_web_search():
     prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
     assert "priorita" in prompt.lower()
     assert "web" in prompt.lower()
+
+
+def test_ask_system_prompt_forbids_markdown_and_citations_in_answer():
+    # Regression guard: some providers' web-search tools (observed with
+    # GPT-6 Luna) default to embedding markdown formatting and inline
+    # citations like "**bold**" or "([site.com](https://...?utm_source=openai))"
+    # into generated text once search results are involved. The chat UI
+    # renders 'answer' as plain text (no markdown renderer, to avoid an XSS
+    # surface), so the prompt must say explicitly: plain text, no markdown,
+    # no links/citations -- mirroring build_system_prompt's existing
+    # instruction for the 'note' field.
+    prompt = build_ask_system_prompt(SAMPLE_REELS, "Tokyo / Kanto", None, False)
+    assert "markdown" in prompt.lower()
+    assert "link" in prompt.lower()
+    assert "citazion" in prompt.lower()
