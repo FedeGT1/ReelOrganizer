@@ -78,6 +78,11 @@ async def locations_page(request: Request):
     return templates.TemplateResponse(request, "locations.html", {})
 
 
+@app.get("/ask")
+async def ask_page(request: Request):
+    return templates.TemplateResponse(request, "ask.html", {})
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}

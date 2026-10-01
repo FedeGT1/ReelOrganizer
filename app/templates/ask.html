@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<section id="ask-chat-panel" hx-get="/ui/ask/panel" hx-trigger="load" hx-swap="innerHTML">
+    <p>Caricamento assistente...</p>
+</section>
+{% endblock %}

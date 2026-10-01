@@ -1,21 +1,31 @@
 {% if notice %}
-<p class="ask-notice">{{ notice }}</p>
+<p class="ai-notice">{{ notice }}</p>
 {% endif %}
+<div class="ask-filters" id="ask-filters">
+    <select name="location_id" hx-get="/ui/ask/panel" hx-target="#ask-chat-panel" hx-swap="innerHTML" hx-include="#ask-filters">
+        <option value="" {% if not location_id %}selected{% endif %}>Tutte le città</option>
+        {% for hub in hubs %}
+        <option value="{{ hub.id }}" {% if location_id == hub.id %}selected{% endif %}>{{ hub.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="category_key" hx-get="/ui/ask/panel" hx-target="#ask-chat-panel" hx-swap="innerHTML" hx-include="#ask-filters">
+        <option value="" {% if not category_key %}selected{% endif %}>Tutte le categorie</option>
+        {% for key, info in taxonomy.items() %}
+        <option value="{{ key }}" {% if category_key == key %}selected{% endif %}>{{ info.icon }} {{ info.label }}</option>
+        {% endfor %}
+    </select>
+    <button type="button" hx-get="/ui/ask/panel" hx-target="#ask-chat-panel" hx-swap="innerHTML" hx-include="#ask-filters">Nuova conversazione</button>
+</div>
 
 <div id="ask-chat-messages">
     {% for turn in history %}
-        {% if turn.role == 'user' %}
-        <div class="chat-bubble user">{{ turn.text }}</div>
-        {% else %}
-        <div class="chat-bubble assistant">{{ turn.text }}</div>
-        {% endif %}
+    <div class="chat-bubble {{ turn.role }}">{{ turn.text }}</div>
     {% endfor %}
 </div>
 
-<form hx-post="/ui/ask/message" hx-target="#ask-chat-panel" hx-swap="innerHTML" class="ask-input-form">
+<form hx-post="/ui/ask/message" hx-target="#ask-chat-panel" hx-swap="innerHTML" hx-include="#ask-filters" hx-indicator="#ask-send-indicator" class="ai-input-form">
     <input type="hidden" name="session_id" value="{{ session_id }}">
-    <input type="hidden" name="location_id" value="{{ location_id }}">
-    <input type="hidden" name="category_key" value="{{ category_key }}">
-    <textarea name="message" placeholder="Scrivi la tua domanda..." required></textarea>
+    <textarea name="message" placeholder="Scrivi..." required></textarea>
     <button type="submit">Invia</button>
+    <span id="ask-send-indicator" class="htmx-indicator">Invio in corso…</span>
 </form>

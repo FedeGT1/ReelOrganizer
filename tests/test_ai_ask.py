@@ -248,3 +248,25 @@ def test_ui_ask_message_shows_friendly_error_when_ai_call_fails(client, session,
     )
     assert response.status_code == 200
     assert "riprova" in response.text.lower()
+
+
+def test_ui_ask_panel_lists_hubs_and_categories(client, session):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.commit()
+
+    response = client.get("/ui/ask/panel")
+    assert "Tokyo / Kanto" in response.text
+    assert "Cibo" in response.text
+    assert "Tutte le citt" in response.text
+    assert "Tutte le categorie" in response.text
+
+
+def test_ui_ask_message_response_includes_filter_selects_for_next_turn(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+
+    response = client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "ciao"}
+    )
+    assert 'name="location_id"' in response.text
+    assert 'name="category_key"' in response.text
