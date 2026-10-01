@@ -163,10 +163,23 @@ def _build_ask_chat_context(
 @ui_router.get("/panel")
 def ui_ask_panel(
     request: Request,
+    session_id: str = "",
     location_id: str = "",
     category_key: str = "",
     session: Session = Depends(get_session),
 ):
+    if session_id:
+        ask_session = session.get(AskSession, session_id)
+        if ask_session is None:
+            context = _build_ask_chat_context(
+                session, None, None, None, notice="Conversazione non trovata, ricomincia pure da qui."
+            )
+            return templates.TemplateResponse(request, "partials/ask_chat.html", context)
+        context = _build_ask_chat_context(
+            session, ask_session.id, ask_session.location_id, ask_session.category_key
+        )
+        return templates.TemplateResponse(request, "partials/ask_chat.html", context)
+
     return templates.TemplateResponse(
         request,
         "partials/ask_chat.html",
@@ -201,3 +214,24 @@ def ui_ask_message(
         "partials/ask_chat.html",
         _build_ask_chat_context(session, ask_session.id, ask_session.location_id, ask_session.category_key),
     )
+
+
+@ui_router.delete("/history/{session_id}")
+def ui_ask_delete_history(
+    request: Request,
+    session_id: str,
+    current_session_id: str = Form(""),
+    location_id: str = Form(""),
+    category_key: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    ask_session = session.get(AskSession, session_id)
+    if ask_session is not None:
+        for m in session.exec(select(AskMessage).where(AskMessage.session_id == session_id)).all():
+            session.delete(m)
+        session.delete(ask_session)
+        session.commit()
+
+    reopen_session_id = None if current_session_id == session_id else (current_session_id or None)
+    context = _build_ask_chat_context(session, reopen_session_id, location_id or None, category_key or None)
+    return templates.TemplateResponse(request, "partials/ask_chat.html", context)

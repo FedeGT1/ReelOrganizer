@@ -372,3 +372,93 @@ def test_build_ask_chat_context_includes_sessions_list(session, monkeypatch):
 
     assert len(context["sessions"]) == 1
     assert context["sessions"][0]["id"] == ask_session.id
+
+
+def test_ui_ask_panel_with_session_id_restores_history_and_scope(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta salvata"})
+    client.post(
+        "/ui/ask/message", data={"location_id": hub.id, "category_key": "", "message": "domanda salvata"}
+    )
+    ask_session = session.exec(select(AskSession)).first()
+
+    reopened = client.get(f"/ui/ask/panel?session_id={ask_session.id}")
+    assert reopened.status_code == 200
+    assert "domanda salvata" in reopened.text
+    assert "risposta salvata" in reopened.text
+    assert f'value="{hub.id}" selected' in reopened.text
+
+
+def test_ui_ask_panel_with_session_id_ignores_query_string_filters(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    other_hub = Location(name="Osaka", is_hub=True)
+    session.add(hub)
+    session.add(other_hub)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "ok"})
+    client.post("/ui/ask/message", data={"location_id": hub.id, "category_key": "", "message": "domanda"})
+    ask_session = session.exec(select(AskSession)).first()
+
+    reopened = client.get(f"/ui/ask/panel?session_id={ask_session.id}&location_id={other_hub.id}")
+    assert f'value="{hub.id}" selected' in reopened.text
+    assert f'value="{other_hub.id}" selected' not in reopened.text
+
+
+def test_ui_ask_panel_with_unknown_session_id_shows_notice(client):
+    response = client.get("/ui/ask/panel?session_id=does-not-exist")
+    assert response.status_code == 200
+    assert "Conversazione non trovata" in response.text
+
+
+def test_ui_ask_delete_history_removes_other_session_and_keeps_current(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta uno"})
+    client.post("/ui/ask/message", data={"location_id": "", "category_key": "", "message": "conversazione uno"})
+    first_id = session.exec(select(AskSession)).first().id
+
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta due"})
+    second = client.post(
+        "/ui/ask/message", data={"location_id": "", "category_key": "", "message": "conversazione due"}
+    )
+    second_id = [s.id for s in session.exec(select(AskSession)).all() if s.id != first_id][0]
+    assert "conversazione due" in second.text
+
+    response = client.request(
+        "DELETE",
+        f"/ui/ask/history/{first_id}",
+        data={"current_session_id": second_id, "location_id": "", "category_key": ""},
+    )
+    assert response.status_code == 200
+    assert "conversazione due" in response.text
+    assert session.exec(select(AskSession).where(AskSession.id == first_id)).first() is None
+    assert session.exec(select(AskSession).where(AskSession.id == second_id)).first() is not None
+
+
+def test_ui_ask_delete_history_of_currently_open_session_resets_panel(client, session, monkeypatch):
+    monkeypatch.setattr(ai_client, "ask", lambda *a, **k: {"answer": "risposta"})
+    client.post("/ui/ask/message", data={"location_id": "", "category_key": "", "message": "domanda"})
+    ask_session_id = session.exec(select(AskSession)).first().id
+
+    response = client.request(
+        "DELETE",
+        f"/ui/ask/history/{ask_session_id}",
+        data={"current_session_id": ask_session_id, "location_id": "", "category_key": ""},
+    )
+    assert response.status_code == 200
+    assert "domanda" not in response.text
+    assert 'name="message"' in response.text
+
+
+def test_ui_ask_delete_history_of_already_deleted_session_is_idempotent(client):
+    response = client.request(
+        "DELETE",
+        "/ui/ask/history/does-not-exist",
+        data={"current_session_id": "", "location_id": "", "category_key": ""},
+    )
+    assert response.status_code == 200
