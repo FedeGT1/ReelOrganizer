@@ -72,6 +72,49 @@ def test_create_ai_session_with_messages():
         assert messages[0].role == "user"
 
 
+def test_create_ask_session_with_messages():
+    from app.models import AskMessage, AskSession
+
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+        session.add(hub)
+        session.commit()
+        session.refresh(hub)
+
+        ask_session = AskSession(location_id=hub.id, category_key="food")
+        session.add(ask_session)
+        session.commit()
+        session.refresh(ask_session)
+
+        session.add(AskMessage(session_id=ask_session.id, role="user", content="Cosa mi consigli?"))
+        session.commit()
+
+        messages = session.exec(
+            select(AskMessage).where(AskMessage.session_id == ask_session.id)
+        ).all()
+        assert len(messages) == 1
+        assert messages[0].role == "user"
+        assert ask_session.location_id == hub.id
+        assert ask_session.category_key == "food"
+
+
+def test_create_ask_session_with_no_scope():
+    from app.models import AskSession
+
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        ask_session = AskSession()
+        session.add(ask_session)
+        session.commit()
+        session.refresh(ask_session)
+
+        assert ask_session.location_id is None
+        assert ask_session.category_key is None
+
+
 def test_create_category():
     from app.models import Category
 

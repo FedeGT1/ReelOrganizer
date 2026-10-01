@@ -52,3 +52,19 @@ class AiMessage(SQLModel, table=True):
     role: str
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AskSession(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    location_id: Optional[str] = Field(default=None, foreign_key="location.id")
+    category_key: Optional[str] = Field(default=None, foreign_key="category.key")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AskMessage(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    session_id: str = Field(foreign_key="asksession.id")
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
