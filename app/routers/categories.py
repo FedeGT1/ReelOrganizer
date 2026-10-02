@@ -27,6 +27,18 @@ def get_valid_type_keys(session: Session) -> set[str]:
     return set(session.exec(select(Category.key)).all())
 
 
+def reel_ids_matching_types(session: Session, types: list[str]) -> set[str] | None:
+    """None means "no filter". Otherwise the set of reel ids tagged with
+    every type in `types` (AND across types)."""
+    if not types:
+        return None
+    result: set[str] | None = None
+    for type_value in types:
+        ids = set(session.exec(select(ReelType.reel_id).where(ReelType.type == type_value)).all())
+        result = ids if result is None else result & ids
+    return result
+
+
 class CategoryPayload(BaseModel):
     label: str
     icon: str
