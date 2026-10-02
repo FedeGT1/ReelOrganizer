@@ -39,7 +39,7 @@ def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(ses
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, None)
+    visible_ids, anchors = visible_location_ids(session, locations, [])
 
     assert filled_hub.id in visible_ids
     assert empty_hub.id not in visible_ids
@@ -59,7 +59,7 @@ def test_visible_location_ids_keeps_empty_hub_as_anchor_for_filled_satellite(ses
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, None)
+    visible_ids, anchors = visible_location_ids(session, locations, [])
 
     assert hub.id in visible_ids
     assert satellite.id in visible_ids
@@ -79,6 +79,65 @@ def test_visible_location_ids_uses_type_specific_emptiness_when_type_active(sess
     session.commit()
 
     locations = compute_map(session)
-    visible_ids, _ = visible_location_ids(session, locations, "culture")
+    visible_ids, _ = visible_location_ids(session, locations, ["culture"])
 
     assert hub.id not in visible_ids
+
+
+def test_visible_location_ids_requires_all_selected_types(session):
+    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0)
+    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0)
+    session.add(hub_both)
+    session.add(hub_food_only)
+    session.commit()
+    session.refresh(hub_both)
+    session.refresh(hub_food_only)
+
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id)
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id)
+    session.add(reel_both)
+    session.add(reel_food)
+    session.commit()
+    session.refresh(reel_both)
+    session.refresh(reel_food)
+    session.add(ReelType(reel_id=reel_both.id, type="food"))
+    session.add(ReelType(reel_id=reel_both.id, type="shopping"))
+    session.add(ReelType(reel_id=reel_food.id, type="food"))
+    session.commit()
+
+    locations = compute_map(session)
+    visible_ids, _ = visible_location_ids(session, locations, ["food", "shopping"])
+
+    assert hub_both.id in visible_ids
+    assert hub_food_only.id not in visible_ids
+
+
+def test_ui_map_filters_by_multiple_types(client, session):
+    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0)
+    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0)
+    session.add(hub_both)
+    session.add(hub_food_only)
+    session.commit()
+    session.refresh(hub_both)
+    session.refresh(hub_food_only)
+
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id)
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id)
+    session.add(reel_both)
+    session.add(reel_food)
+    session.commit()
+    session.refresh(reel_both)
+    session.refresh(reel_food)
+    session.add(ReelType(reel_id=reel_both.id, type="food"))
+    session.add(ReelType(reel_id=reel_both.id, type="shopping"))
+    session.add(ReelType(reel_id=reel_food.id, type="food"))
+    session.commit()
+
+    response = client.get("/ui/map?type=food&type=shopping")
+    assert response.status_code == 200
+
+    from tests.test_ui_fragments import _map_data
+
+    locations = {loc["id"]: loc for loc in _map_data(response.text)}
+    assert hub_both.id in locations
+    assert hub_food_only.id not in locations

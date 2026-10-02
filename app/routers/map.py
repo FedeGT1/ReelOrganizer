@@ -1,13 +1,13 @@
 import json
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
-from app.routers.categories import get_taxonomy
+from app.routers.categories import get_taxonomy, reel_ids_matching_types
 from app.web import templates
 
 router = APIRouter(prefix="/api/map", tags=["map"])
@@ -41,10 +41,8 @@ def get_map(session: Session = Depends(get_session)):
     return compute_map(session)
 
 
-def locations_with_type(session: Session, type_value: str) -> set[str]:
-    reel_ids = set(
-        session.exec(select(ReelType.reel_id).where(ReelType.type == type_value)).all()
-    )
+def locations_with_types(session: Session, type_values: list[str]) -> set[str]:
+    reel_ids = reel_ids_matching_types(session, type_values)
     if not reel_ids:
         return set()
     return set(
@@ -55,14 +53,15 @@ def locations_with_type(session: Session, type_value: str) -> set[str]:
 def visible_location_ids(
     session: Session,
     locations: list[dict],
-    type_value: str | None,
+    type_values: list[str] | None,
 ) -> tuple[set[str], set[str]]:
     """(visible_ids, anchor_hub_ids). Locations with no qualifying reel are
     always excluded. anchor_hub_ids is always a subset of visible_ids: hubs
     that qualify only because a child satellite qualifies, not because they
     have reels of their own."""
-    if type_value:
-        qualifying = locations_with_type(session, type_value)
+    type_values = type_values or []
+    if type_values:
+        qualifying = locations_with_types(session, type_values)
     else:
         qualifying = {loc["id"] for loc in locations if loc["reel_count"] > 0}
 
@@ -79,11 +78,12 @@ def visible_location_ids(
     return qualifying | anchor_hubs, anchor_hubs
 
 
-def render_map_html(session: Session, type_value: str | None = None) -> str:
+def render_map_html(session: Session, type_values: list[str] | None = None) -> str:
+    type_values = type_values or []
     locations = compute_map(session)
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
-    matching_location_ids = locations_with_type(session, type_value) if type_value else set()
-    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type_value)
+    matching_location_ids = locations_with_types(session, type_values) if type_values else set()
+    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type_values)
 
     map_locations = []
     for loc in locations:
@@ -99,7 +99,7 @@ def render_map_html(session: Session, type_value: str | None = None) -> str:
             "lat": loc["lat"],
             "lon": loc["lon"],
             "anchor": loc["id"] in anchor_hub_ids,
-            "dimmed": bool(type_value) and loc["id"] not in matching_location_ids,
+            "dimmed": bool(type_values) and loc["id"] not in matching_location_ids,
             "parent_lat": None,
             "parent_lon": None,
         }
@@ -114,7 +114,7 @@ def render_map_html(session: Session, type_value: str | None = None) -> str:
 
     return templates.get_template("partials/map.html").render(
         map_locations_json=map_locations_json,
-        active_type=type_value,
+        active_types=type_values,
         taxonomy=get_taxonomy(session),
     )
 
@@ -122,7 +122,7 @@ def render_map_html(session: Session, type_value: str | None = None) -> str:
 @ui_router.get("/map")
 def ui_map(
     request: Request,
-    type: str = None,
+    type: list[str] = Query([]),
     session: Session = Depends(get_session),
 ):
     return HTMLResponse(render_map_html(session, type))
