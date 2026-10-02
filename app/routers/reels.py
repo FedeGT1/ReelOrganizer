@@ -27,6 +27,13 @@ def _location_and_satellite_ids(session: Session, location_id: str) -> list[str]
     return [location_id, *satellite_ids]
 
 
+def _filter_reels_by_types(session: Session, reels: list[Reel], type_values: list[str]) -> list[Reel]:
+    type_ids = reel_ids_matching_types(session, type_values)
+    if type_ids is None:
+        return reels
+    return [r for r in reels if r.id in type_ids]
+
+
 def _filter_reels_by_text(session: Session, reels: list[Reel], q: Optional[str]) -> list[Reel]:
     if not q:
         return reels
@@ -122,10 +129,7 @@ def list_reels(
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
 
-    type_ids = reel_ids_matching_types(session, type)
-    if type_ids is not None:
-        reels = [r for r in reels if r.id in type_ids]
-
+    reels = _filter_reels_by_types(session, reels, type)
     reels = _filter_reels_by_text(session, reels, q)
 
     return [_serialize_reel(session, r) for r in reels]
@@ -180,10 +184,7 @@ def _reel_list_context(
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
 
-    type_ids = reel_ids_matching_types(session, type_values)
-    if type_ids is not None:
-        reels = [r for r in reels if r.id in type_ids]
-
+    reels = _filter_reels_by_types(session, reels, type_values)
     reels = _filter_reels_by_text(session, reels, q)
 
     filtered_location = session.get(Location, location_id) if location_id else None
