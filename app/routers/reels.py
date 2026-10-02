@@ -1,14 +1,14 @@
 from typing import Optional
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
-from app.routers.categories import get_taxonomy, get_valid_type_keys
+from app.routers.categories import get_taxonomy, get_valid_type_keys, reel_ids_matching_types
 from app.routers.map import render_map_html
 from app.web import templates
 
@@ -25,6 +25,28 @@ def _location_and_satellite_ids(session: Session, location_id: str) -> list[str]
         select(Location.id).where(Location.parent_id == location_id)
     ).all()
     return [location_id, *satellite_ids]
+
+
+def _filter_reels_by_text(session: Session, reels: list[Reel], q: Optional[str]) -> list[Reel]:
+    if not q:
+        return reels
+    needle = q.strip().lower()
+    if not needle:
+        return reels
+
+    location_names: dict[str, str] = {}
+
+    def location_name(location_id: str) -> str:
+        if location_id not in location_names:
+            loc = session.get(Location, location_id)
+            location_names[location_id] = loc.name if loc else ""
+        return location_names[location_id]
+
+    return [
+        r
+        for r in reels
+        if needle in (r.note or "").lower() or needle in location_name(r.location_id).lower()
+    ]
 
 
 class ReelCreate(BaseModel):
@@ -91,7 +113,8 @@ def _update_reel(
 @router.get("")
 def list_reels(
     location_id: Optional[str] = None,
-    type: Optional[str] = None,
+    type: list[str] = Query([]),
+    q: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     query = select(Reel)
@@ -99,11 +122,11 @@ def list_reels(
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
 
-    if type is not None:
-        matching_ids = set(
-            session.exec(select(ReelType.reel_id).where(ReelType.type == type)).all()
-        )
-        reels = [r for r in reels if r.id in matching_ids]
+    type_ids = reel_ids_matching_types(session, type)
+    if type_ids is not None:
+        reels = [r for r in reels if r.id in type_ids]
+
+    reels = _filter_reels_by_text(session, reels, q)
 
     return [_serialize_reel(session, r) for r in reels]
 
@@ -146,25 +169,28 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
 
 
 def _reel_list_context(
-    session: Session, location_id: Optional[str] = None, type_value: Optional[str] = None
+    session: Session,
+    location_id: Optional[str] = None,
+    type_values: Optional[list[str]] = None,
+    q: Optional[str] = None,
 ) -> dict:
+    type_values = type_values or []
     query = select(Reel)
     if location_id is not None:
         query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
     reels = session.exec(query).all()
 
-    if type_value is not None:
-        matching_ids = set(
-            session.exec(select(ReelType.reel_id).where(ReelType.type == type_value)).all()
-        )
-        reels = [r for r in reels if r.id in matching_ids]
+    type_ids = reel_ids_matching_types(session, type_values)
+    if type_ids is not None:
+        reels = [r for r in reels if r.id in type_ids]
+
+    reels = _filter_reels_by_text(session, reels, q)
 
     filtered_location = session.get(Location, location_id) if location_id else None
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
         "taxonomy": get_taxonomy(session),
         "filtered_location": filtered_location,
-        "active_type": type_value,
     }
 
 
@@ -233,11 +259,12 @@ def ui_update_reel(
 def ui_list_reels(
     request: Request,
     location_id: Optional[str] = None,
-    type: Optional[str] = None,
+    type: list[str] = Query([]),
+    q: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     return templates.TemplateResponse(
-        request, "partials/reel_list.html", _reel_list_context(session, location_id, type)
+        request, "partials/reel_list.html", _reel_list_context(session, location_id, type, q)
     )
 
 

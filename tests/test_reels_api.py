@@ -295,3 +295,105 @@ def test_update_reel_rejects_javascript_link(client, session):
     )
     assert response.status_code == 400
     assert client.get("/api/reels").json()[0]["link"] == "https://instagram.com/reel/keep"
+
+
+def test_filter_reels_by_multiple_types_requires_all(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub.id)
+    reel_food_only = Reel(link="https://instagram.com/reel/food", location_id=hub.id)
+    session.add(reel_both)
+    session.add(reel_food_only)
+    session.commit()
+    session.refresh(reel_both)
+    session.refresh(reel_food_only)
+    session.add(ReelType(reel_id=reel_both.id, type="food"))
+    session.add(ReelType(reel_id=reel_both.id, type="shopping"))
+    session.add(ReelType(reel_id=reel_food_only.id, type="food"))
+    session.commit()
+
+    response = client.get("/api/reels?type=food&type=shopping")
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["link"] == "https://instagram.com/reel/both"
+
+
+def test_search_reels_matches_note(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Best ramen ever"))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit"))
+    session.commit()
+
+    response = client.get("/api/reels?q=ramen")
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["note"] == "Best ramen ever"
+
+
+def test_search_reels_matches_location_name_case_insensitively(client, session):
+    hub = Location(name="Shibuya Crossing", is_hub=True)
+    other_hub = Location(name="Hub B", is_hub=True)
+    session.add(hub)
+    session.add(other_hub)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=other_hub.id))
+    session.commit()
+
+    response = client.get("/api/reels?q=SHIBUYA")
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["location_id"] == hub.id
+
+
+def test_search_reels_combines_with_type_filter(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub.id, note="Great ramen")
+    reel_wrong_type = Reel(link="https://instagram.com/reel/other", location_id=hub.id, note="Great ramen too")
+    session.add(reel_match)
+    session.add(reel_wrong_type)
+    session.commit()
+    session.refresh(reel_match)
+    session.refresh(reel_wrong_type)
+    session.add(ReelType(reel_id=reel_match.id, type="food"))
+    session.add(ReelType(reel_id=reel_wrong_type.id, type="culture"))
+    session.commit()
+
+    response = client.get("/api/reels?type=food&q=ramen")
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["link"] == "https://instagram.com/reel/match"
+
+
+def test_ui_reels_search_filters_by_note_or_location_name(client, session):
+    hub = Location(name="Shibuya", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Great ramen"))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit"))
+    session.commit()
+
+    response = client.get("/ui/reels?q=ramen")
+    assert response.status_code == 200
+    assert "Great ramen" in response.text
+    assert "Shrine visit" not in response.text
