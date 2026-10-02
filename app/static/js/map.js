@@ -9,12 +9,6 @@ const SATELLITE_HIDE_THRESHOLD_PX = 50;
 let currentLocationId = null;
 let currentTypes = [];
 
-window.getCurrentLocationId = () => currentLocationId;
-window.setCurrentLocationId = (id) => {
-    currentLocationId = id;
-};
-window.getCurrentTypes = () => currentTypes;
-
 function buildTypeQuery(types) {
     return types.map((t) => "type=" + encodeURIComponent(t)).join("&");
 }
@@ -156,7 +150,7 @@ function initReelMap(containerId, dataId, typeValues) {
 
 let searchDebounceTimer = null;
 
-window.handleSearchInput = (value) => {
+window.handleSearchInput = () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
         refreshReelList();

@@ -24,7 +24,7 @@
 
 <input type="search" id="reel-search-input" class="reel-search-input"
        placeholder="Cerca per nota o location..." autocomplete="off"
-       oninput="window.handleSearchInput(this.value)">
+       oninput="window.handleSearchInput()">
 
 <section id="reel-list" hx-get="/ui/reels" hx-trigger="load" hx-swap="innerHTML">
     <p>Caricamento reel...</p>

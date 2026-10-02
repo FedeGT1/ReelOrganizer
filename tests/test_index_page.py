@@ -31,4 +31,4 @@ def test_index_page_renders_search_input(client):
     response = client.get("/")
     assert response.status_code == 200
     assert 'id="reel-search-input"' in response.text
-    assert "window.handleSearchInput(this.value)" in response.text
+    assert "window.handleSearchInput()" in response.text
