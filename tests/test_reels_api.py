@@ -383,6 +383,28 @@ def test_search_reels_combines_with_type_filter(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/match"
 
 
+def test_search_reels_combines_with_location_filter(client, session):
+    hub_a = Location(name="Hub A", is_hub=True)
+    hub_b = Location(name="Hub B", is_hub=True)
+    session.add(hub_a)
+    session.add(hub_b)
+    session.commit()
+    session.refresh(hub_a)
+    session.refresh(hub_b)
+
+    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub_a.id, note="Great ramen")
+    reel_wrong_location = Reel(link="https://instagram.com/reel/other", location_id=hub_b.id, note="Great ramen too")
+    session.add(reel_match)
+    session.add(reel_wrong_location)
+    session.commit()
+
+    response = client.get(f"/api/reels?location_id={hub_a.id}&q=ramen")
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["link"] == "https://instagram.com/reel/match"
+
+
 def test_ui_reels_search_filters_by_note_or_location_name(client, session):
     hub = Location(name="Shibuya", is_hub=True)
     session.add(hub)
