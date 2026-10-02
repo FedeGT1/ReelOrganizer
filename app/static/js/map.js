@@ -7,16 +7,66 @@ function escapeHtml(str) {
 const SATELLITE_HIDE_THRESHOLD_PX = 50;
 
 let currentLocationId = null;
-let currentType = null;
+let currentTypes = [];
 
 window.getCurrentLocationId = () => currentLocationId;
 window.setCurrentLocationId = (id) => {
     currentLocationId = id;
 };
-window.getCurrentType = () => currentType;
+window.getCurrentTypes = () => currentTypes;
 
-function initReelMap(containerId, dataId, typeValue) {
-    currentType = typeValue || null;
+function buildTypeQuery(types) {
+    return types.map((t) => "type=" + encodeURIComponent(t)).join("&");
+}
+
+function refreshMap() {
+    const typeQuery = buildTypeQuery(currentTypes);
+    const url = "/ui/map" + (typeQuery ? "?" + typeQuery : "");
+    htmx.ajax("GET", url, { target: "#map-container", swap: "innerHTML" });
+}
+
+function refreshReelList() {
+    const params = [];
+    if (currentLocationId) {
+        params.push("location_id=" + encodeURIComponent(currentLocationId));
+    }
+    const typeQuery = buildTypeQuery(currentTypes);
+    if (typeQuery) {
+        params.push(typeQuery);
+    }
+    const searchInput = document.getElementById("reel-search-input");
+    const q = searchInput ? searchInput.value.trim() : "";
+    if (q) {
+        params.push("q=" + encodeURIComponent(q));
+    }
+    const url = "/ui/reels" + (params.length ? "?" + params.join("&") : "");
+    htmx.ajax("GET", url, { target: "#reel-list", swap: "innerHTML" });
+}
+
+window.toggleType = (key) => {
+    const index = currentTypes.indexOf(key);
+    if (index === -1) {
+        currentTypes.push(key);
+    } else {
+        currentTypes.splice(index, 1);
+    }
+    refreshMap();
+    refreshReelList();
+};
+
+window.clearTypes = () => {
+    currentTypes = [];
+    refreshMap();
+    refreshReelList();
+};
+
+window.clearLocationFilter = () => {
+    currentLocationId = null;
+    refreshReelList();
+};
+
+function initReelMap(containerId, dataId, typeValues) {
+    currentTypes = typeValues || [];
 
     const dataEl = document.getElementById(dataId);
     const locations = JSON.parse(dataEl.textContent);
@@ -57,12 +107,7 @@ function initReelMap(containerId, dataId, typeValue) {
 
         hitArea.on("click", () => {
             currentLocationId = loc.id;
-            const url =
-                "/ui/reels?location_id=" + loc.id + (currentType ? "&type=" + currentType : "");
-            htmx.ajax("GET", url, {
-                target: "#reel-list",
-                swap: "innerHTML",
-            });
+            refreshReelList();
         });
 
         if (!loc.is_hub && loc.parent_lat !== null && loc.parent_lon !== null) {

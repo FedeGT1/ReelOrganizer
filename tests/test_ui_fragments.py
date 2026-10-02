@@ -44,8 +44,27 @@ def test_ui_map_includes_type_filter_chips(client, session):
     response = client.get("/ui/map")
     assert response.status_code == 200
     assert "Cibo" in response.text
-    assert 'hx-get="/ui/map?type=food"' in response.text
-    assert "htmx.ajax('GET', '/ui/reels?type=food'" in response.text
+    assert 'data-type="food"' in response.text
+    assert "window.toggleType('food')" in response.text
+    assert "window.clearTypes()" in response.text
+
+
+def test_ui_map_marks_multiple_active_chips(client, session):
+    from app.models import Category
+
+    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="shopping", label="Shopping", icon="🛍️", color="#35496B"))
+    session.commit()
+
+    response = client.get("/ui/map?type=food&type=shopping")
+    assert response.status_code == 200
+
+    import re
+
+    food_chip = re.search(r'<a[^>]*data-type="food"[^>]*>', response.text).group(0)
+    shopping_chip = re.search(r'<a[^>]*data-type="shopping"[^>]*>', response.text).group(0)
+    assert "active" in food_chip
+    assert "active" in shopping_chip
 
 
 def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):
