@@ -1,7 +1,7 @@
 <ul class="category-list">
     {% for category in categories %}
     <li id="category-{{ category.key }}">
-        <span class="chip" style="background-color: {{ category.color }}; border-color: {{ category.color }};">{{ category.icon }} {{ category.label }}</span>
+        <span class="chip">{{ category.icon }} {{ category.label }}</span>
         <button hx-get="/ui/categories/{{ category.key }}/edit" hx-target="#category-{{ category.key }}" hx-swap="outerHTML">Modifica</button>
         <button hx-delete="/ui/categories/{{ category.key }}" hx-target="#category-list" hx-swap="innerHTML">Elimina</button>
     </li>
@@ -10,6 +10,5 @@
 <form class="category-form" hx-post="/ui/categories" hx-target="#category-list" hx-swap="innerHTML">
     <input type="text" name="label" placeholder="Nome categoria" required>
     <input type="text" name="icon" placeholder="Emoji" required>
-    <input type="color" name="color" value="#A63A2E" required>
     <button type="submit">Aggiungi categoria</button>
 </form>

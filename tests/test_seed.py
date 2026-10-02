@@ -43,7 +43,6 @@ def test_seed_if_empty_creates_default_categories():
         food = next(c for c in categories if c.key == "food")
         assert food.label == "Cibo"
         assert food.icon == "🍜"
-        assert food.color == "#A63A2E"
 
 
 def test_seed_if_empty_categories_are_idempotent():

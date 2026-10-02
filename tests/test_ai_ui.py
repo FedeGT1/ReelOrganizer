@@ -234,7 +234,7 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
 def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 
@@ -263,7 +263,7 @@ def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(c
 def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
-    session.add(Category(key="nature", label="Natura", icon="🌸", color="#7A8F5E"))
+    session.add(Category(key="nature", label="Natura", icon="🌸"))
     session.commit()
     session.refresh(hub)
 
@@ -291,7 +291,7 @@ def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
 
 
 def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.post(
@@ -317,7 +317,7 @@ def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
 
 
 def test_ui_ai_confirm_stores_confidence_on_new_location(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.post(
@@ -363,7 +363,7 @@ def test_ui_ai_confirm_rejects_invalid_link(client, session):
 def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 
@@ -392,7 +392,7 @@ def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
 
 
 def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     monkeypatch.setattr(

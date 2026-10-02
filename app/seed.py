@@ -29,13 +29,13 @@ SATELLITES = [
 ]
 
 DEFAULT_CATEGORIES = [
-    ("food", "Cibo", "🍜", "#A63A2E"),
-    ("culture", "Cultura", "⛩️", "#35496B"),
-    ("nature", "Natura", "🌸", "#7A8F5E"),
-    ("shopping", "Shopping", "🛍️", "#B08D57"),
-    ("stay", "Alloggio", "🏨", "#5B4636"),
-    ("transport", "Trasporti", "🚄", "#1F2C47"),
-    ("experience", "Esperienza", "🎡", "#8E5572"),
+    ("food", "Cibo", "🍜"),
+    ("culture", "Cultura", "⛩️"),
+    ("nature", "Natura", "🌸"),
+    ("shopping", "Shopping", "🛍️"),
+    ("stay", "Alloggio", "🏨"),
+    ("transport", "Trasporti", "🚄"),
+    ("experience", "Esperienza", "🎡"),
 ]
 
 
@@ -55,6 +55,6 @@ def seed_if_empty(session: Session) -> None:
         session.commit()
 
     if session.exec(select(Category)).first() is None:
-        for key, label, icon, color in DEFAULT_CATEGORIES:
-            session.add(Category(key=key, label=label, icon=icon, color=color))
+        for key, label, icon in DEFAULT_CATEGORIES:
+            session.add(Category(key=key, label=label, icon=icon))
         session.commit()

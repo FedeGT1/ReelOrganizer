@@ -31,7 +31,6 @@ class Category(SQLModel, table=True):
     key: str = Field(primary_key=True)
     label: str
     icon: str
-    color: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

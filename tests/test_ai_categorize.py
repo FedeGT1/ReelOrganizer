@@ -16,7 +16,7 @@ from app.routers.ai_categorize import (
 def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     def fake_categorize(hub_names, categories, messages):
@@ -509,7 +509,7 @@ def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkey
 def test_resolve_location_and_create_reel_uses_matched_location(session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 
@@ -532,7 +532,7 @@ def test_resolve_location_and_create_reel_uses_matched_location(session):
 def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
-    session.add(Category(key="nature", label="Natura", icon="🌸", color="#7A8F5E"))
+    session.add(Category(key="nature", label="Natura", icon="🌸"))
     session.commit()
     session.refresh(hub)
 
@@ -645,7 +645,7 @@ def test_categorize_new_session_message_does_not_touch_the_db(monkeypatch):
 
 
 def test_persist_categorize_result_creates_session_and_applies_type_filter(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     result = {

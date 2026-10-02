@@ -274,7 +274,7 @@ def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session
 def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(client, session):
     hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
     session.add(hub)
-    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#35496B"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
     session.commit()
     session.refresh(hub)
 

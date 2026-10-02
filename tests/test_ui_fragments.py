@@ -38,7 +38,7 @@ def test_ui_map_renders_leaflet_container_and_location_data(client, session):
 def test_ui_map_includes_type_filter_chips(client, session):
     from app.models import Category
 
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/ui/map")
@@ -52,8 +52,8 @@ def test_ui_map_includes_type_filter_chips(client, session):
 def test_ui_map_marks_multiple_active_checkboxes(client, session):
     from app.models import Category
 
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
-    session.add(Category(key="shopping", label="Shopping", icon="🛍️", color="#35496B"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="shopping", label="Shopping", icon="🛍️"))
     session.commit()
 
     response = client.get("/ui/map?type=food&type=shopping")
@@ -144,7 +144,7 @@ def test_ui_reels_get_renders_list_without_form(client, session):
 def test_ui_reels_add_form_renders_locations_and_categories(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/ui/reels/add-form")
@@ -267,7 +267,7 @@ def test_ui_reels_mostra_tutti_banner_uses_clear_location_filter(client, session
 def test_ui_reels_edit_form_renders_prefilled_data(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
     reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot")
@@ -410,8 +410,8 @@ def test_ui_reels_list_omits_google_maps_link_when_low_confidence_and_no_coordin
 def test_ui_reels_get_filters_by_type(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
-    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#35496B"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
     session.commit()
     session.refresh(hub)
 

@@ -163,7 +163,7 @@ def test_filter_reels_by_type(client, session):
 def test_create_reel_filters_invalid_types(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 
@@ -185,7 +185,7 @@ def test_create_reel_filters_invalid_types(client, session):
 def test_delete_reel(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 
@@ -225,8 +225,8 @@ def test_update_reel_changes_fields(client, session):
     other_hub = Location(name="Other Hub", is_hub=True)
     session.add(hub)
     session.add(other_hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
-    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#8FA8B2"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
@@ -279,7 +279,7 @@ def test_update_missing_reel_returns_404(client, session):
 def test_update_reel_rejects_javascript_link(client, session):
     hub = Location(name="Hub", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 

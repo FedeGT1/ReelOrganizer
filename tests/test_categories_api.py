@@ -10,7 +10,7 @@ def test_list_categories_empty(client):
 
 
 def test_list_categories_returns_seeded_rows(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/api/categories")
@@ -24,32 +24,31 @@ def test_list_categories_returns_seeded_rows(client, session):
 def test_create_category_generates_slug_key(client):
     response = client.post(
         "/api/categories",
-        json={"label": "Vita notturna", "icon": "🍿", "color": "#7A4B8A"},
+        json={"label": "Vita notturna", "icon": "🍿"},
     )
     assert response.status_code == 201
     data = response.json()
     assert data["key"] == "vita-notturna"
     assert data["label"] == "Vita notturna"
     assert data["icon"] == "🍿"
-    assert data["color"] == "#7A4B8A"
 
 
 def test_create_category_normalizes_accented_characters(client):
     response = client.post(
         "/api/categories",
-        json={"label": "Città storica", "icon": "🏯", "color": "#35496B"},
+        json={"label": "Città storica", "icon": "🏯"},
     )
     assert response.status_code == 201
     assert response.json()["key"] == "citta-storica"
 
 
 def test_create_category_rejects_duplicate_slug(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.post(
         "/api/categories",
-        json={"label": "Food", "icon": "🍔", "color": "#000000"},
+        json={"label": "Food", "icon": "🍔"},
     )
     assert response.status_code == 409
 
@@ -57,38 +56,37 @@ def test_create_category_rejects_duplicate_slug(client, session):
 def test_create_category_rejects_unslugifiable_label(client):
     response = client.post(
         "/api/categories",
-        json={"label": "🎉🎉🎉", "icon": "🎉", "color": "#000000"},
+        json={"label": "🎉🎉🎉", "icon": "🎉"},
     )
     assert response.status_code == 400
 
 
-def test_update_category_changes_label_icon_color_not_key(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+def test_update_category_changes_label_icon_not_key(client, session):
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.put(
         "/api/categories/food",
-        json={"label": "Cibo di strada", "icon": "🌭", "color": "#111111"},
+        json={"label": "Cibo di strada", "icon": "🌭"},
     )
     assert response.status_code == 200
     data = response.json()
     assert data["key"] == "food"
     assert data["label"] == "Cibo di strada"
     assert data["icon"] == "🌭"
-    assert data["color"] == "#111111"
 
 
 def test_update_unknown_category_returns_404(client):
     response = client.put(
         "/api/categories/does-not-exist",
-        json={"label": "X", "icon": "🍜", "color": "#000000"},
+        json={"label": "X", "icon": "🍜"},
     )
     assert response.status_code == 404
 
 
 def test_delete_category_removes_only_matching_reel_types(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
-    session.add(Category(key="culture", label="Cultura", icon="⛩️", color="#35496B"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
     session.commit()
 
     hub = Location(name="Hub", is_hub=True)
@@ -119,11 +117,3 @@ def test_delete_category_removes_only_matching_reel_types(client, session):
 def test_delete_unknown_category_returns_404(client):
     response = client.delete("/api/categories/does-not-exist")
     assert response.status_code == 404
-
-
-def test_create_category_rejects_invalid_color_format(client):
-    response = client.post(
-        "/api/categories",
-        json={"label": "Test", "icon": "🎉", "color": "not-a-color"},
-    )
-    assert response.status_code == 422

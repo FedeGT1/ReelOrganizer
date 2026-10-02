@@ -40,8 +40,8 @@ def test_scoped_reel_context_filters_by_city_and_includes_satellites(session):
 def test_scoped_reel_context_filters_by_category(session):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
-    session.add(Category(key="nature", label="Natura", icon="🌸", color="#7A8F5E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="nature", label="Natura", icon="🌸"))
     session.commit()
     session.refresh(hub)
 
@@ -259,7 +259,7 @@ def test_ui_ask_message_shows_friendly_error_when_ai_call_fails(client, session,
 
 def test_ui_ask_panel_lists_hubs_and_categories(client, session):
     session.add(Location(name="Tokyo / Kanto", is_hub=True))
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/ui/ask/panel")
@@ -350,7 +350,7 @@ def test_list_ask_sessions_orders_by_updated_at_descending(session, monkeypatch)
 def test_list_ask_sessions_includes_scope_and_message_label(session, monkeypatch):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
     session.refresh(hub)
 

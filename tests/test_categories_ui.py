@@ -2,7 +2,7 @@ from app.models import Category
 
 
 def test_ui_categories_list_renders_existing_categories(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/ui/categories")
@@ -15,7 +15,7 @@ def test_ui_categories_list_renders_existing_categories(client, session):
 def test_ui_categories_create_and_rerenders_list(client, session):
     response = client.post(
         "/ui/categories",
-        data={"label": "Vita notturna", "icon": "🍿", "color": "#7A4B8A"},
+        data={"label": "Vita notturna", "icon": "🍿"},
     )
     assert response.status_code == 200
     assert "Vita notturna" in response.text
@@ -23,7 +23,7 @@ def test_ui_categories_create_and_rerenders_list(client, session):
 
 
 def test_ui_categories_edit_form_renders_prefilled_row(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.get("/ui/categories/food/edit")
@@ -38,12 +38,12 @@ def test_ui_categories_edit_form_unknown_key_returns_404(client):
 
 
 def test_ui_categories_update_and_rerenders_list(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.post(
         "/ui/categories/food",
-        data={"label": "Cibo di strada", "icon": "🌭", "color": "#111111"},
+        data={"label": "Cibo di strada", "icon": "🌭"},
     )
     assert response.status_code == 200
     assert "Cibo di strada" in response.text
@@ -51,7 +51,7 @@ def test_ui_categories_update_and_rerenders_list(client, session):
 
 
 def test_ui_categories_delete_removes_it_and_rerenders_list(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
     response = client.delete("/ui/categories/food")

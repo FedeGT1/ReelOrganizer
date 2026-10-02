@@ -121,7 +121,7 @@ def test_create_category():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        category = Category(key="food", label="Cibo", icon="🍜", color="#A63A2E")
+        category = Category(key="food", label="Cibo", icon="🍜")
         session.add(category)
         session.commit()
         session.refresh(category)

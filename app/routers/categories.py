@@ -2,7 +2,7 @@ import re
 import unicodedata
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
@@ -20,7 +20,7 @@ def slugify(label: str) -> str:
 
 def get_taxonomy(session: Session) -> dict[str, dict]:
     categories = session.exec(select(Category).order_by(Category.created_at)).all()
-    return {c.key: {"label": c.label, "icon": c.icon, "color": c.color} for c in categories}
+    return {c.key: {"label": c.label, "icon": c.icon} for c in categories}
 
 
 def get_valid_type_keys(session: Session) -> set[str]:
@@ -42,36 +42,27 @@ def reel_ids_matching_types(session: Session, types: list[str]) -> set[str] | No
 class CategoryPayload(BaseModel):
     label: str
     icon: str
-    color: str
-
-    @field_validator("color")
-    @classmethod
-    def validate_color(cls, value: str) -> str:
-        if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
-            raise ValueError("color must be a hex code like #A63A2E")
-        return value
 
 
-def _create_category(session: Session, label: str, icon: str, color: str) -> Category:
+def _create_category(session: Session, label: str, icon: str) -> Category:
     key = slugify(label)
     if not key:
         raise HTTPException(status_code=400, detail="label must contain at least one letter or digit")
     if session.get(Category, key):
         raise HTTPException(status_code=409, detail=f"a category with key '{key}' already exists")
-    category = Category(key=key, label=label, icon=icon, color=color)
+    category = Category(key=key, label=label, icon=icon)
     session.add(category)
     session.commit()
     session.refresh(category)
     return category
 
 
-def _update_category(session: Session, key: str, label: str, icon: str, color: str) -> Category:
+def _update_category(session: Session, key: str, label: str, icon: str) -> Category:
     category = session.get(Category, key)
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     category.label = label
     category.icon = icon
-    category.color = color
     session.add(category)
     session.commit()
     session.refresh(category)
@@ -95,12 +86,12 @@ def list_categories(session: Session = Depends(get_session)):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_category(payload: CategoryPayload, session: Session = Depends(get_session)):
-    return _create_category(session, payload.label, payload.icon, payload.color)
+    return _create_category(session, payload.label, payload.icon)
 
 
 @router.put("/{key}")
 def update_category(key: str, payload: CategoryPayload, session: Session = Depends(get_session)):
-    return _update_category(session, key, payload.label, payload.icon, payload.color)
+    return _update_category(session, key, payload.label, payload.icon)
 
 
 @router.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -122,10 +113,9 @@ def ui_create_category(
     request: Request,
     label: str = Form(...),
     icon: str = Form(...),
-    color: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    _create_category(session, label, icon, color)
+    _create_category(session, label, icon)
     return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))
 
 
@@ -143,10 +133,9 @@ def ui_update_category(
     key: str,
     label: str = Form(...),
     icon: str = Form(...),
-    color: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    _update_category(session, key, label, icon, color)
+    _update_category(session, key, label, icon)
     return templates.TemplateResponse(request, "partials/category_list.html", _category_list_context(session))
 
 
