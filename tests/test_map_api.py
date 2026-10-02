@@ -112,6 +112,32 @@ def test_visible_location_ids_requires_all_selected_types(session):
     assert hub_food_only.id not in visible_ids
 
 
+def test_visible_location_ids_anchor_hub_with_multi_type_satellite(session):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+
+    reel = Reel(link="https://instagram.com/reel/sat", location_id=satellite.id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    session.add(ReelType(reel_id=reel.id, type="food"))
+    session.add(ReelType(reel_id=reel.id, type="shopping"))
+    session.commit()
+
+    locations = compute_map(session)
+    visible_ids, anchors = visible_location_ids(session, locations, ["food", "shopping"])
+
+    assert hub.id in visible_ids
+    assert satellite.id in visible_ids
+    assert hub.id in anchors
+
+
 def test_ui_map_filters_by_multiple_types(client, session):
     hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0)
     hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0)
