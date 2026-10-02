@@ -347,6 +347,25 @@ def test_ui_reels_list_includes_edit_button(client, session):
     assert f"/ui/reels/{reel.id}/edit-form" in response.text
 
 
+def test_reel_dialog_js_refreshes_filters_after_save():
+    with open("app/static/js/reel-dialog.js") as f:
+        content = f.read()
+    assert "refreshReelList()" in content
+    assert "refreshMap()" in content
+
+
+def test_reel_list_delete_button_refreshes_filters_after_delete(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.commit()
+
+    response = client.get("/ui/reels")
+    assert 'hx-on::after-request="refreshReelList()"' in response.text
+
+
 def test_ui_reels_list_google_maps_link_uses_place_name_by_default(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)

@@ -20,7 +20,7 @@
         <button class="btn-edit" hx-get="/ui/reels/{{ reel.id }}/edit-form" hx-target="#reel-add-form-panel" hx-swap="innerHTML"
                 onclick="document.getElementById('add-reel-dialog').showModal(); document.querySelector('.tab-btn[data-tab=manual]').click();"
                 aria-label="Modifica">✏️</button>
-        <button class="btn-delete" hx-delete="/ui/reels/{{ reel.id }}" hx-target="#reel-list" hx-swap="innerHTML" aria-label="Elimina">🗑</button>
+        <button class="btn-delete" hx-delete="/ui/reels/{{ reel.id }}" hx-target="#reel-list" hx-swap="innerHTML" hx-on::after-request="refreshReelList()" aria-label="Elimina">🗑</button>
     </li>
     {% endfor %}
 </ul>

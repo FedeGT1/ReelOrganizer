@@ -30,5 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.body.addEventListener("reel-saved", () => {
         dialog.close();
+        refreshReelList();
+        refreshMap();
     });
 });
