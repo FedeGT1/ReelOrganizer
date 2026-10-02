@@ -251,6 +251,19 @@ def test_ui_reels_get_without_filter_shows_no_banner(client):
     assert "Mostra tutti" not in response.text
 
 
+def test_ui_reels_mostra_tutti_banner_uses_clear_location_filter(client, session):
+    hub_a = Location(name="Hub A", is_hub=True)
+    session.add(hub_a)
+    session.commit()
+    session.refresh(hub_a)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id))
+    session.commit()
+
+    response = client.get(f"/ui/reels?location_id={hub_a.id}")
+    assert response.status_code == 200
+    assert "window.clearLocationFilter()" in response.text
+
+
 def test_ui_reels_edit_form_renders_prefilled_data(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True)
     session.add(hub)

@@ -25,3 +25,10 @@ def test_index_page_renders_add_reel_dialog(client):
 def test_index_page_loads_reel_dialog_script(client):
     response = client.get("/")
     assert '/static/js/reel-dialog.js' in response.text
+
+
+def test_index_page_renders_search_input(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert 'id="reel-search-input"' in response.text
+    assert "window.handleSearchInput(this.value)" in response.text

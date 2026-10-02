@@ -1,8 +1,7 @@
 {% if filtered_location %}
 <div class="reel-filter-banner">
     <strong>Reel — {{ filtered_location.name }}</strong>
-    <a href="#" hx-get="/ui/reels{{ '?type=' + active_type if active_type else '' }}" hx-target="#reel-list" hx-swap="innerHTML"
-       hx-on:click="window.setCurrentLocationId(null)">✕ Mostra tutti</a>
+    <a href="#" onclick="window.clearLocationFilter(); return false;">✕ Mostra tutti</a>
 </div>
 {% endif %}
 <ul class="reel-list">

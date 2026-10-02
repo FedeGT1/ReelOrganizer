@@ -153,3 +153,12 @@ function initReelMap(containerId, dataId, typeValues) {
     updateSatelliteVisibility();
     map.on("zoomend", updateSatelliteVisibility);
 }
+
+let searchDebounceTimer = null;
+
+window.handleSearchInput = (value) => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        refreshReelList();
+    }, 400);
+};
