@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import Location, Reel, ReelType
+from app.models import Location, Reel
 from app.routers.categories import get_taxonomy, reel_ids_matching_types
 from app.web import templates
 
