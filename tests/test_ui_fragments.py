@@ -44,12 +44,12 @@ def test_ui_map_includes_type_filter_chips(client, session):
     response = client.get("/ui/map")
     assert response.status_code == 200
     assert "Cibo" in response.text
-    assert 'data-type="food"' in response.text
+    assert 'type="checkbox" value="food"' in response.text
     assert "window.toggleType('food')" in response.text
     assert "window.clearTypes()" in response.text
 
 
-def test_ui_map_marks_multiple_active_chips(client, session):
+def test_ui_map_marks_multiple_active_checkboxes(client, session):
     from app.models import Category
 
     session.add(Category(key="food", label="Cibo", icon="🍜", color="#A63A2E"))
@@ -61,10 +61,10 @@ def test_ui_map_marks_multiple_active_chips(client, session):
 
     import re
 
-    food_chip = re.search(r'<a[^>]*data-type="food"[^>]*>', response.text).group(0)
-    shopping_chip = re.search(r'<a[^>]*data-type="shopping"[^>]*>', response.text).group(0)
-    assert "active" in food_chip
-    assert "active" in shopping_chip
+    food_checkbox = re.search(r'<input[^>]*value="food"[^>]*>', response.text).group(0)
+    shopping_checkbox = re.search(r'<input[^>]*value="shopping"[^>]*>', response.text).group(0)
+    assert "checked" in food_checkbox
+    assert "checked" in shopping_checkbox
 
 
 def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):

@@ -84,6 +84,30 @@ main {
     filter: brightness(0.85);
 }
 
+.clear-types-link {
+    display: inline-block;
+    margin: 0.15rem 0 0.5rem;
+    font-size: 0.85rem;
+    color: var(--color-ink);
+}
+
+.category-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+}
+
+.category-checkboxes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
 .reel-search-input {
     display: block;
     width: 100%;

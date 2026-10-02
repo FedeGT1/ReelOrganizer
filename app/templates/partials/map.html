@@ -1,13 +1,16 @@
 <div class="map-filters">
-    <a href="#" class="chip {{ 'active' if not active_types else '' }}"
-       onclick="window.clearTypes(); return false;">Tutti</a>
-    {% for key, info in taxonomy.items() %}
-    <a href="#" class="chip {{ 'active' if key in active_types else '' }}"
-       data-type="{{ key }}" style="background-color: {{ info.color }}; border-color: {{ info.color }};"
-       onclick="window.toggleType('{{ key }}'); return false;">
-        {{ info.icon }} {{ info.label }}
-    </a>
-    {% endfor %}
+    <a href="#" class="clear-types-link" onclick="window.clearTypes(); return false;">Mostra tutte le categorie</a>
+    <ul class="category-checkboxes">
+        {% for key, info in taxonomy.items() %}
+        <li>
+            <label>
+                <input type="checkbox" value="{{ key }}" {{ 'checked' if key in active_types else '' }}
+                       onchange="window.toggleType('{{ key }}')">
+                {{ info.icon }} {{ info.label }}
+            </label>
+        </li>
+        {% endfor %}
+    </ul>
 </div>
 <div id="leaflet-map" class="leaflet-map"></div>
 <script type="application/json" id="map-data">{{ map_locations_json | safe }}</script>
