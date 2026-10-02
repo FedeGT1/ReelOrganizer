@@ -63,9 +63,15 @@ def build_system_prompt(hub_names: Iterable[str], categories: dict[str, str]) ->
         "ecc.), anche se si trova vicino o dentro una tappa gia' esistente che hai indicato in 'near_hub', "
         "DEVI comunque stimare lat e lon per quel luogo specifico seguendo le istruzioni sopra: 'near_hub' "
         "serve solo a indicare sotto quale tappa raggrupparlo, non ti esenta dallo stimare le sue coordinate. "
-        "Nel campo 'note' scrivi solo una breve descrizione testuale in prosa semplice: anche se hai usato "
-        "la ricerca web per trovare l'informazione, non includere mai link, URL, citazioni o riferimenti a "
-        "fonti in stile markdown (per esempio niente '[testo](url)' o '(nomesito.it)') -- solo testo semplice. "
+        "Nel campo 'note' scrivi una breve descrizione (1-2 frasi) del luogo in se', in stile guida turistica: "
+        "cos'e', perche' e' noto o interessante. Non limitarti a cio' che dice il reel -- usa anche la ricerca "
+        "web per arricchire la descrizione con informazioni reali sul luogo (storia, caratteristiche, cosa lo "
+        "rende degno di nota), anche se non sono menzionate nella didascalia. Non descrivere mai il luogo in "
+        "funzione del reel o di chi lo ha visitato: evita frasi come 'dove hanno fatto colazione', 'che hanno "
+        "visitato per...', 'dove sono andati a...' o qualsiasi riferimento a 'loro'/'hanno' legato al contenuto "
+        "del video -- descrivi il luogo stesso, non l'esperienza di chi lo ha filmato. Anche se hai usato la "
+        "ricerca web per trovare l'informazione, non includere mai link, URL, citazioni o riferimenti a fonti "
+        "in stile markdown (per esempio niente '[testo](url)' o '(nomesito.it)') -- solo testo semplice. "
         "Rispondi seguendo esattamente lo schema JSON fornito."
     )
 
