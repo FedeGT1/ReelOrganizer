@@ -29,7 +29,7 @@ def fetch(url: str, download_dir: Path) -> FetchResult:
         "outtmpl": str(download_dir / "reel.%(ext)s"),
         "quiet": True,
         "no_warnings": True,
-        "format": "mp4/best",
+        "format": "best[acodec!=none]/bestvideo+bestaudio/best",
     }
     cookies_file = cookies_path()
     if cookies_file.exists() and cookies_file.stat().st_size > 0:

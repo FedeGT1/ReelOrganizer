@@ -109,3 +109,19 @@ def test_fetch_omits_cookiefile_when_cookies_file_is_empty(tmp_path, monkeypatch
     instagram.fetch("https://instagram.com/reel/abc", tmp_path)
 
     assert "cookiefile" not in CapturingYoutubeDL.captured_opts
+
+
+def test_fetch_requests_a_format_that_includes_audio(tmp_path, monkeypatch):
+    # Regression guard: Instagram exposes DASH adaptive formats (video-only
+    # and audio-only) alongside legacy progressive muxed ones. A plain
+    # "mp4/best" selector can resolve to the highest-resolution video-only
+    # DASH stream, producing a video file with no audio track at all --
+    # faster-whisper's decode_audio then raises IndexError (no audio stream
+    # to read) instead of any caption-only-safe failure. This selector
+    # guarantees an audio track is present: prefer an already-muxed format
+    # that has one, otherwise merge the best video-only + audio-only pair.
+    monkeypatch.setattr(instagram, "YoutubeDL", CapturingYoutubeDL)
+
+    instagram.fetch("https://instagram.com/reel/abc", tmp_path)
+
+    assert CapturingYoutubeDL.captured_opts["format"] == "best[acodec!=none]/bestvideo+bestaudio/best"
