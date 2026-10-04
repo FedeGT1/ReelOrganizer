@@ -114,6 +114,28 @@ docker rmi <old-image-id-or-tag> [<old-image-id-or-tag> ...]
 docker df   # or: df -h /
 ```
 
+## Instagram authenticated cookies (optional)
+
+Instagram applies much stricter limits to anonymous (cookie-less) requests
+from datacenter/hosting IPs, which is what most VPS providers use — the
+Instagram auto-import feature may work fine from one VPS and fail
+consistently on another for this reason alone, regardless of configuration.
+If anonymous imports are failing, upload a cookies.txt file from a real,
+already-logged-in Instagram session at `/instagram-cookies` (login-protected,
+same as the rest of the app): export it from a browser extension (e.g.
+["YT-DLP Cookie Exporter"](https://addons.mozilla.org/en-US/android/addon/yt-dlp-cookie-exporter/)
+on Firefox for Android works entirely from a phone), then upload the file
+through that page. It's saved to `INSTAGRAM_COOKIES_PATH` (defaults to
+`/data/instagram_cookies.txt` in Docker, so it persists across rebuilds on
+the `/data` volume); `yt-dlp` uses it automatically whenever it's present
+and non-empty, and falls back to today's anonymous behavior otherwise.
+Export a fresh cookies.txt and re-upload whenever imports start failing
+again — session cookies expire eventually (typically weeks to months).
+
+Running locally outside Docker, point `INSTAGRAM_COOKIES_PATH` at a local,
+writable file (same reasoning as `WHISPER_MODEL_CACHE_DIR` above) if you
+want to test this without the Docker volume.
+
 ## Persistence
 
 There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs and default categories if empty (both seeded independently, so clearing one doesn't require re-seeding the other). If you have an existing local `data/*.db` from before a schema *or seed data* change, delete it (`rm data/*.db`) so it gets recreated with the current schema/seed — there is no migration path for schema or seed-data changes. The downloaded Whisper model is cached separately (path configurable via `WHISPER_MODEL_CACHE_DIR`, defaults to `/data/whisper_models` in Docker) and isn't affected by resetting the database.
