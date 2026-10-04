@@ -45,3 +45,9 @@ async def ui_instagram_cookies_upload(request: Request, cookies_file: UploadFile
         os.unlink(tmp_name)
         raise
     return templates.TemplateResponse(request, "partials/instagram_cookies_status.html", _status_context())
+
+
+@ui_router.delete("")
+def ui_instagram_cookies_delete(request: Request):
+    cookies_path().unlink(missing_ok=True)
+    return templates.TemplateResponse(request, "partials/instagram_cookies_status.html", _status_context())

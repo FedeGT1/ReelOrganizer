@@ -3,6 +3,8 @@
 {% endif %}
 {% if cookies_present %}
 <p>Cookie Instagram caricati — ultimo aggiornamento: {{ updated_at.strftime("%Y-%m-%d %H:%M UTC") }}</p>
+<button hx-delete="/ui/instagram-cookies" hx-target="#instagram-cookies-status" hx-swap="innerHTML"
+        hx-confirm="Eliminare i cookie caricati? L'import tornerà anonimo.">Elimina cookie (torna anonimo)</button>
 {% else %}
 <p>Nessun cookie caricato — l'import prova in anonimo (può fallire su IP datacenter).</p>
 {% endif %}
