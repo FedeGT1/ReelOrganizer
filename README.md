@@ -52,6 +52,8 @@ docker build -t reel-organizer .
 
 Use the **same name** for the image tag and the container (`reel-organizer` for both, as below) — don't follow older examples that name them differently (e.g. image `japan-reel-organizer` / container `reel-organizer`). A mismatched name is exactly what let a stale image run silently after a rebuild once: the build succeeded, `/health` returned `{"status":"ok"}`, logs looked normal, but `docker run` referenced the old image tag by habit, so none of the new code was actually live. Using one consistent name removes that whole failure mode.
 
+Credentials go in a `.env` file (copy `.env.example` and fill in real values) rather than individual `-e` flags — one file to manage instead of juggling shell variables on every `docker run`, and nothing sensitive lingers in shell history. Keep it **outside** the git working tree or confirm it's gitignored (it already is, as `.env`), and restrict its permissions (`chmod 600 .env`) since it holds plaintext secrets.
+
 Run it with a mounted data volume so the SQLite database persists across container restarts. Use an **absolute path** for the volume mount, not `$(pwd)/data` — if you (or a script) ever run the `docker run` command from a different working directory, `$(pwd)` silently resolves to wherever you happen to be, mounting an unrelated empty directory instead of your real data and making it look like all your reels vanished. `--restart unless-stopped` (not `--rm`) makes the container survive a VM reboot:
 
 ```bash
@@ -59,16 +61,13 @@ docker run -d \
   --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
   -v "/absolute/path/to/reelorganizer/data:/data" \
-  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  -e AUTH_USERNAME="$AUTH_USERNAME" \
-  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
-  -e SESSION_SECRET_KEY="$SESSION_SECRET_KEY" \
+  --env-file /absolute/path/to/.env \
   --name reel-organizer reel-organizer
 ```
 
 Binding to `127.0.0.1:8000` instead of `8000` means the container is only reachable from the VM itself, never directly from the internet — see [`docs/deployment-apache-tls.md`](docs/deployment-apache-tls.md) — or [`docs/deployment-nginx-tls.md`](docs/deployment-nginx-tls.md) if your VM uses nginx instead — for putting a reverse proxy with TLS in front of it so it can be reached remotely. That guide also covers a required reverse-proxy read-timeout bump (180s) — without it, the auto-import and multi-place-reel features can hit a 504 on a slow/long reel.
 
-To run with the OpenAI provider instead, add `-e AI_PROVIDER="$AI_PROVIDER" -e OPENAI_API_KEY="$OPENAI_API_KEY"` (and optionally `-e AI_REASONING_EFFORT="$AI_REASONING_EFFORT"`) to the `docker run` command above.
+To run with the OpenAI provider instead, set `AI_PROVIDER=openai` and `OPENAI_API_KEY=sk-...` in `.env` (optionally `AI_REASONING_EFFORT` and `OPENAI_TIMEOUT` — see `.env.example`); no change needed to the `docker run` command since it already reads everything from `--env-file`.
 
 **No domain yet?** [sslip.io](https://sslip.io) gives you a working public hostname for free, no registration or DNS propagation wait: `<ip-with-dashes>.sslip.io` (e.g. `203-0-113-42.sslip.io` for IP `203.0.113.42`) resolves instantly to that IP, and Let's Encrypt/certbot will happily issue a real certificate for it. Handy for testing a deployment end-to-end (including real HTTPS login) before you have a real domain pointed at the VM.
 
@@ -92,10 +91,7 @@ docker run -d \
   --restart unless-stopped \
   -p 127.0.0.1:8000:8000 \
   -v "/absolute/path/to/reelorganizer/data:/data" \
-  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  -e AUTH_USERNAME="$AUTH_USERNAME" \
-  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
-  -e SESSION_SECRET_KEY="$SESSION_SECRET_KEY" \
+  --env-file /absolute/path/to/.env \
   --name reel-organizer reel-organizer
 ```
 
