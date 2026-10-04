@@ -24,7 +24,7 @@
 - Test: `tests/test_ingest_instagram.py`
 
 **Interfaces:**
-- Produces: `app.ingest.instagram._cookies_path() -> Path` (reads `INSTAGRAM_COOKIES_PATH` env var, falling back to the module constant `DEFAULT_COOKIES_PATH = "/data/instagram_cookies.txt"`) — Task 2's router imports and reuses `_cookies_path()` directly, so the "file present and non-empty" check stays in one place.
+- Produces: `app.ingest.instagram.cookies_path() -> Path` (reads `INSTAGRAM_COOKIES_PATH` env var, falling back to the module constant `DEFAULT_COOKIES_PATH = "/data/instagram_cookies.txt"`) — Task 2's router imports and reuses `cookies_path()` directly, so the "file present and non-empty" check stays in one place.
 - `fetch(url: str, download_dir: Path) -> FetchResult` signature is unchanged.
 
 - [ ] **Step 1: Write the failing tests**
@@ -106,7 +106,7 @@ class FetchResult:
     video_path: Path
 
 
-def _cookies_path() -> Path:
+def cookies_path() -> Path:
     return Path(os.environ.get("INSTAGRAM_COOKIES_PATH", DEFAULT_COOKIES_PATH))
 
 
@@ -117,9 +117,9 @@ def fetch(url: str, download_dir: Path) -> FetchResult:
         "no_warnings": True,
         "format": "mp4/best",
     }
-    cookies_path = _cookies_path()
-    if cookies_path.exists() and cookies_path.stat().st_size > 0:
-        ydl_opts["cookiefile"] = str(cookies_path)
+    cookies_file = cookies_path()
+    if cookies_file.exists() and cookies_file.stat().st_size > 0:
+        ydl_opts["cookiefile"] = str(cookies_file)
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -164,7 +164,7 @@ git commit -m "feat: let yt-dlp use an Instagram cookies file when present"
 - Test: `tests/test_instagram_cookies.py`
 
 **Interfaces:**
-- Consumes: `app.ingest.instagram.DEFAULT_COOKIES_PATH` and `app.ingest.instagram._cookies_path()` from Task 1.
+- Consumes: `app.ingest.instagram.DEFAULT_COOKIES_PATH` and `app.ingest.instagram.cookies_path()` from Task 1.
 - Produces: `ui_router` (`APIRouter`, prefix `/ui/instagram-cookies`) in `app.routers.instagram_cookies`, with `GET ""` and `POST ""`. Page route `GET /instagram-cookies` in `app.main`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -231,14 +231,14 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Request, UploadFile
 
-from app.ingest.instagram import _cookies_path
+from app.ingest.instagram import cookies_path
 from app.web import templates
 
 ui_router = APIRouter(prefix="/ui/instagram-cookies", tags=["instagram-cookies-ui"])
 
 
 def _status_context(error: str | None = None) -> dict:
-    path = _cookies_path()
+    path = cookies_path()
     if path.exists() and path.stat().st_size > 0:
         updated_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
         return {"cookies_present": True, "updated_at": updated_at, "error": error}
@@ -261,7 +261,7 @@ async def ui_instagram_cookies_upload(request: Request, cookies_file: UploadFile
             "partials/instagram_cookies_status.html",
             _status_context(error="Il file è vuoto."),
         )
-    path = _cookies_path()
+    path = cookies_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return templates.TemplateResponse(request, "partials/instagram_cookies_status.html", _status_context())
