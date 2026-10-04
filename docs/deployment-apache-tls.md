@@ -64,10 +64,16 @@ regardless of which web server sits in front of it:
   make up to 15 AI provider calls in one request (up to 5 running
   concurrently at a time — see `MAX_CONCURRENT_CATEGORIZE_CALLS` in
   `app/routers/ai_multi_categorize.py`), each place resolved independently
-  and some involving a web search round trip. This is usually well under a
-  minute, but a single slow call (each bounded to ~15s plus one automatic
-  retry) can still push a real "10+ places" reel past a minute in the
-  worst case, regardless of which provider (`AI_PROVIDER`) is active.
+  and some involving a web search round trip. Ordinary calls are bounded to
+  ~15s per attempt; calls that use web search get a longer ~30s per-attempt
+  budget instead (`OPENAI_TIMEOUT` for the OpenAI provider — see
+  `app/ai/providers/openai_provider.py` — since web search only returns once
+  the search-and-synthesis work is done, which routinely exceeds 15s). This
+  is usually well under a minute, but a single slow web-search call (~30s
+  plus the SDK's automatic retries, worst case ~90s across 3 attempts) can
+  still push a real "10+ places" reel past a minute in the worst case,
+  regardless of which provider (`AI_PROVIDER`) is active — still
+  comfortably inside the 210s budget.
 
 Also note: the **very first** Instagram import after a fresh deploy
 additionally downloads the ~140MB Whisper speech-to-text model (cached

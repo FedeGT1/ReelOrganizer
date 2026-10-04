@@ -53,6 +53,12 @@ def get_client() -> OpenAI:
         # (default 2) already retries on a plain timeout, so a stalled
         # attempt gets cut and re-sent automatically rather than making the
         # caller wait a long time for one slow attempt to maybe recover.
+        # This is the baseline for ordinary (non-web-search) calls, which
+        # empirically finish in well under 10s ~90% of the time -- don't
+        # raise it to accommodate web search; that's handled per-call below
+        # instead, since blanket-raising this would undo the fast-retry
+        # behavior for every stalled/dead-connection call, not just slow
+        # web-search ones.
         _client = OpenAI(
             api_key=os.environ["OPENAI_API_KEY"], timeout=15.0, http_client=_keepalive_http_client()
         )
@@ -68,6 +74,14 @@ class OpenAIProvider:
         client = get_client()
         effort = os.environ.get("AI_REASONING_EFFORT", "medium")
         tools = [{"type": "web_search"}] if enable_web_search else []
+        # With web search, OpenAI only responds once the search-and-synthesis
+        # work is done, which routinely exceeds the client's 15s baseline --
+        # that caused every attempt (and the SDK's automatic retries) to
+        # time out before a response ever came back. Override the timeout
+        # for just this call rather than raising the client-wide baseline.
+        call_kwargs = {}
+        if enable_web_search:
+            call_kwargs["timeout"] = float(os.environ.get("OPENAI_TIMEOUT", "30"))
         try:
             response = client.responses.create(
                 model=MODEL,
@@ -75,6 +89,7 @@ class OpenAIProvider:
                 tools=tools,
                 text={"format": {"type": "json_schema", "name": "response", "schema": schema}},
                 reasoning={"effort": effort},
+                **call_kwargs,
             )
         except openai.OpenAIError as e:
             raise AIProviderError(str(e)) from e

@@ -127,13 +127,52 @@ def test_get_client_configures_a_request_timeout(monkeypatch):
     # hangs the underlying SDK request indefinitely instead of failing into
     # the app's existing AIProviderError fallback (observed live: a
     # multi-place import's synchronous per-place loop blocked for 4+
-    # minutes on one categorize() call with no error, no timeout).
+    # minutes on one categorize() call with no error, no timeout). Stays at
+    # 15s (not raised) so the SDK's fast-retry-on-stall behavior is
+    # preserved for ordinary, non-web-search calls -- see
+    # test_call_json_overrides_timeout_when_web_search_enabled for the
+    # slow-web-search case, which is handled per-call instead.
     monkeypatch.setattr(openai_provider, "_client", None)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy")
 
     client = openai_provider.get_client()
 
     assert client.timeout == 15.0
+
+
+def test_call_json_overrides_timeout_when_web_search_enabled(monkeypatch):
+    fake_client = FakeOpenAIClient(output_text=json.dumps({"ok": True}))
+    monkeypatch.setattr(openai_provider, "get_client", lambda: fake_client)
+    monkeypatch.delenv("OPENAI_TIMEOUT", raising=False)
+
+    OpenAIProvider().call_json(
+        system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=True
+    )
+
+    assert fake_client.responses.last_call_kwargs["timeout"] == 30.0
+
+
+def test_call_json_uses_openai_timeout_env_var_when_web_search_enabled(monkeypatch):
+    fake_client = FakeOpenAIClient(output_text=json.dumps({"ok": True}))
+    monkeypatch.setattr(openai_provider, "get_client", lambda: fake_client)
+    monkeypatch.setenv("OPENAI_TIMEOUT", "45")
+
+    OpenAIProvider().call_json(
+        system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=True
+    )
+
+    assert fake_client.responses.last_call_kwargs["timeout"] == 45.0
+
+
+def test_call_json_does_not_override_timeout_when_web_search_disabled(monkeypatch):
+    fake_client = FakeOpenAIClient(output_text=json.dumps({"ok": True}))
+    monkeypatch.setattr(openai_provider, "get_client", lambda: fake_client)
+
+    OpenAIProvider().call_json(
+        system="sys", messages=[{"role": "user", "content": "x"}], schema={}, enable_web_search=False
+    )
+
+    assert "timeout" not in fake_client.responses.last_call_kwargs
 
 
 def test_get_client_enables_tcp_keepalive(monkeypatch):
