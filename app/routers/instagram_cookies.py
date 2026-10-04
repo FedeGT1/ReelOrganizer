@@ -1,3 +1,5 @@
+import os
+import tempfile
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Request, UploadFile
@@ -34,5 +36,12 @@ async def ui_instagram_cookies_upload(request: Request, cookies_file: UploadFile
         )
     path = cookies_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(content)
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as tmp_file:
+            tmp_file.write(content)
+        os.replace(tmp_name, path)
+    except Exception:
+        os.unlink(tmp_name)
+        raise
     return templates.TemplateResponse(request, "partials/instagram_cookies_status.html", _status_context())
