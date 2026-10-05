@@ -1,0 +1,10 @@
+<div class="export-form">
+    <label for="export-hub-select">Hub</label>
+    <select id="export-hub-select" onchange="document.getElementById('export-download-link').href = this.value ? '/api/export/markdown?hub_id=' + this.value : '/api/export/markdown';">
+        <option value="">Tutti gli hub</option>
+        {% for hub in hubs %}
+        <option value="{{ hub.id }}">{{ hub.name }}</option>
+        {% endfor %}
+    </select>
+    <a id="export-download-link" class="btn-export" href="/api/export/markdown" download>Scarica export (.md)</a>
+</div>

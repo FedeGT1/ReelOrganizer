@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<section id="export-panel" hx-get="/ui/export" hx-trigger="load" hx-swap="innerHTML">
+    <p>Caricamento export...</p>
+</section>
+{% endblock %}
