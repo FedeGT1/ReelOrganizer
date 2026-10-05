@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.location_matching import NEW_HUB_SENTINEL, resolve_place
+from app.location_matching import resolve_place
 from app.models import AiMessage, AiSession, Location
 from app.routers.ai_categorize import (
     _build_ai_chat_context,
@@ -159,12 +159,33 @@ def ui_ai_multi_confirm(
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
+    places = []
     for raw in place_json:
         try:
-            place = json.loads(raw)
+            places.append(json.loads(raw))
         except json.JSONDecodeError:
             logger.exception("skipping malformed place_json entry")
             continue
+
+    # Validate every checked place BEFORE creating any of them. Each call to
+    # _resolve_location_and_create_reel commits internally, so doing this
+    # validation one place at a time inside the creation loop below would let
+    # earlier places in the batch get committed before a later place's 400 --
+    # a partial commit that duplicates reels if the user fixes and resubmits.
+    # These two conditions must mirror _resolve_location_and_create_reel's
+    # own checks exactly.
+    for place in places:
+        if not place.get("resolution_location_id", ""):
+            if not place.get("lat") or not place.get("lon"):
+                raise HTTPException(
+                    status_code=400, detail="lat/lon are required to create a new location"
+                )
+            if not place.get("resolution_hub_id", ""):
+                raise HTTPException(
+                    status_code=400, detail="a hub choice is required to create a new location"
+                )
+
+    for place in places:
         _resolve_location_and_create_reel(
             session,
             link,

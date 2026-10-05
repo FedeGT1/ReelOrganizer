@@ -364,6 +364,45 @@ def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, sessi
     assert len(session.exec(select(Reel)).all()) == 1
 
 
+def test_ui_ai_multi_confirm_validates_all_places_before_creating_any(client, session):
+    # Regression guard: the old loop called _resolve_location_and_create_reel
+    # one place at a time, and that function commits internally. If place #1
+    # was valid and got created+committed, then place #2 in the SAME batch
+    # failed validation (missing hub choice), the 400 would leave place #1's
+    # reel sitting in the DB -- a resubmission of the fixed batch would then
+    # duplicate it. The whole batch must be validated up front so either
+    # nothing is created or everything is.
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "types": [],
+        "note": "", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
+    })
+    # Missing hub choice: no resolution_location_id AND no resolution_hub_id,
+    # even though lat/lon are present.
+    place_two = json.dumps({
+        "place_name": "Kiyomizu-dera", "types": [],
+        "note": "", "lat": 34.9949, "lon": 135.785,
+        "resolution_location_id": "", "resolution_hub_id": "",
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1", "s2"],
+            "place_json": [place_one, place_two],
+        },
+    )
+
+    assert response.status_code == 400
+    assert session.exec(select(Reel)).all() == []
+
+
 def test_ui_ai_multi_confirm_cleans_up_all_sessions_in_the_batch(client, session, monkeypatch):
     monkeypatch.setattr(
         ai_client,
