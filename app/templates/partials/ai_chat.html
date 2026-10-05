@@ -40,13 +40,51 @@
     <input type="hidden" name="session_id" value="{{ session_id }}">
     <input type="hidden" name="link" value="{{ link }}">
     <input type="hidden" name="place_name" value="{{ latest_result.place_name }}">
-    <input type="hidden" name="near_hub" value="{{ latest_result.near_hub or '' }}">
     {% for t in latest_result.types %}<input type="hidden" name="types" value="{{ t }}">{% endfor %}
     <input type="hidden" name="note" value="{{ latest_result.note }}">
     <input type="hidden" name="lat" value="{{ latest_result.lat if latest_result.lat is not none else '' }}">
     <input type="hidden" name="lon" value="{{ latest_result.lon if latest_result.lon is not none else '' }}">
-    <input type="hidden" name="matched_location_id" value="{{ matched_location_id }}">
     <input type="hidden" name="confidence" value="{{ latest_result.confidence or '' }}">
+
+    {% if not resolution.requires_confirmation %}
+        {% if resolution.place_tier == 'auto' %}
+        <p class="resolution-info">Verrà salvato sotto: {{ resolution.place_location_name }}</p>
+        {% else %}
+        <p class="resolution-info">Nuovo posto satellite di {{ resolution.hub_name }}</p>
+        {% endif %}
+        <input type="hidden" name="resolution_location_id" value="{{ resolution.place_location_id or '' }}">
+        <input type="hidden" name="resolution_hub_id" value="{{ resolution.hub_id or '' }}">
+    {% else %}
+        <div class="resolution-picker">
+            {% if resolution.place_candidates %}
+            <label>Posto:
+                <select name="resolution_location_id">
+                    <option value="">È un posto nuovo</option>
+                    {% for c in resolution.place_candidates %}
+                    <option value="{{ c.id }}">{{ c.name }} ({{ c.distance_m }}m)</option>
+                    {% endfor %}
+                </select>
+            </label>
+            {% else %}
+            <input type="hidden" name="resolution_location_id" value="">
+            {% endif %}
+
+            {% if resolution.hub_tier == 'ambiguous' %}
+            <label>Hub (se è un posto nuovo):
+                <select name="resolution_hub_id">
+                    <option value="">— scegli —</option>
+                    {% for h in resolution.hub_options %}
+                    <option value="{{ h.id }}">{{ h.name }}</option>
+                    {% endfor %}
+                    <option value="__new_hub__">Crea nuovo hub</option>
+                </select>
+            </label>
+            {% else %}
+            <input type="hidden" name="resolution_hub_id" value="{{ resolution.hub_id or '' }}">
+            {% endif %}
+        </div>
+    {% endif %}
+
     <button type="submit">Conferma e salva</button>
 </form>
 {% endif %}

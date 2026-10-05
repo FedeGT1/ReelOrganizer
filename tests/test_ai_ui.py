@@ -4,6 +4,7 @@ from sqlmodel import select
 
 from app.ai import client as ai_client
 from app.ai.providers.base import AIProviderError
+from app.location_matching import NEW_HUB_SENTINEL
 from app.models import AiMessage, AiSession, Category, Location, Reel
 
 
@@ -244,12 +245,11 @@ def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(c
             "session_id": "irrelevant",
             "link": "https://instagram.com/reel/abc",
             "place_name": "Tokyo / Kanto",
-            "near_hub": "",
             "types": ["food"],
             "note": "Ramen chain",
             "lat": "",
             "lon": "",
-            "matched_location_id": hub.id,
+            "resolution_location_id": hub.id,
         },
     )
     assert response.status_code == 200
@@ -273,12 +273,12 @@ def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
             "session_id": "irrelevant",
             "link": "https://instagram.com/reel/nikko",
             "place_name": "Nikko",
-            "near_hub": "Tokyo / Kanto",
             "types": ["nature"],
             "note": "Shrine town",
             "lat": "36.7198",
             "lon": "139.6982",
-            "matched_location_id": "",
+            "resolution_location_id": "",
+            "resolution_hub_id": hub.id,
         },
     )
     assert response.status_code == 200
@@ -290,7 +290,7 @@ def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
     assert satellite.lat == 36.7198
 
 
-def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
+def test_ui_ai_confirm_creates_new_hub_when_sentinel_chosen(client, session):
     session.add(Category(key="food", label="Cibo", icon="🍜"))
     session.commit()
 
@@ -300,12 +300,12 @@ def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
             "session_id": "irrelevant",
             "link": "https://instagram.com/reel/sapporo",
             "place_name": "Sapporo Ramen Alley",
-            "near_hub": "",
             "types": ["food"],
             "note": "Ramen alley",
             "lat": "43.0618",
             "lon": "141.3545",
-            "matched_location_id": "",
+            "resolution_location_id": "",
+            "resolution_hub_id": NEW_HUB_SENTINEL,
         },
     )
     assert response.status_code == 200
@@ -314,6 +314,25 @@ def test_ui_ai_confirm_creates_new_hub_when_no_hub_matches(client, session):
     assert location is not None
     assert location.is_hub is True
     assert location.parent_id is None
+
+
+def test_ui_ai_confirm_without_any_hub_choice_returns_400(client, session):
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://instagram.com/reel/sapporo",
+            "place_name": "Sapporo Ramen Alley",
+            "types": [],
+            "note": "",
+            "lat": "43.0618",
+            "lon": "141.3545",
+            "resolution_location_id": "",
+            "resolution_hub_id": "",
+        },
+    )
+    assert response.status_code == 400
+    assert session.exec(select(Reel)).all() == []
 
 
 def test_ui_ai_confirm_stores_confidence_on_new_location(client, session):
@@ -326,12 +345,12 @@ def test_ui_ai_confirm_stores_confidence_on_new_location(client, session):
             "session_id": "irrelevant",
             "link": "https://instagram.com/reel/sapporo",
             "place_name": "Sapporo Ramen Alley",
-            "near_hub": "",
             "types": ["food"],
             "note": "Ramen alley",
             "lat": "43.0618",
             "lon": "141.3545",
-            "matched_location_id": "",
+            "resolution_location_id": "",
+            "resolution_hub_id": NEW_HUB_SENTINEL,
             "confidence": "low",
         },
     )
@@ -348,12 +367,12 @@ def test_ui_ai_confirm_rejects_invalid_link(client, session):
             "session_id": "irrelevant",
             "link": "javascript:alert(1)",
             "place_name": "Somewhere",
-            "near_hub": "",
             "types": [],
             "note": "",
             "lat": "1.0",
             "lon": "1.0",
-            "matched_location_id": "",
+            "resolution_location_id": "",
+            "resolution_hub_id": NEW_HUB_SENTINEL,
         },
     )
     assert response.status_code == 400
@@ -373,12 +392,11 @@ def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
             "session_id": "irrelevant",
             "link": "https://instagram.com/reel/abc",
             "place_name": "Tokyo / Kanto",
-            "near_hub": "",
             "types": ["food"],
             "note": "Ramen chain",
             "lat": "",
             "lon": "",
-            "matched_location_id": hub.id,
+            "resolution_location_id": hub.id,
         },
     )
     assert response.status_code == 200
@@ -424,12 +442,12 @@ def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
             "session_id": ai_session_id,
             "link": "https://instagram.com/reel/sapporo",
             "place_name": "Sapporo Ramen Alley",
-            "near_hub": "",
             "types": ["food"],
             "note": "Ramen alley",
             "lat": "43.0618",
             "lon": "141.3545",
-            "matched_location_id": "",
+            "resolution_location_id": "",
+            "resolution_hub_id": NEW_HUB_SENTINEL,
         },
     )
     assert response.status_code == 200

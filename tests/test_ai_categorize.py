@@ -1,9 +1,12 @@
 import json
 
+import pytest
+from fastapi import HTTPException
 from sqlmodel import select
 
 from app.ai import client as ai_client
 from app.ai.providers.base import AIProviderError
+from app.location_matching import NEW_HUB_SENTINEL
 from app.models import Category, Location, Reel
 from app.routers.ai_categorize import (
     _categorize_new_session_message,
@@ -514,15 +517,7 @@ def test_resolve_location_and_create_reel_uses_matched_location(session):
     session.refresh(hub)
 
     reel = _resolve_location_and_create_reel(
-        session,
-        "https://instagram.com/reel/abc",
-        "Tokyo / Kanto",
-        "",
-        ["food"],
-        "Ramen chain",
-        "",
-        "",
-        hub.id,
+        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", ["food"], "Ramen chain", "", "", hub.id,
     )
 
     assert reel.location_id == hub.id
@@ -537,15 +532,8 @@ def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(sessio
     session.refresh(hub)
 
     reel = _resolve_location_and_create_reel(
-        session,
-        "https://instagram.com/reel/nikko",
-        "Nikko",
-        "Tokyo / Kanto",
-        ["nature"],
-        "Shrine town",
-        "36.7198",
-        "139.6982",
-        "",
+        session, "https://instagram.com/reel/nikko", "Nikko", ["nature"], "Shrine town",
+        "36.7198", "139.6982", "", hub.id,
     )
 
     satellite = session.exec(select(Location).where(Location.name == "Nikko")).first()
@@ -555,6 +543,30 @@ def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(sessio
     assert reel.location_id == satellite.id
 
 
+def test_resolve_location_and_create_reel_creates_new_hub_when_sentinel_chosen(session):
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.commit()
+
+    reel = _resolve_location_and_create_reel(
+        session, "https://instagram.com/reel/sapporo", "Sapporo Ramen Alley", ["food"], "Ramen alley",
+        "43.0618", "141.3545", "", NEW_HUB_SENTINEL,
+    )
+
+    location = session.exec(select(Location).where(Location.name == "Sapporo Ramen Alley")).first()
+    assert location.is_hub is True
+    assert location.parent_id is None
+    assert reel.location_id == location.id
+
+
+def test_resolve_location_and_create_reel_requires_hub_choice_for_new_location(session):
+    with pytest.raises(HTTPException) as exc_info:
+        _resolve_location_and_create_reel(
+            session, "https://instagram.com/reel/x", "Nowhere", [], "", "1.0", "1.0", "", "",
+        )
+
+    assert exc_info.value.status_code == 400
+
+
 def test_resolve_location_and_create_reel_stores_confidence_on_new_location(session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)
@@ -562,16 +574,8 @@ def test_resolve_location_and_create_reel_stores_confidence_on_new_location(sess
     session.refresh(hub)
 
     _resolve_location_and_create_reel(
-        session,
-        "https://instagram.com/reel/mystery",
-        "Mystery Alley",
-        "Tokyo / Kanto",
-        [],
-        "",
-        "35.7",
-        "139.7",
-        "",
-        "low",
+        session, "https://instagram.com/reel/mystery", "Mystery Alley", [], "",
+        "35.7", "139.7", "", hub.id, "low",
     )
 
     location = session.exec(select(Location).where(Location.name == "Mystery Alley")).first()
@@ -587,7 +591,7 @@ def test_resolve_location_and_create_reel_leaves_matched_location_confidence_unt
     session.refresh(hub)
 
     _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", "", [], "", "", "", hub.id, "low"
+        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", [], "", "", "", hub.id, "", "low",
     )
 
     session.refresh(hub)

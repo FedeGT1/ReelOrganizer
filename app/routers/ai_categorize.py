@@ -6,11 +6,11 @@ from app.ai.providers.base import AIProviderError
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.ai import client as ai_client
 from app.db import get_session
+from app.location_matching import NEW_HUB_SENTINEL, resolve_place
 from app.models import AiMessage, AiSession, Location, Reel, ReelType
 from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.map import render_map_html
@@ -68,14 +68,6 @@ def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
     return None
 
 
-def _find_hub_by_name(session: Session, name: str) -> Optional[Location]:
-    if not name:
-        return None
-    return session.exec(
-        select(Location).where(Location.is_hub == True, func.lower(Location.name) == name.lower())
-    ).first()
-
-
 def _assistant_turn_text(result: dict) -> str:
     if result.get("question"):
         return result["question"]
@@ -94,42 +86,36 @@ def _assistant_turn_text(result: dict) -> str:
 
 
 def _apply_result_post_processing(session: Session, ai_session: AiSession, result: dict) -> Optional[str]:
-    """Shared post-AI-call bookkeeping: type filtering, location matching,
+    """Shared post-AI-call bookkeeping: type filtering, location resolution,
     and the missing-coordinates safety net. Mutates `result` in place and
-    returns matched_location_id. DB reads only -- callers own commit()."""
+    returns the auto-matched place location id (None if ambiguous/new).
+    DB reads only -- callers own commit()."""
     logger.debug("session=%s parsed model result=%s", ai_session.id, result)
 
     valid_type_keys = get_valid_type_keys(session)
     result["types"] = [t for t in result.get("types", []) if t in valid_type_keys]
 
-    matched_location_id = _find_matching_location(session, result["place_name"])
-    logger.debug("session=%s matched_location_id=%s", ai_session.id, matched_location_id)
+    resolution = resolve_place(
+        session, result["place_name"], result.get("near_hub"), result.get("lat"), result.get("lon")
+    )
+    logger.debug("session=%s resolution=%s", ai_session.id, resolution)
 
     if (
-        matched_location_id is None
+        resolution.place_tier == "ambiguous"
         and result.get("question") is None
         and not result.get("candidates")
         and (result.get("lat") is None or result.get("lon") is None)
     ):
-        logger.debug(
-            "session=%s safety net condition met (unmatched place, no question, missing lat/lon)",
-            ai_session.id,
-        )
-        if result.get("near_hub"):
-            hub = _find_hub_by_name(session, result["near_hub"])
-            logger.debug(
-                "session=%s attempting hub fallback for near_hub=%r -> hub=%s",
-                ai_session.id, result["near_hub"], hub.name if hub else None,
-            )
-            if hub is not None:
-                result["lat"] = hub.lat
-                result["lon"] = hub.lon
+        if resolution.hub_tier == "auto":
+            hub = session.get(Location, resolution.hub_id)
+            result["lat"] = hub.lat
+            result["lon"] = hub.lon
 
         if result.get("lat") is None or result.get("lon") is None:
             result["question"] = MISSING_COORDINATES_QUESTION
 
     logger.debug("session=%s final result=%s", ai_session.id, result)
-    return matched_location_id
+    return resolution.place_location_id
 
 
 def _run_turn(
@@ -261,8 +247,14 @@ def _build_ai_chat_context(
                 history.append({"role": "assistant", "result": result})
                 latest_result = result
 
-    matched_location_id = (
-        _find_matching_location(session, latest_result["place_name"])
+    resolution = (
+        resolve_place(
+            session,
+            latest_result["place_name"],
+            latest_result.get("near_hub"),
+            latest_result.get("lat"),
+            latest_result.get("lon"),
+        )
         if latest_result is not None
         else None
     )
@@ -278,7 +270,7 @@ def _build_ai_chat_context(
         "history": history,
         "latest_result": latest_result,
         "can_confirm": can_confirm,
-        "matched_location_id": matched_location_id or "",
+        "resolution": resolution,
         "taxonomy": get_taxonomy(session),
         "notice": notice,
     }
@@ -339,28 +331,31 @@ def _resolve_location_and_create_reel(
     session: Session,
     link: str,
     place_name: str,
-    near_hub: str,
     types: list[str],
     note: str,
     lat,
     lon,
-    matched_location_id: str,
+    resolution_location_id: str,
+    resolution_hub_id: str = "",
     confidence: Optional[str] = None,
 ) -> Reel:
-    if matched_location_id:
-        location_id = matched_location_id
+    if resolution_location_id:
+        location_id = resolution_location_id
     else:
-        hub = _find_hub_by_name(session, near_hub)
-
         if not lat or not lon:
             raise HTTPException(
                 status_code=400, detail="lat/lon are required to create a new location"
             )
+        if not resolution_hub_id:
+            raise HTTPException(
+                status_code=400, detail="a hub choice is required to create a new location"
+            )
 
+        is_hub = resolution_hub_id == NEW_HUB_SENTINEL
         new_location = Location(
             name=place_name,
-            is_hub=hub is None,
-            parent_id=hub.id if hub else None,
+            is_hub=is_hub,
+            parent_id=None if is_hub else resolution_hub_id,
             lat=float(lat),
             lon=float(lon),
             geocode_confidence=confidence or None,
@@ -390,12 +385,12 @@ def ui_ai_confirm(
     session_id: str = Form(...),
     link: str = Form(...),
     place_name: str = Form(...),
-    near_hub: str = Form(""),
     types: list[str] = Form([]),
     note: str = Form(""),
     lat: str = Form(""),
     lon: str = Form(""),
-    matched_location_id: str = Form(""),
+    resolution_location_id: str = Form(""),
+    resolution_hub_id: str = Form(""),
     confidence: str = Form(""),
     session: Session = Depends(get_session),
 ):
@@ -403,7 +398,7 @@ def ui_ai_confirm(
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     _resolve_location_and_create_reel(
-        session, link, place_name, near_hub, types, note, lat, lon, matched_location_id, confidence
+        session, link, place_name, types, note, lat, lon, resolution_location_id, resolution_hub_id, confidence
     )
 
     stale_ai_session = session.get(AiSession, session_id)
