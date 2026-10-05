@@ -45,29 +45,6 @@ class CategorizeResponse(BaseModel):
     matched_location_id: Optional[str] = None
 
 
-def _find_matching_location(session: Session, place_name: str) -> Optional[str]:
-    place_name_lower = place_name.lower()
-    if not place_name_lower:
-        return None
-    for loc in session.exec(select(Location)).all():
-        loc_name_lower = loc.name.lower()
-        if loc.is_hub:
-            # Hub names are broad city/region labels (e.g. "Hakone") that
-            # commonly appear as part of a much more specific new place's
-            # name (e.g. "Hakone-Yumoto Eva Store"). Treating that as "the
-            # same place" would wrongly collapse a brand-new satellite into
-            # the hub itself, discarding its own estimated coordinates.
-            # Only match a hub when the proposed name equals it, or is a
-            # short label fully contained within the hub's name (e.g.
-            # "Tokyo" inside "Tokyo / Kanto") -- never the other direction.
-            if place_name_lower == loc_name_lower or place_name_lower in loc_name_lower:
-                return loc.id
-        else:
-            if place_name_lower in loc_name_lower or loc_name_lower in place_name_lower:
-                return loc.id
-    return None
-
-
 def _assistant_turn_text(result: dict) -> str:
     if result.get("question"):
         return result["question"]

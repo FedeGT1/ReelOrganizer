@@ -8,9 +8,35 @@
         <label class="multi-place-row">
             <input type="checkbox" name="place_json" value='{{ row.place_json }}' checked>
             <span class="multi-place-row-content">
-                <strong>{{ row.result.place_name }}</strong>{% if row.result.near_hub %} (vicino a {{ row.result.near_hub }}){% endif %}
+                <strong>{{ row.result.place_name }}</strong>
                 <span class="types">{% for t in row.result.types %}{{ taxonomy[t].icon }} {{ taxonomy[t].label }} {% endfor %}</span>
                 {% if row.result.note %}<span class="note">{{ row.result.note }}</span>{% endif %}
+
+                {% if not row.resolution.requires_confirmation %}
+                    {% if row.resolution.place_tier == 'auto' %}
+                    <span class="resolution-info">Verrà salvato sotto: {{ row.resolution.place_location_name }}</span>
+                    {% else %}
+                    <span class="resolution-info">Nuovo posto satellite di {{ row.resolution.hub_name }}</span>
+                    {% endif %}
+                {% else %}
+                    {% if row.resolution.place_candidates %}
+                    <select onchange="patchMultiPlaceResolution(this, 'resolution_location_id')">
+                        <option value="">È un posto nuovo</option>
+                        {% for c in row.resolution.place_candidates %}
+                        <option value="{{ c.id }}">{{ c.name }} ({{ c.distance_m }}m)</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                    {% if row.resolution.hub_tier == 'ambiguous' %}
+                    <select onchange="patchMultiPlaceResolution(this, 'resolution_hub_id')">
+                        <option value="">— scegli hub —</option>
+                        {% for h in row.resolution.hub_options %}
+                        <option value="{{ h.id }}">{{ h.name }}</option>
+                        {% endfor %}
+                        <option value="__new_hub__">Crea nuovo hub</option>
+                    </select>
+                    {% endif %}
+                {% endif %}
             </span>
         </label>
         {% endif %}

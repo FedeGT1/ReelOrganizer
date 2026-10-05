@@ -8,11 +8,11 @@ from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
 from app.db import get_session
+from app.location_matching import NEW_HUB_SENTINEL, resolve_place
 from app.models import AiMessage, AiSession, Location
 from app.routers.ai_categorize import (
     _build_ai_chat_context,
     _categorize_new_session_message,
-    _find_matching_location,
     _persist_categorize_result,
     _resolve_location_and_create_reel,
     _run_turn,
@@ -64,16 +64,18 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
         result = _read_latest_result(session, session_id)
         if result is None:
             continue
-        matched_location_id = _find_matching_location(session, result.get("place_name", ""))
+        resolution = resolve_place(
+            session, result.get("place_name", ""), result.get("near_hub"), result.get("lat"), result.get("lon")
+        )
         resolved = result.get("question") is None
         place_payload = {
             "place_name": result.get("place_name", ""),
-            "near_hub": result.get("near_hub") or "",
             "types": result.get("types", []),
             "note": result.get("note", ""),
             "lat": result.get("lat"),
             "lon": result.get("lon"),
-            "matched_location_id": matched_location_id or "",
+            "resolution_location_id": resolution.place_location_id or "",
+            "resolution_hub_id": resolution.hub_id or "",
             "confidence": result.get("confidence"),
         }
         rows.append(
@@ -81,6 +83,7 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
                 "session_id": session_id,
                 "result": result,
                 "resolved": resolved,
+                "resolution": resolution,
                 "place_json": json.dumps(place_payload),
             }
         )
@@ -166,12 +169,12 @@ def ui_ai_multi_confirm(
             session,
             link,
             place["place_name"],
-            place.get("near_hub", ""),
             place.get("types", []),
             place.get("note", ""),
             place.get("lat"),
             place.get("lon"),
-            place.get("matched_location_id", ""),
+            place.get("resolution_location_id", ""),
+            place.get("resolution_hub_id", ""),
             place.get("confidence"),
         )
 

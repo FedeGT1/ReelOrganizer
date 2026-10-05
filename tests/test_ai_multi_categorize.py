@@ -6,7 +6,18 @@ import time
 from sqlmodel import select
 
 from app.ai import client as ai_client
+from app.location_matching import NEW_HUB_SENTINEL
 from app.models import AiSession, Category, Location, Reel
+
+
+def _with_new_hub_choice(place_json: str) -> str:
+    """Patch a server-rendered place_json string the way the browser's
+    patchMultiPlaceResolution() would, picking "Crea nuovo hub" -- needed
+    whenever no hub exists/matches, since the resolver requires an explicit
+    hub choice before creating a brand-new location."""
+    data = json.loads(place_json)
+    data["resolution_hub_id"] = NEW_HUB_SENTINEL
+    return json.dumps(data)
 
 
 def test_start_multi_place_batch_pairs_results_correctly_despite_out_of_order_completion(
@@ -279,12 +290,14 @@ def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(cli
     session.refresh(hub)
 
     place_one = json.dumps({
-        "place_name": "Fushimi Inari Taisha", "near_hub": "", "types": ["culture"],
-        "note": "Torii gates", "lat": None, "lon": None, "matched_location_id": hub.id,
+        "place_name": "Fushimi Inari Taisha", "types": ["culture"],
+        "note": "Torii gates", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
     })
     place_two = json.dumps({
-        "place_name": "Kiyomizu-dera", "near_hub": "Kyoto - Osaka / Kansai", "types": ["culture"],
-        "note": "Historic temple", "lat": 34.9949, "lon": 135.785, "matched_location_id": "",
+        "place_name": "Kiyomizu-dera", "types": ["culture"],
+        "note": "Historic temple", "lat": 34.9949, "lon": 135.785,
+        "resolution_location_id": "", "resolution_hub_id": hub.id,
     })
 
     response = client.post(
@@ -307,8 +320,9 @@ def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(cli
 
 def test_ui_ai_multi_confirm_stores_confidence_on_newly_created_location(client, session):
     place = json.dumps({
-        "place_name": "Mystery Alley", "near_hub": "", "types": [],
-        "note": "", "lat": 35.7, "lon": 139.7, "matched_location_id": "", "confidence": "low",
+        "place_name": "Mystery Alley", "types": [],
+        "note": "", "lat": 35.7, "lon": 139.7,
+        "resolution_location_id": "", "resolution_hub_id": "__new_hub__", "confidence": "low",
     })
 
     response = client.post(
@@ -332,8 +346,9 @@ def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, sessi
     session.refresh(hub)
 
     place_one = json.dumps({
-        "place_name": "Fushimi Inari Taisha", "near_hub": "", "types": [],
-        "note": "", "lat": None, "lon": None, "matched_location_id": hub.id,
+        "place_name": "Fushimi Inari Taisha", "types": [],
+        "note": "", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
     })
 
     response = client.post(
@@ -373,6 +388,11 @@ def test_ui_ai_multi_confirm_cleans_up_all_sessions_in_the_batch(client, session
     ]
     assert len(session_ids) == 2
     assert len(place_jsons) == 2
+
+    # No hub exists/matches for either place, so the UI's hub picker would
+    # require a choice before submitting; simulate the user picking "Crea
+    # nuovo hub" for both, same as patchMultiPlaceResolution would write.
+    place_jsons = [_with_new_hub_choice(pj) for pj in place_jsons]
 
     response = client.post(
         "/ui/ai/multi/confirm",
@@ -421,6 +441,11 @@ def test_ui_ai_multi_confirm_cleans_up_unchecked_sessions_too(client, session, m
     ]
     assert len(session_ids) == 2
     assert len(place_jsons) == 2
+
+    # No hub exists/matches for either place, so the UI's hub picker would
+    # require a choice before submitting; simulate the user picking "Crea
+    # nuovo hub", same as patchMultiPlaceResolution would write.
+    place_jsons = [_with_new_hub_choice(pj) for pj in place_jsons]
 
     # Confirm with only ONE of the two places checked (simulating the user
     # unchecking the other) — both sessions must still be cleaned up.
