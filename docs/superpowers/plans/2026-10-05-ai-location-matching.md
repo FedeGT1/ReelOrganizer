@@ -220,9 +220,13 @@ def test_resolve_place_does_not_match_hub_when_hub_name_is_only_a_substring_of_n
 
 def test_resolve_place_similar_name_and_close_distance_is_auto(session):
     # Same real shop, AI phrased the name slightly differently this time.
+    # "Ichiran Ramen Shibuya Ten" normalizes to a DIFFERENT string than
+    # "Ichiran Ramen Shibuya" (tier 1 must NOT fire here) but scores a high
+    # SequenceMatcher ratio (~0.91) against it, so this exercises tier 2
+    # specifically -- not tier 1 by coincidence.
     loc = _add(session, name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
 
-    resolution = resolve_place(session, "Ichiran Ramen - Shibuya", None, 35.6591, 139.7006)
+    resolution = resolve_place(session, "Ichiran Ramen Shibuya Ten", None, 35.6591, 139.7006)
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == loc.id
