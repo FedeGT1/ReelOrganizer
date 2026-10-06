@@ -209,3 +209,32 @@ def test_resolve_place_requires_confirmation_true_when_hub_ambiguous_even_withou
 def test_resolve_place_new_hub_sentinel_is_a_non_empty_string():
     assert NEW_HUB_SENTINEL
     assert isinstance(NEW_HUB_SENTINEL, str)
+
+
+def test_resolve_place_excludes_specified_location_from_matching(session):
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+
+    resolution = resolve_place(session, "Nishiki Market", None, None, None, exclude_location_id=loc.id)
+
+    assert resolution.place_tier == "ambiguous"
+    assert resolution.place_location_id is None
+
+
+def test_resolve_place_excluded_location_never_appears_as_candidate(session):
+    excluded = _add(session, name="Some Shop", is_hub=False, lat=35.0, lon=135.0)
+    other = _add(session, name="Other Shop", is_hub=False, lat=35.0001, lon=135.0001)
+
+    resolution = resolve_place(session, "New Shop", None, 35.0, 135.0, exclude_location_id=excluded.id)
+
+    candidate_ids = {c.id for c in resolution.place_candidates}
+    assert excluded.id not in candidate_ids
+    assert other.id in candidate_ids
+
+
+def test_resolve_place_exclude_location_id_defaults_to_none(session):
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+
+    resolution = resolve_place(session, "Nishiki Market", None, None, None)
+
+    assert resolution.place_tier == "auto"
+    assert resolution.place_location_id == loc.id

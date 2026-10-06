@@ -95,9 +95,12 @@ def resolve_place(
     near_hub: Optional[str],
     lat: Optional[float],
     lon: Optional[float],
+    exclude_location_id: Optional[str] = None,
 ) -> PlaceResolution:
     normalized_place = normalize_place_name(place_name)
     locations = session.exec(select(Location)).all()
+    if exclude_location_id:
+        locations = [loc for loc in locations if loc.id != exclude_location_id]
 
     if normalized_place:
         for loc in locations:
