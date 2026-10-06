@@ -187,3 +187,56 @@ def test_update_hub_ignores_submitted_parent_id(client):
     )
     assert response.status_code == 200
     assert response.json()["parent_id"] is None
+
+
+def test_merge_locations_reassigns_reels_and_deletes_drop(client, session):
+    keep = Location(name="Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    drop = Location(name="Shibuya Crossing", is_hub=False, lat=35.6591, lon=139.7006)
+    session.add(keep)
+    session.add(drop)
+    session.commit()
+    session.refresh(keep)
+    session.refresh(drop)
+
+    reel = Reel(link="https://instagram.com/reel/x", location_id=drop.id, note="nota")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.post(f"/api/locations/{keep.id}/merge/{drop.id}")
+    assert response.status_code == 204
+
+    session.refresh(reel)
+    assert reel.location_id == keep.id
+    assert session.get(Location, drop.id) is None
+    kept = session.get(Location, keep.id)
+    assert kept.name == "Shibuya"
+    assert kept.lat == 35.6590
+
+
+def test_merge_locations_blocks_when_drop_has_children(client, session):
+    hub = Location(name="Hub A", is_hub=True)
+    other_hub = Location(name="Hub B", is_hub=True)
+    session.add(hub)
+    session.add(other_hub)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+
+    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id)
+    session.add(satellite)
+    session.commit()
+
+    response = client.post(f"/api/locations/{other_hub.id}/merge/{hub.id}")
+    assert response.status_code == 409
+    assert session.get(Location, hub.id) is not None
+
+
+def test_merge_locations_returns_404_for_missing_ids(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(f"/api/locations/{hub.id}/merge/does-not-exist")
+    assert response.status_code == 404

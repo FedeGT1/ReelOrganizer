@@ -117,6 +117,24 @@ def _delete_location(session: Session, location_id: str) -> None:
     session.commit()
 
 
+def _merge_locations(session: Session, keep_id: str, drop_id: str) -> None:
+    keep = session.get(Location, keep_id)
+    drop = session.get(Location, drop_id)
+    if keep is None or drop is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    if _has_children(session, drop_id):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot merge a location that still has child locations; reassign or delete them first",
+        )
+    for reel in session.exec(select(Reel).where(Reel.location_id == drop_id)).all():
+        reel.location_id = keep_id
+        session.add(reel)
+    session.commit()
+    session.delete(drop)
+    session.commit()
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_location(payload: LocationPayload, session: Session = Depends(get_session)):
     location = _create_location(
@@ -152,6 +170,11 @@ def update_location(
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_location(location_id: str, session: Session = Depends(get_session)):
     _delete_location(session, location_id)
+
+
+@router.post("/{keep_id}/merge/{drop_id}", status_code=status.HTTP_204_NO_CONTENT)
+def merge_locations(keep_id: str, drop_id: str, session: Session = Depends(get_session)):
+    _merge_locations(session, keep_id, drop_id)
 
 
 def _location_list_context(session: Session, error: Optional[str] = None) -> dict:
