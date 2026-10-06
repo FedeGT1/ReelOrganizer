@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<button type="button" hx-get="/ui/audit/scan" hx-target="#audit-results" hx-swap="innerHTML" hx-indicator="#audit-scan-indicator">Esegui scansione</button>
+<span id="audit-scan-indicator" class="htmx-indicator">Scansione in corso…</span>
+<div id="audit-results"></div>
+{% endblock %}

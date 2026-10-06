@@ -1,0 +1,40 @@
+{% if error %}
+<p class="audit-error">{{ error }}</p>
+{% endif %}
+
+<h2>Duplicati quasi certi</h2>
+{% if certain_pairs %}
+<ul class="audit-pair-list">
+    {% for pair in certain_pairs %}
+    <li>
+        <span>{{ pair.a.name }} ({{ pair.a_count }} reel)</span>
+        <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni questa →</button>
+        <span>{{ pair.b.name }} ({{ pair.b_count }} reel)</span>
+        <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">← Tieni questa</button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Nessun duplicato quasi certo trovato.</p>
+{% endif %}
+
+<h2>Da verificare</h2>
+{% if review_pairs %}
+<ul class="audit-pair-list">
+    {% for pair in review_pairs %}
+    <li>
+        <span>{{ pair.a.name }} ({{ pair.a_count }} reel)</span>
+        <span class="distance">{{ pair.distance_m }}m</span>
+        <span>{{ pair.b.name }} ({{ pair.b_count }} reel)</span>
+        <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni {{ pair.a.name }}</button>
+        <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Nessun caso da verificare.</p>
+{% endif %}

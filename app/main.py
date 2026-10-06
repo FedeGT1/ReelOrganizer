@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import require_env
 from app.auth_middleware import AuthMiddleware
 from app.db import create_db_and_tables, engine
-from app.routers import ai_ask, ai_categorize, ai_multi_categorize, auth, categories, export, instagram_cookies, instagram_import, locations, map as map_router, reels
+from app.routers import ai_ask, ai_categorize, ai_multi_categorize, audit, auth, categories, export, instagram_cookies, instagram_import, locations, map as map_router, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -62,6 +62,7 @@ app.include_router(locations.ui_router)
 app.include_router(instagram_cookies.ui_router)
 app.include_router(export.router)
 app.include_router(export.ui_router)
+app.include_router(audit.ui_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -84,6 +85,16 @@ async def locations_page(request: Request):
 @app.get("/export")
 async def export_page(request: Request):
     return templates.TemplateResponse(request, "export.html", {})
+
+
+@app.get("/strumenti")
+async def strumenti_page(request: Request):
+    return templates.TemplateResponse(request, "strumenti.html", {})
+
+
+@app.get("/strumenti/audit")
+async def audit_page(request: Request):
+    return templates.TemplateResponse(request, "audit.html", {})
 
 
 @app.get("/instagram-cookies")

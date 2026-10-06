@@ -4,7 +4,7 @@ def test_locations_page_renders(client):
     assert 'id="location-list"' in response.text
 
 
-def test_nav_includes_locations_link(client):
+def test_nav_includes_strumenti_link(client):
     response = client.get("/")
-    assert 'href="/locations"' in response.text
-    assert "Gestisci hub" in response.text
+    assert 'href="/strumenti"' in response.text
+    assert "Strumenti" in response.text
