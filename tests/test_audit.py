@@ -29,8 +29,10 @@ def test_audit_scan_flags_certain_duplicate(client, session):
     assert 'class="htmx-indicator"' in response.text
     # The merge ("Tieni X") buttons must show the same loading feedback as
     # the "Chiedi all'AI" button -- one pair means 2 merge buttons + 1 AI
-    # button, each disabling itself while its request is in flight.
-    assert response.text.count('hx-disabled-elt="this"') == 3
+    # button, each disabling itself while its request is in flight. The
+    # attached reel's card also renders its own regenerate-note button
+    # (the reel has a note, so it's eligible), adding a 4th.
+    assert response.text.count('hx-disabled-elt="this"') == 4
     # The actual reel card (home-list layout) is rendered for the pair.
     assert "Negozio di hobby" in response.text
     assert "btn-edit" in response.text
@@ -712,6 +714,7 @@ def test_strumenti_page_lists_tool_links(client):
     assert 'href="/export"' in response.text
     assert 'href="/instagram-cookies"' in response.text
     assert 'href="/strumenti/audit"' in response.text
+    assert 'href="/strumenti/rigenera-note"' in response.text
 
 
 def test_audit_page_renders(client):
@@ -719,3 +722,9 @@ def test_audit_page_renders(client):
     assert response.status_code == 200
     assert 'hx-get="/ui/audit/scan"' in response.text
     assert 'id="add-reel-dialog"' in response.text
+
+
+def test_regenerate_notes_page_renders(client):
+    response = client.get("/strumenti/rigenera-note")
+    assert response.status_code == 200
+    assert 'hx-post="/ui/reels/regenerate-notes"' in response.text

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<button type="button" hx-post="/ui/reels/regenerate-notes" hx-target="#regenerate-notes-result" hx-swap="innerHTML"
+        hx-confirm="Rigenerare tutte le note? Verranno sovrascritte e verranno fatte chiamate AI per ogni reel."
+        hx-indicator="#regenerate-notes-indicator" hx-disabled-elt="this">Rigenera tutte le note</button>
+<span id="regenerate-notes-indicator" class="htmx-indicator">Rigenerazione in corso…</span>
+<div id="regenerate-notes-result"></div>
+{% endblock %}

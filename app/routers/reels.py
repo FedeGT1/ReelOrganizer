@@ -91,6 +91,7 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
         "lat": location.lat if location else None,
         "lon": location.lon if location else None,
         "maps_query": _maps_query(location),
+        "can_regenerate": bool(reel.caption or reel.transcript or reel.note),
     }
 
 

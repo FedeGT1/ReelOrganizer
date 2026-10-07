@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import require_env
 from app.auth_middleware import AuthMiddleware
 from app.db import create_db_and_tables, engine
-from app.routers import ai_ask, ai_categorize, ai_multi_categorize, audit, auth, categories, export, instagram_cookies, instagram_import, locations, map as map_router, reels
+from app.routers import ai_ask, ai_categorize, ai_multi_categorize, audit, auth, categories, export, instagram_cookies, instagram_import, locations, map as map_router, note_regeneration, reels
 from app.seed import seed_if_empty
 from app.web import templates
 
@@ -64,6 +64,7 @@ app.include_router(instagram_cookies.ui_router)
 app.include_router(export.router)
 app.include_router(export.ui_router)
 app.include_router(audit.ui_router)
+app.include_router(note_regeneration.ui_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -96,6 +97,11 @@ async def strumenti_page(request: Request):
 @app.get("/strumenti/audit")
 async def audit_page(request: Request):
     return templates.TemplateResponse(request, "audit.html", {})
+
+
+@app.get("/strumenti/rigenera-note")
+async def regenerate_notes_page(request: Request):
+    return templates.TemplateResponse(request, "regenerate_notes.html", {})
 
 
 @app.get("/instagram-cookies")
