@@ -16,7 +16,9 @@
             {% for reel in pair.a_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
         </ul>
         <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
-                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni {{ pair.a.name }}</button>
+                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata."
+                hx-indicator="next .htmx-indicator" hx-disabled-elt="this">Tieni {{ pair.a.name }}</button>
+        <span class="htmx-indicator">Sto unendo…</span>
     </div>
     <div class="audit-pair-side">
         <h3>{{ pair.b.name }}</h3>
@@ -24,7 +26,9 @@
             {% for reel in pair.b_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
         </ul>
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
-                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
+                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata."
+                hx-indicator="next .htmx-indicator" hx-disabled-elt="this">Tieni {{ pair.b.name }}</button>
+        <span class="htmx-indicator">Sto unendo…</span>
     </div>
     {% if pair.ai_verdict %}
     <p class="ai-verdict">
@@ -53,7 +57,9 @@
             {% for reel in pair.a_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
         </ul>
         <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
-                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni {{ pair.a.name }}</button>
+                hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata."
+                hx-indicator="next .htmx-indicator" hx-disabled-elt="this">Tieni {{ pair.a.name }}</button>
+        <span class="htmx-indicator">Sto unendo…</span>
     </div>
     <div class="audit-pair-side">
         <h3>{{ pair.b.name }}</h3>
@@ -61,7 +67,9 @@
             {% for reel in pair.b_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
         </ul>
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
-                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
+                hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata."
+                hx-indicator="next .htmx-indicator" hx-disabled-elt="this">Tieni {{ pair.b.name }}</button>
+        <span class="htmx-indicator">Sto unendo…</span>
     </div>
     {% if pair.ai_verdict %}
     <p class="ai-verdict">
@@ -92,12 +100,14 @@
         <p class="ai-verdict">⚠️ {{ item.proposal.error }}</p>
         {% else %}
         <p class="ai-verdict">🤖 Proposta: lat {{ item.proposal.lat }}, lon {{ item.proposal.lon }} (confidenza: {{ item.proposal.confidence or 'n/d' }})</p>
-        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML">
+        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+              hx-indicator="next .htmx-indicator" hx-disabled-elt="find button">
             <input type="hidden" name="lat" value="{{ item.proposal.lat }}">
             <input type="hidden" name="lon" value="{{ item.proposal.lon }}">
             <input type="hidden" name="confidence" value="{{ item.proposal.confidence or '' }}">
             <button type="submit">Applica coordinate proposte</button>
         </form>
+        <span class="htmx-indicator">Sto applicando…</span>
         {% endif %}
     {% else %}
     <button class="btn-ai-compare" hx-post="/ui/audit/ai/geocode/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
@@ -124,12 +134,14 @@
         <p class="ai-verdict">⚠️ {{ item.proposal.error }}</p>
         {% else %}
         <p class="ai-verdict">🤖 Proposta: lat {{ item.proposal.lat }}, lon {{ item.proposal.lon }} (confidenza: {{ item.proposal.confidence or 'n/d' }})</p>
-        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML">
+        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+              hx-indicator="next .htmx-indicator" hx-disabled-elt="find button">
             <input type="hidden" name="lat" value="{{ item.proposal.lat }}">
             <input type="hidden" name="lon" value="{{ item.proposal.lon }}">
             <input type="hidden" name="confidence" value="{{ item.proposal.confidence or '' }}">
             <button type="submit">Applica coordinate proposte</button>
         </form>
+        <span class="htmx-indicator">Sto applicando…</span>
         {% endif %}
     {% else %}
     <button class="btn-ai-compare" hx-post="/ui/audit/ai/geocode/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
@@ -152,7 +164,8 @@
         {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
     </ul>
     {% if item.proposals %}
-    <form hx-post="/ui/audit/ai/split/apply" hx-target="#audit-results" hx-swap="innerHTML" class="ai-split-proposal">
+    <form hx-post="/ui/audit/ai/split/apply" hx-target="#audit-results" hx-swap="innerHTML" class="ai-split-proposal"
+          hx-indicator="next .htmx-indicator" hx-disabled-elt="find button[type=submit]">
         {% for p in item.proposals %}
         {% if p.error %}
         <p class="ai-verdict">⚠️ {{ p.error }}</p>
@@ -193,6 +206,7 @@
         {% endfor %}
         <button type="submit">Applica</button>
     </form>
+    <span class="htmx-indicator">Sto applicando…</span>
     {% else %}
     <button class="btn-ai-compare" hx-post="/ui/audit/ai/split/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
             hx-vals='{"link": {{ item.link | tojson }}}' hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>

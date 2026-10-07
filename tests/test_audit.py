@@ -27,6 +27,10 @@ def test_audit_scan_flags_certain_duplicate(client, session):
     assert 'hx-indicator="next .htmx-indicator"' in response.text
     assert 'hx-disabled-elt="this"' in response.text
     assert 'class="htmx-indicator"' in response.text
+    # The merge ("Tieni X") buttons must show the same loading feedback as
+    # the "Chiedi all'AI" button -- one pair means 2 merge buttons + 1 AI
+    # button, each disabling itself while its request is in flight.
+    assert response.text.count('hx-disabled-elt="this"') == 3
     # The actual reel card (home-list layout) is rendered for the pair.
     assert "Negozio di hobby" in response.text
     assert "btn-edit" in response.text
@@ -294,6 +298,11 @@ def test_ui_audit_ai_geocode_shows_proposal_for_imprecise_location(client, sessi
     response = client.post(f"/ui/audit/ai/geocode/{satellite.id}")
     assert response.status_code == 200
     assert "34.9949" in response.text
+    # "Applica coordinate proposte" must show the same loading feedback as
+    # the "Chiedi all'AI" buttons -- clicking it gave no visible feedback
+    # before this fix.
+    assert 'hx-indicator="next .htmx-indicator" hx-disabled-elt="find button"' in response.text
+    assert "Sto applicando…" in response.text
     assert "135.785" in response.text
 
 
@@ -525,6 +534,10 @@ def test_ui_audit_ai_split_shows_a_proposal_per_reel(client, session, monkeypatc
     assert "Hase-dera" in response.text
     assert "Grande statua del Buddha a Kotoku-in." in response.text
     assert "Tempio famoso per i giardini e la vista." in response.text
+    # "Applica" (the split-proposal submit) must show the same loading
+    # feedback as every other action button on this page.
+    assert 'hx-indicator="next .htmx-indicator" hx-disabled-elt="find button[type=submit]"' in response.text
+    assert "Sto applicando…" in response.text
 
 
 def test_ui_audit_ai_split_handles_provider_error_for_one_reel(client, session, monkeypatch):
