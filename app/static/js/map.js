@@ -14,12 +14,22 @@ function buildTypeQuery(types) {
 }
 
 function refreshMap() {
+    if (!document.getElementById("map-container")) {
+        // Not every page has a map (e.g. the audit page) -- htmx.ajax
+        // throws if its target selector matches nothing, which would
+        // otherwise break whatever global "reel-saved" handling runs
+        // after it.
+        return;
+    }
     const typeQuery = buildTypeQuery(currentTypes);
     const url = "/ui/map" + (typeQuery ? "?" + typeQuery : "");
     htmx.ajax("GET", url, { target: "#map-container", swap: "innerHTML" });
 }
 
 function refreshReelList() {
+    if (!document.getElementById("reel-list")) {
+        return;
+    }
     const params = [];
     if (currentLocationId) {
         params.push("location_id=" + encodeURIComponent(currentLocationId));
