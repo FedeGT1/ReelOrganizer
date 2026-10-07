@@ -2,13 +2,13 @@
 
 Elenco di miglioramenti non urgenti, da valutare più avanti. Non sono specifiche pronte per l'implementazione, solo promemoria dell'idea e del perché potrebbe valere la pena farla.
 
-## Campo titolo nel form di aggiunta reel manuale
+## Creare una location al volo dal form di aggiunta reel manuale
 
-Il form manuale (`app/templates/partials/reel_add_form.html`) non ha un campo titolo/nome per il reel: oggi si sceglie solo una location *già esistente* da una tendina, una nota opzionale e le categorie. A differenza del flusso AI (che propone liberamente un `place_name` e può crearne una nuova), dal form manuale non si può né dare un titolo distinto all'aggiunta né creare una location nuova al volo — serve prima passare da "Gestisci hub".
+Il form manuale (`app/templates/partials/reel_add_form.html`) permette di scegliere solo una location *già esistente* da una tendina. A differenza del flusso AI (che può crearne una nuova al bisogno), dal form manuale serve prima passare da "Gestisci hub" per creare la location, poi tornare ad aggiungere il reel.
 
-**Perché potrebbe servire**: coerenza con il flusso AI e più comodità nell'uso quotidiano (non dover uscire dal flusso di aggiunta reel per creare prima la location).
+**Perché potrebbe servire**: più comodità nell'uso quotidiano — non dover uscire dal flusso di aggiunta reel per creare prima la location.
 
-**Nota implementativa**: da chiarire in design se "titolo" significa un campo libero sul `Reel` stesso (richiederebbe una nuova colonna, es. `title` — modifica additiva allo schema, nessun rischio per i dati esistenti) oppure semplicemente la possibilità di digitare/creare al volo una nuova location dal form stesso (nessuna modifica di schema, solo UX che replica la logica già usata dal flusso AI).
+**Nota implementativa**: nessuna modifica di schema necessaria, solo UX — replica la stessa logica di risoluzione location già costruita per il flusso AI (`app/location_matching.py`, `_resolve_location_and_create_reel`).
 
 ## Avviso quando si aggiunge un reel già presente
 
