@@ -405,6 +405,146 @@ def test_search_reels_combines_with_location_filter(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/match"
 
 
+def test_ui_create_reel_with_new_hub_location_creates_location_and_reel(client, session):
+    response = client.post(
+        "/ui/reels",
+        data={
+            "link": "https://instagram.com/reel/new-hub",
+            "location_id": "__new__",
+            "new_location_name": "Brand New Hub",
+            "new_location_is_hub": "true",
+            "new_location_lat": "10.0",
+            "new_location_lon": "20.0",
+        },
+    )
+    assert response.status_code == 200
+
+    location = session.exec(select(Location).where(Location.name == "Brand New Hub")).first()
+    assert location is not None
+    assert location.is_hub is True
+    assert location.lat == 10.0
+    assert location.lon == 20.0
+
+    reel = session.exec(select(Reel).where(Reel.link == "https://instagram.com/reel/new-hub")).first()
+    assert reel is not None
+    assert reel.location_id == location.id
+
+
+def test_ui_create_reel_with_new_satellite_location_creates_under_parent(client, session):
+    hub = Location(name="Parent Hub", is_hub=True, lat=1.0, lon=2.0)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/ui/reels",
+        data={
+            "link": "https://instagram.com/reel/new-satellite",
+            "location_id": "__new__",
+            "new_location_name": "New Satellite",
+            "new_location_is_hub": "false",
+            "new_location_parent_id": hub.id,
+            "new_location_lat": "1.1",
+            "new_location_lon": "2.1",
+        },
+    )
+    assert response.status_code == 200
+
+    location = session.exec(select(Location).where(Location.name == "New Satellite")).first()
+    assert location is not None
+    assert location.is_hub is False
+    assert location.parent_id == hub.id
+
+    reel = session.exec(
+        select(Reel).where(Reel.link == "https://instagram.com/reel/new-satellite")
+    ).first()
+    assert reel is not None
+    assert reel.location_id == location.id
+
+
+def test_ui_create_reel_with_new_satellite_location_without_parent_shows_inline_error(client, session):
+    response = client.post(
+        "/ui/reels",
+        data={
+            "link": "https://instagram.com/reel/orphan",
+            "location_id": "__new__",
+            "new_location_name": "Orphan Satellite",
+            "new_location_is_hub": "false",
+            "new_location_lat": "1.1",
+            "new_location_lon": "2.1",
+        },
+    )
+    assert response.status_code == 200
+    assert "richiede" in response.text.lower()
+
+    assert session.exec(select(Location).where(Location.name == "Orphan Satellite")).first() is None
+    assert session.exec(select(Reel).where(Reel.link == "https://instagram.com/reel/orphan")).first() is None
+
+
+def test_ui_create_reel_with_duplicate_link_warns_without_saving(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    other_hub = Location(name="Other Hub", is_hub=True)
+    session.add(hub)
+    session.add(other_hub)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other_hub)
+    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id, note="Già visto"))
+    session.commit()
+
+    response = client.post(
+        "/ui/reels",
+        data={
+            "link": "https://www.instagram.com/reel/dup/?igshid=abc",
+            "location_id": other_hub.id,
+        },
+    )
+    assert response.status_code == 200
+    assert "Salva comunque" in response.text
+    assert session.exec(
+        select(Reel).where(Reel.link == "https://www.instagram.com/reel/dup/?igshid=abc")
+    ).first() is None
+
+
+def test_ui_create_reel_confirm_duplicate_saves_anyway(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id))
+    session.commit()
+
+    response = client.post(
+        "/ui/reels",
+        data={
+            "link": "https://instagram.com/reel/dup/",
+            "location_id": hub.id,
+            "confirm_duplicate": "true",
+        },
+    )
+    assert response.status_code == 200
+    matches = session.exec(
+        select(Reel).where(Reel.link == "https://instagram.com/reel/dup/")
+    ).all()
+    assert len(matches) == 2
+
+
+def test_ui_create_reel_without_duplicate_saves_normally(client, session):
+    hub = Location(name="Hub", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/ui/reels",
+        data={"link": "https://instagram.com/reel/fresh/", "location_id": hub.id},
+    )
+    assert response.status_code == 200
+    assert session.exec(
+        select(Reel).where(Reel.link == "https://instagram.com/reel/fresh/")
+    ).first() is not None
+
+
 def test_ui_reels_search_filters_by_note_or_location_name(client, session):
     hub = Location(name="Shibuya", is_hub=True)
     session.add(hub)

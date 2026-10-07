@@ -1,10 +1,46 @@
+{% if error %}
+<p class="ai-notice">{{ error }}</p>
+{% endif %}
+{% if duplicate_warning %}
+<div class="ai-notice">
+    <p>Hai già salvato questo reel per "{{ duplicate_warning.existing_location_name }}"{% if duplicate_warning.existing_note %}: {{ duplicate_warning.existing_note }}{% endif %}. Salvarlo comunque?</p>
+    <form hx-post="/ui/reels" hx-target="#reel-add-form-panel" hx-swap="innerHTML">
+        <input type="hidden" name="confirm_duplicate" value="true">
+        <input type="hidden" name="link" value="{{ duplicate_warning.link }}">
+        <input type="hidden" name="location_id" value="{{ duplicate_warning.location_id }}">
+        <input type="hidden" name="note" value="{{ duplicate_warning.note }}">
+        {% for t in duplicate_warning.types %}<input type="hidden" name="types" value="{{ t }}">{% endfor %}
+        <input type="hidden" name="new_location_name" value="{{ duplicate_warning.new_location_name }}">
+        <input type="hidden" name="new_location_is_hub" value="{{ duplicate_warning.new_location_is_hub }}">
+        <input type="hidden" name="new_location_parent_id" value="{{ duplicate_warning.new_location_parent_id }}">
+        <input type="hidden" name="new_location_lat" value="{{ duplicate_warning.new_location_lat }}">
+        <input type="hidden" name="new_location_lon" value="{{ duplicate_warning.new_location_lon }}">
+        <button type="submit">Salva comunque</button>
+    </form>
+</div>
+{% endif %}
 <form class="reel-add-form" hx-post="/ui/reels" hx-target="#reel-add-form-panel" hx-swap="innerHTML">
     <input type="url" name="link" placeholder="Link Instagram" required>
     <select name="location_id" required>
         {% for loc in locations %}
         <option value="{{ loc.id }}">{{ loc.name }}</option>
         {% endfor %}
+        <option value="__new__">+ Crea nuova location</option>
     </select>
+    <div class="new-location-fields" hidden>
+        <input type="text" name="new_location_name" placeholder="Nome location" required>
+        <label><input type="radio" name="new_location_is_hub" value="true" checked> È un hub</label>
+        <label>
+            <input type="radio" name="new_location_is_hub" value="false"> È un satellite di:
+            <select name="new_location_parent_id">
+                {% for hub in hubs %}
+                <option value="{{ hub.id }}">{{ hub.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <input type="number" step="any" name="new_location_lat" placeholder="Latitudine" required>
+        <input type="number" step="any" name="new_location_lon" placeholder="Longitudine" required>
+    </div>
     <input type="text" name="note" placeholder="Nota (opzionale)">
     <div class="type-options">
         {% for key, info in taxonomy.items() %}

@@ -8,12 +8,16 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Location, Reel, ReelType
+from app.reel_links import find_duplicate_reel
 from app.routers.categories import get_taxonomy, get_valid_type_keys, reel_ids_matching_types
+from app.routers.locations import _create_location
 from app.routers.map import render_map_html
 from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
 ui_router = APIRouter(prefix="/ui", tags=["reels-ui"])
+
+NEW_LOCATION_SENTINEL = "__new__"
 
 
 def _is_safe_link(link: str) -> bool:
@@ -195,10 +199,18 @@ def _reel_list_context(
     }
 
 
-def _reel_add_form_context(session: Session) -> dict:
+def _reel_add_form_context(
+    session: Session,
+    error: Optional[str] = None,
+    duplicate_warning: Optional[dict] = None,
+) -> dict:
+    locations = session.exec(select(Location)).all()
     return {
-        "locations": session.exec(select(Location)).all(),
+        "locations": locations,
+        "hubs": [loc for loc in locations if loc.is_hub],
         "taxonomy": get_taxonomy(session),
+        "error": error,
+        "duplicate_warning": duplicate_warning,
     }
 
 
@@ -276,10 +288,60 @@ def ui_create_reel(
     location_id: str = Form(...),
     note: Optional[str] = Form(None),
     types: list[str] = Form([]),
+    new_location_name: str = Form(""),
+    new_location_is_hub: str = Form("true"),
+    new_location_parent_id: str = Form(""),
+    new_location_lat: Optional[float] = Form(None),
+    new_location_lon: Optional[float] = Form(None),
+    confirm_duplicate: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    if confirm_duplicate != "true":
+        duplicate = find_duplicate_reel(session, link)
+        if duplicate is not None:
+            existing_location = session.get(Location, duplicate.location_id)
+            form_html = templates.get_template("partials/reel_add_form.html").render(
+                _reel_add_form_context(
+                    session,
+                    duplicate_warning={
+                        "existing_location_name": existing_location.name if existing_location else "?",
+                        "existing_note": duplicate.note,
+                        "link": link,
+                        "location_id": location_id,
+                        "note": note or "",
+                        "types": types,
+                        "new_location_name": new_location_name,
+                        "new_location_is_hub": new_location_is_hub,
+                        "new_location_parent_id": new_location_parent_id,
+                        "new_location_lat": new_location_lat if new_location_lat is not None else "",
+                        "new_location_lon": new_location_lon if new_location_lon is not None else "",
+                    },
+                )
+            )
+            return HTMLResponse(form_html)
+
+    if location_id == NEW_LOCATION_SENTINEL:
+        try:
+            new_location = _create_location(
+                session,
+                new_location_name,
+                new_location_is_hub == "true",
+                new_location_parent_id or None,
+                new_location_lat,
+                new_location_lon,
+            )
+        except HTTPException as exc:
+            if exc.status_code != 400:
+                raise
+            form_html = templates.get_template("partials/reel_add_form.html").render(
+                _reel_add_form_context(session, error="Un satellite richiede una città padre.")
+            )
+            return HTMLResponse(form_html)
+        location_id = new_location.id
+
     reel = Reel(link=link, location_id=location_id, note=note)
     session.add(reel)
     session.commit()
