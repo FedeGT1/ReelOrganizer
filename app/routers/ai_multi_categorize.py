@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from app.db import get_session
 from app.location_matching import resolve_place
 from app.models import AiMessage, AiSession, Location
+from app.reel_links import find_duplicate_reel
 from app.routers.ai_categorize import (
     _build_ai_chat_context,
     _categorize_new_session_message,
@@ -154,10 +155,26 @@ def ui_ai_multi_confirm(
     link: str = Form(...),
     session_ids: list[str] = Form([]),
     place_json: list[str] = Form([]),
+    confirm_duplicate: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    if confirm_duplicate != "true":
+        duplicate = find_duplicate_reel(session, link)
+        if duplicate is not None:
+            existing_location = session.get(Location, duplicate.location_id)
+            warning_html = templates.get_template(
+                "partials/_ai_multi_confirm_duplicate_warning.html"
+            ).render(
+                existing_location_name=existing_location.name if existing_location else "?",
+                existing_note=duplicate.note,
+                link=link,
+                session_ids=session_ids,
+                place_json=place_json,
+            )
+            return HTMLResponse(warning_html)
 
     places = []
     for raw in place_json:

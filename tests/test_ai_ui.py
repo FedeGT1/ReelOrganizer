@@ -260,6 +260,62 @@ def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(c
     assert session.exec(select(Location)).all() == [hub]
 
 
+def test_ui_ai_confirm_with_duplicate_link_warns_without_saving(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.commit()
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://www.instagram.com/reel/abc?igshid=x",
+            "place_name": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Ramen chain",
+            "lat": "",
+            "lon": "",
+            "resolution_location_id": hub.id,
+        },
+    )
+    assert response.status_code == 200
+    assert "Salva comunque" in response.text
+    reels = session.exec(select(Reel)).all()
+    assert len(reels) == 1
+
+
+def test_ui_ai_confirm_duplicate_true_saves_anyway(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id))
+    session.commit()
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://instagram.com/reel/abc",
+            "place_name": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Ramen chain",
+            "lat": "",
+            "lon": "",
+            "resolution_location_id": hub.id,
+            "confirm_duplicate": "true",
+        },
+    )
+    assert response.status_code == 200
+    reels = session.exec(select(Reel)).all()
+    assert len(reels) == 2
+
+
 def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)

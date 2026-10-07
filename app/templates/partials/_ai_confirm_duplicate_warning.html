@@ -1,0 +1,16 @@
+<p class="ai-notice">Hai già salvato questo reel per "{{ existing_location_name }}"{% if existing_note %}: {{ existing_note }}{% endif %}. Salvarlo comunque?</p>
+<form hx-post="/ui/ai/confirm" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-confirm-form">
+    <input type="hidden" name="confirm_duplicate" value="true">
+    <input type="hidden" name="session_id" value="{{ session_id }}">
+    <input type="hidden" name="link" value="{{ link }}">
+    <input type="hidden" name="place_name" value="{{ place_name }}">
+    {% for t in types %}<input type="hidden" name="types" value="{{ t }}">{% endfor %}
+    <input type="hidden" name="note" value="{{ note }}">
+    <input type="hidden" name="lat" value="{{ lat }}">
+    <input type="hidden" name="lon" value="{{ lon }}">
+    <input type="hidden" name="resolution_location_id" value="{{ resolution_location_id }}">
+    <input type="hidden" name="resolution_hub_id" value="{{ resolution_hub_id }}">
+    <input type="hidden" name="confidence" value="{{ confidence }}">
+    <button type="submit">Salva comunque</button>
+    <button type="button" hx-get="/ui/ai/panel" hx-target="#ai-chat-panel" hx-swap="innerHTML">Annulla</button>
+</form>

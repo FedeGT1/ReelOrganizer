@@ -12,6 +12,7 @@ from app.ai import client as ai_client
 from app.db import get_session
 from app.location_matching import NEW_HUB_SENTINEL, resolve_place
 from app.models import AiMessage, AiSession, Location, Reel, ReelType
+from app.reel_links import find_duplicate_reel
 from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.map import render_map_html
 from app.routers.reels import _is_safe_link, _reel_add_form_context, _reel_list_context
@@ -369,10 +370,33 @@ def ui_ai_confirm(
     resolution_location_id: str = Form(""),
     resolution_hub_id: str = Form(""),
     confidence: str = Form(""),
+    confirm_duplicate: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+
+    if confirm_duplicate != "true":
+        duplicate = find_duplicate_reel(session, link)
+        if duplicate is not None:
+            existing_location = session.get(Location, duplicate.location_id)
+            warning_html = templates.get_template(
+                "partials/_ai_confirm_duplicate_warning.html"
+            ).render(
+                existing_location_name=existing_location.name if existing_location else "?",
+                existing_note=duplicate.note,
+                session_id=session_id,
+                link=link,
+                place_name=place_name,
+                types=types,
+                note=note,
+                lat=lat,
+                lon=lon,
+                resolution_location_id=resolution_location_id,
+                resolution_hub_id=resolution_hub_id,
+                confidence=confidence,
+            )
+            return HTMLResponse(warning_html)
 
     _resolve_location_and_create_reel(
         session, link, place_name, types, note, lat, lon, resolution_location_id, resolution_hub_id, confidence

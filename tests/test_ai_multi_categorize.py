@@ -318,6 +318,64 @@ def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(cli
     assert kiyomizu.geocode_confidence is None
 
 
+def test_ui_ai_multi_confirm_warns_when_link_already_saved_before_batch(client, session):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id, note="Già visto"))
+    session.commit()
+
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "types": [],
+        "note": "", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1"],
+            "place_json": [place_one],
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Salva comunque" in response.text
+    reels = session.exec(select(Reel)).all()
+    assert len(reels) == 1
+
+
+def test_ui_ai_multi_confirm_duplicate_true_saves_anyway(client, session):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id))
+    session.commit()
+
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "types": [],
+        "note": "", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto10",
+            "session_ids": ["s1"],
+            "place_json": [place_one],
+            "confirm_duplicate": "true",
+        },
+    )
+
+    assert response.status_code == 200
+    reels = session.exec(select(Reel)).all()
+    assert len(reels) == 2
+
+
 def test_ui_ai_multi_confirm_stores_confidence_on_newly_created_location(client, session):
     place = json.dumps({
         "place_name": "Mystery Alley", "types": [],
