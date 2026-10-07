@@ -1,17 +1,23 @@
+import json
+import logging
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from sqlmodel import Session, select
 
+from app.ai import client as ai_client
+from app.ai.providers.base import AIProviderError
 from app.db import get_session
-from app.location_matching import normalize_place_name, resolve_place
-from app.models import Location, Reel
-from app.routers.categories import get_taxonomy
+from app.location_matching import NEW_HUB_SENTINEL, normalize_place_name, resolve_place
+from app.models import Location, Reel, ReelType
+from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.locations import _merge_locations
 from app.routers.reels import _serialize_reel
 from app.web import templates
+
+logger = logging.getLogger("app.ai")
 
 ui_router = APIRouter(prefix="/ui/audit", tags=["audit-ui"])
 
@@ -25,6 +31,7 @@ class AuditPair:
     a_reels: list = field(default_factory=list)
     b_reels: list = field(default_factory=list)
     distance_m: Optional[float] = None
+    ai_verdict: Optional[dict] = None
 
 
 @dataclass
@@ -45,6 +52,17 @@ class SplitCandidate:
     link: str
     location: Location
     reels: list = field(default_factory=list)
+    proposals: Optional[list] = None
+
+
+@dataclass
+class SplitProposal:
+    reel_id: str
+    place_name: str
+    note: str
+    resolution: object
+    place_json: str
+    error: Optional[str] = None
 
 
 def _reels_for_location(session: Session, location_id: str) -> list:
@@ -119,6 +137,102 @@ def _find_split_candidates(session: Session, by_id: dict) -> list:
     return result
 
 
+def _propose_split(session: Session, candidate: SplitCandidate) -> list:
+    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hub_names = [h.name for h in hubs]
+    taxonomy = get_taxonomy(session)
+    category_labels = {key: info["label"] for key, info in taxonomy.items()}
+    valid_type_keys = get_valid_type_keys(session)
+
+    proposals = []
+    for reel in candidate.reels:
+        try:
+            result = ai_client.categorize(
+                hub_names, category_labels, [{"role": "user", "content": reel["note"] or ""}]
+            )
+        except (AIProviderError, RuntimeError):
+            logger.exception("categorize call failed during split proposal for reel=%s", reel["id"])
+            proposals.append(SplitProposal(
+                reel_id=reel["id"], place_name="", note=reel["note"] or "",
+                resolution=None, place_json="",
+                error="Errore nel contattare l'assistente, riprova.",
+            ))
+            continue
+
+        types = [t for t in result.get("types", []) if t in valid_type_keys]
+        place_name = result.get("place_name", "")
+        resolution = resolve_place(session, place_name, result.get("near_hub"), result.get("lat"), result.get("lon"))
+
+        place_payload = {
+            "reel_id": reel["id"],
+            "place_name": place_name,
+            "note": reel["note"] or "",
+            "types": types,
+            "lat": result.get("lat"),
+            "lon": result.get("lon"),
+            "confidence": result.get("confidence"),
+            "resolution_location_id": resolution.place_location_id if resolution.place_tier == "auto" else "",
+            "resolution_hub_id": resolution.hub_id if resolution.hub_tier == "auto" else "",
+        }
+        proposals.append(SplitProposal(
+            reel_id=reel["id"], place_name=place_name, note=reel["note"] or "",
+            resolution=resolution, place_json=json.dumps(place_payload),
+        ))
+    return proposals
+
+
+def _reassign_reel_location(
+    session: Session,
+    reel_id: str,
+    place_name: str,
+    types: list,
+    lat,
+    lon,
+    resolution_location_id: str,
+    resolution_hub_id: str = "",
+    confidence: Optional[str] = None,
+) -> Reel:
+    reel = session.get(Reel, reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="Reel not found")
+
+    if resolution_location_id:
+        location_id = resolution_location_id
+    else:
+        if not lat or not lon:
+            raise HTTPException(status_code=400, detail="lat/lon are required to create a new location")
+        if not resolution_hub_id:
+            raise HTTPException(status_code=400, detail="a hub choice is required to create a new location")
+
+        is_hub = resolution_hub_id == NEW_HUB_SENTINEL
+        new_location = Location(
+            name=place_name,
+            is_hub=is_hub,
+            parent_id=None if is_hub else resolution_hub_id,
+            lat=float(lat),
+            lon=float(lon),
+            geocode_confidence=confidence or None,
+        )
+        session.add(new_location)
+        session.commit()
+        session.refresh(new_location)
+        location_id = new_location.id
+
+    reel.location_id = location_id
+    session.add(reel)
+
+    valid_type_keys = get_valid_type_keys(session)
+    for existing in session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all():
+        session.delete(existing)
+    session.commit()
+    for type_value in types:
+        if type_value in valid_type_keys:
+            session.add(ReelType(reel_id=reel_id, type=type_value))
+    session.commit()
+    session.refresh(reel)
+    return reel
+
+
 def _find_anomalies(session: Session) -> dict:
     locations = session.exec(select(Location)).all()
     by_id = {loc.id: loc for loc in locations}
@@ -184,6 +298,83 @@ def _find_anomalies(session: Session) -> dict:
 @ui_router.get("/scan")
 def ui_audit_scan(request: Request, session: Session = Depends(get_session)):
     return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+
+
+@ui_router.post("/ai/compare/{location_a_id}/{location_b_id}")
+def ui_audit_ai_compare(
+    request: Request, location_a_id: str, location_b_id: str, session: Session = Depends(get_session)
+):
+    loc_a = session.get(Location, location_a_id)
+    loc_b = session.get(Location, location_b_id)
+    if loc_a is None or loc_b is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    notes_a = [r["note"] for r in _reels_for_location(session, loc_a.id) if r["note"]]
+    notes_b = [r["note"] for r in _reels_for_location(session, loc_b.id) if r["note"]]
+
+    try:
+        verdict = ai_client.compare_places(loc_a.name, notes_a, loc_b.name, notes_b)
+    except (AIProviderError, RuntimeError):
+        logger.exception("compare_places call failed for %s vs %s", loc_a.id, loc_b.id)
+        verdict = {"same_place": None, "reasoning": "Errore nel contattare l'assistente, riprova."}
+
+    context = _find_anomalies(session)
+    target_key = frozenset((loc_a.id, loc_b.id))
+    for pair in context["certain_pairs"] + context["review_pairs"]:
+        if frozenset((pair.a.id, pair.b.id)) == target_key:
+            pair.ai_verdict = verdict
+            break
+
+    return templates.TemplateResponse(request, "partials/audit_results.html", context)
+
+
+# Registered before /ai/split/{location_id} -- Starlette matches routes in
+# registration order, and the dynamic path would otherwise swallow this
+# literal one (treating "apply" as a location_id).
+@ui_router.post("/ai/split/apply")
+def ui_audit_ai_split_apply(
+    request: Request, place_json: list[str] = Form([]), session: Session = Depends(get_session)
+):
+    parsed_places = []
+    for raw in place_json:
+        try:
+            parsed_places.append(json.loads(raw))
+        except json.JSONDecodeError:
+            logger.exception("skipping malformed place_json entry in split apply")
+
+    for place in parsed_places:
+        if not place.get("resolution_location_id"):
+            if not place.get("lat") or not place.get("lon"):
+                raise HTTPException(status_code=400, detail="lat/lon are required to create a new location")
+            if not place.get("resolution_hub_id"):
+                raise HTTPException(status_code=400, detail="a hub choice is required to create a new location")
+
+    for place in parsed_places:
+        _reassign_reel_location(
+            session,
+            place["reel_id"],
+            place.get("place_name", ""),
+            place.get("types", []),
+            place.get("lat"),
+            place.get("lon"),
+            place.get("resolution_location_id", ""),
+            place.get("resolution_hub_id", ""),
+            place.get("confidence"),
+        )
+
+    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+
+
+@ui_router.post("/ai/split/{location_id}")
+def ui_audit_ai_split(
+    request: Request, location_id: str, link: str = Form(...), session: Session = Depends(get_session)
+):
+    context = _find_anomalies(session)
+    for candidate in context["split_candidates"]:
+        if candidate.location.id == location_id and candidate.link == link:
+            candidate.proposals = _propose_split(session, candidate)
+            break
+    return templates.TemplateResponse(request, "partials/audit_results.html", context)
 
 
 @ui_router.post("/merge/{keep_id}/{drop_id}")

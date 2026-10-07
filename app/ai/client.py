@@ -5,6 +5,8 @@ from typing import Any, Optional
 from app.ai.prompts import (
     build_ask_response_schema,
     build_ask_system_prompt,
+    build_compare_response_schema,
+    build_compare_system_prompt,
     build_places_response_schema,
     build_places_system_prompt,
     build_response_schema,
@@ -41,6 +43,19 @@ def detect_places(message: str) -> dict[str, Any]:
     logger.debug("detect_places request message=%s", message)
     return get_provider().call_json(
         system, [{"role": "user", "content": message}], schema, enable_web_search=False
+    )
+
+
+def compare_places(
+    place_a_name: str, place_a_notes: list[str], place_b_name: str, place_b_notes: list[str]
+) -> dict[str, Any]:
+    system = build_compare_system_prompt(place_a_name, place_a_notes, place_b_name, place_b_notes)
+    schema = build_compare_response_schema()
+    logger.debug(
+        "compare_places request place_a_name=%s place_b_name=%s", place_a_name, place_b_name
+    )
+    return get_provider().call_json(
+        system, [{"role": "user", "content": "Confronta i due posti."}], schema, enable_web_search=True
     )
 
 

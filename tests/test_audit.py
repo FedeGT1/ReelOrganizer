@@ -1,3 +1,8 @@
+import json
+
+from app.ai import client as ai_client
+from app.ai.providers.base import AIProviderError
+from app.location_matching import NEW_HUB_SENTINEL
 from app.models import Location, Reel
 
 
@@ -278,6 +283,240 @@ def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_sp
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
     assert "Nessun reel da dividere trovato." in response.text
+
+
+def test_ui_audit_ai_compare_shows_different_verdict_in_the_matching_pair(client, session, monkeypatch):
+    loc_a = Location(name="MODE OFF Hachioji Owada", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(name="HARD-OFF Hachioji Owada", is_hub=False, lat=35.0001, lon=135.0001)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+    session.refresh(loc_a)
+    session.refresh(loc_b)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc_a.id, note="Vestiti usati"))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=loc_b.id, note="Elettronica usata"))
+    session.commit()
+
+    captured = {}
+
+    def fake_compare(a_name, a_notes, b_name, b_notes):
+        captured["args"] = (a_name, a_notes, b_name, b_notes)
+        return {"same_place": False, "reasoning": "Negozi diversi dello stesso gruppo OFF."}
+
+    monkeypatch.setattr(ai_client, "compare_places", fake_compare)
+
+    response = client.post(f"/ui/audit/ai/compare/{loc_a.id}/{loc_b.id}")
+    assert response.status_code == 200
+    assert "Negozi diversi dello stesso gruppo OFF." in response.text
+    assert captured["args"][0] == "MODE OFF Hachioji Owada"
+    assert captured["args"][1] == ["Vestiti usati"]
+    assert captured["args"][2] == "HARD-OFF Hachioji Owada"
+    assert captured["args"][3] == ["Elettronica usata"]
+
+
+def test_ui_audit_ai_compare_shows_same_place_verdict(client, session, monkeypatch):
+    loc_a = Location(name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
+    loc_b = Location(name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client, "compare_places",
+        lambda a_name, a_notes, b_name, b_notes: {"same_place": True, "reasoning": "Stesso negozio, nome scritto diversamente."},
+    )
+
+    response = client.post(f"/ui/audit/ai/compare/{loc_a.id}/{loc_b.id}")
+    assert response.status_code == 200
+    assert "Stesso negozio, nome scritto diversamente." in response.text
+
+
+def test_ui_audit_ai_compare_handles_provider_error_gracefully(client, session, monkeypatch):
+    loc_a = Location(name="Posto A", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(name="Posto B", is_hub=False, lat=35.0001, lon=135.0001)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+
+    def boom(*args, **kwargs):
+        raise AIProviderError("boom")
+
+    monkeypatch.setattr(ai_client, "compare_places", boom)
+
+    response = client.post(f"/ui/audit/ai/compare/{loc_a.id}/{loc_b.id}")
+    assert response.status_code == 200
+    assert "riprova" in response.text.lower()
+
+
+def test_ui_audit_ai_compare_returns_404_for_missing_location(client, session):
+    loc = Location(name="Posto A", is_hub=False, lat=35.0, lon=135.0)
+    session.add(loc)
+    session.commit()
+    session.refresh(loc)
+
+    response = client.post(f"/ui/audit/ai/compare/{loc.id}/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_ui_audit_ai_split_shows_a_proposal_per_reel(client, session, monkeypatch):
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    session.add(kamakura)
+    session.commit()
+    session.refresh(kamakura)
+
+    link = "https://www.instagram.com/reel/same-link/"
+    reel_a = Reel(link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in.")
+    reel_b = Reel(link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista.")
+    session.add(reel_a)
+    session.add(reel_b)
+    session.commit()
+    session.refresh(reel_a)
+    session.refresh(reel_b)
+
+    def fake_categorize(hub_names, categories, messages):
+        note = messages[0]["content"]
+        if "Kotoku-in" in note:
+            return {
+                "place_name": "Kotoku-in Daibutsu", "near_hub": None, "types": [],
+                "note": note, "confidence": "high", "question": None,
+                "lat": 35.3166, "lon": 139.5360,
+            }
+        return {
+            "place_name": "Hase-dera", "near_hub": None, "types": [],
+            "note": note, "confidence": "high", "question": None,
+            "lat": 35.3122, "lon": 139.5339,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+
+    response = client.post(f"/ui/audit/ai/split/{kamakura.id}", data={"link": link})
+    assert response.status_code == 200
+    assert "Kotoku-in Daibutsu" in response.text
+    assert "Hase-dera" in response.text
+    assert "Grande statua del Buddha a Kotoku-in." in response.text
+    assert "Tempio famoso per i giardini e la vista." in response.text
+
+
+def test_ui_audit_ai_split_handles_provider_error_for_one_reel(client, session, monkeypatch):
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    session.add(kamakura)
+    session.commit()
+    session.refresh(kamakura)
+
+    link = "https://www.instagram.com/reel/same-link/"
+    session.add(Reel(link=link, location_id=kamakura.id, note="Nota A"))
+    session.add(Reel(link=link, location_id=kamakura.id, note="Nota B"))
+    session.commit()
+
+    def boom(hub_names, categories, messages):
+        raise AIProviderError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post(f"/ui/audit/ai/split/{kamakura.id}", data={"link": link})
+    assert response.status_code == 200
+    assert "riprova" in response.text.lower()
+
+
+def test_ui_audit_ai_split_apply_creates_new_locations_and_reassigns_reels(client, session):
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    session.add(kamakura)
+    session.commit()
+    session.refresh(kamakura)
+
+    reel_a = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Kotoku-in")
+    reel_b = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Hase-dera")
+    session.add(reel_a)
+    session.add(reel_b)
+    session.commit()
+    session.refresh(reel_a)
+    session.refresh(reel_b)
+
+    place_a = json.dumps({
+        "reel_id": reel_a.id, "place_name": "Kotoku-in Daibutsu", "note": "Nota Kotoku-in",
+        "lat": 35.3166, "lon": 139.5360, "confidence": "high",
+        "resolution_location_id": "", "resolution_hub_id": NEW_HUB_SENTINEL,
+    })
+    place_b = json.dumps({
+        "reel_id": reel_b.id, "place_name": "Hase-dera", "note": "Nota Hase-dera",
+        "lat": 35.3122, "lon": 139.5339, "confidence": "high",
+        "resolution_location_id": "", "resolution_hub_id": NEW_HUB_SENTINEL,
+    })
+
+    response = client.post("/ui/audit/ai/split/apply", data={"place_json": [place_a, place_b]})
+    assert response.status_code == 200
+
+    session.refresh(reel_a)
+    session.refresh(reel_b)
+    assert reel_a.location_id != kamakura.id
+    assert reel_b.location_id != kamakura.id
+    assert reel_a.location_id != reel_b.location_id
+
+    kotoku = session.get(Location, reel_a.location_id)
+    hase = session.get(Location, reel_b.location_id)
+    assert kotoku.name == "Kotoku-in Daibutsu"
+    assert hase.name == "Hase-dera"
+    assert kotoku.is_hub is True
+    assert hase.is_hub is True
+
+
+def test_ui_audit_ai_split_apply_can_reassign_to_an_existing_location(client, session):
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    existing = Location(name="Komachi Street", is_hub=False, lat=35.319, lon=139.549)
+    session.add(kamakura)
+    session.add(existing)
+    session.commit()
+    session.refresh(kamakura)
+    session.refresh(existing)
+
+    reel = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    place = json.dumps({
+        "reel_id": reel.id, "place_name": "Komachi Street", "note": "Nota",
+        "lat": None, "lon": None, "confidence": None,
+        "resolution_location_id": existing.id, "resolution_hub_id": "",
+    })
+
+    response = client.post("/ui/audit/ai/split/apply", data={"place_json": [place]})
+    assert response.status_code == 200
+
+    session.refresh(reel)
+    assert reel.location_id == existing.id
+
+
+def test_ui_audit_ai_split_apply_validates_whole_batch_before_reassigning_any(client, session):
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    session.add(kamakura)
+    session.commit()
+    session.refresh(kamakura)
+
+    reel_a = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota A")
+    reel_b = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota B")
+    session.add(reel_a)
+    session.add(reel_b)
+    session.commit()
+    session.refresh(reel_a)
+    session.refresh(reel_b)
+
+    valid_place = json.dumps({
+        "reel_id": reel_a.id, "place_name": "Kotoku-in Daibutsu", "note": "Nota A",
+        "lat": 35.3166, "lon": 139.5360, "confidence": "high",
+        "resolution_location_id": "", "resolution_hub_id": NEW_HUB_SENTINEL,
+    })
+    invalid_place = json.dumps({
+        "reel_id": reel_b.id, "place_name": "Hase-dera", "note": "Nota B",
+        "lat": 35.3122, "lon": 139.5339, "confidence": "high",
+        "resolution_location_id": "", "resolution_hub_id": "",
+    })
+
+    response = client.post("/ui/audit/ai/split/apply", data={"place_json": [valid_place, invalid_place]})
+    assert response.status_code == 400
+
+    session.refresh(reel_a)
+    assert reel_a.location_id == kamakura.id
 
 
 def test_ui_audit_merge_removes_pair_and_reassigns_reel(client, session):

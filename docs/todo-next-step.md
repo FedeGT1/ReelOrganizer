@@ -2,14 +2,6 @@
 
 Elenco di miglioramenti non urgenti, da valutare più avanti. Non sono specifiche pronte per l'implementazione, solo promemoria dell'idea e del perché potrebbe valere la pena farla.
 
-## Strumento di audit/pulizia del pregresso con la nuova logica di matching
-
-La logica a livelli introdotta in `app/location_matching.py` (vedi `docs/superpowers/specs/2026-10-05-ai-location-matching-design.md`) previene solo i *nuovi* errori di matching nel flusso di import AI — non corregge quelli già presenti nei dati esistenti. L'analisi di un export reale ha trovato: un hub orfano che doveva essere satellite (Sanmachi sotto Nagoya/Chubu), location duplicate per formattazione diversa del nome (Surugaya Akihabara), e posti specifici inghiottiti in una location generica (Kōtoku-in/Hase-dera dentro "Kamakura", Pokémon Center Shibuya dentro "Shibuya").
-
-**Perché potrebbe servire**: oggi queste correzioni si fanno a mano, una per una, dal form di modifica location/reel — lento su un centinaio di posti. Uno strumento che scansiona tutte le location/reel esistenti, fa girare `resolve_place` (o una variante pensata per dati già salvati) su ciascuno, e segnala le anomalie trovate (hub sospetti, possibili duplicati, posti vicini con nomi diversi) ridurrebbe il lavoro manuale.
-
-**Nota implementativa**: dato il rischio di toccare dati reali già in produzione, va progettato come "segnala e proponi, conferma tu" — mai un fix automatico silenzioso — coerente con l'approccio già seguito nell'app (blocca piuttosto che agire a cascata). Serve una design/brainstorming dedicata (non una piccola modifica incrementale), e va deciso se operare per location o per reel, e come presentare le proposte di correzione in UI.
-
 ## Campo titolo nel form di aggiunta reel manuale
 
 Il form manuale (`app/templates/partials/reel_add_form.html`) non ha un campo titolo/nome per il reel: oggi si sceglie solo una location *già esistente* da una tendina, una nota opzionale e le categorie. A differenza del flusso AI (che propone liberamente un `place_name` e può crearne una nuova), dal form manuale non si può né dare un titolo distinto all'aggiunta né creare una location nuova al volo — serve prima passare da "Gestisci hub".

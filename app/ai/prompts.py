@@ -106,6 +106,39 @@ def build_places_system_prompt() -> str:
     )
 
 
+def build_compare_response_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "same_place": {"type": "boolean"},
+            "reasoning": {"type": "string"},
+        },
+        "required": ["same_place", "reasoning"],
+        "additionalProperties": False,
+    }
+
+
+def build_compare_system_prompt(
+    place_a_name: str, place_a_notes: list[str], place_b_name: str, place_b_notes: list[str]
+) -> str:
+    notes_a = "; ".join(place_a_notes) if place_a_notes else "(nessuna nota)"
+    notes_b = "; ".join(place_b_notes) if place_b_notes else "(nessuna nota)"
+    return (
+        "Stai aiutando a pulire un database di posti salvati per un viaggio in Giappone. "
+        "Ti vengono forniti due posti salvati separatamente, con il nome e le note associate. "
+        f"Posto A: '{place_a_name}'. Note di A: {notes_a}. "
+        f"Posto B: '{place_b_name}'. Note di B: {notes_b}. "
+        "Usa la tua conoscenza generale (ed eventualmente una ricerca web, se serve per capire di cosa si "
+        "tratta) per stabilire se A e B sono realmente lo stesso luogo fisico, oppure due luoghi diversi "
+        "(anche se vicini tra loro o con nomi simili -- per esempio due negozi diversi nello stesso "
+        "edificio, o un luogo generico e un punto specifico al suo interno). Valorizza 'same_place' con "
+        "true solo se sei ragionevolmente certo che si tratti dello stesso luogo fisico. Nel campo "
+        "'reasoning' scrivi una frase breve (massimo due righe) in italiano che spiega la tua conclusione, "
+        "citando cosa hai capito dai nomi e dalle note. Rispondi seguendo esattamente lo schema JSON "
+        "fornito."
+    )
+
+
 MAX_REELS_IN_CONTEXT = 150
 
 

@@ -26,6 +26,14 @@
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
     </div>
+    {% if pair.ai_verdict %}
+    <p class="ai-verdict">
+        {% if pair.ai_verdict.same_place == true %}✅{% elif pair.ai_verdict.same_place == false %}❌{% else %}⚠️{% endif %}
+        {{ pair.ai_verdict.reasoning }}
+    </p>
+    {% else %}
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML">🤖 Chiedi all'AI</button>
+    {% endif %}
 </div>
 {% endfor %}
 {% else %}
@@ -53,6 +61,14 @@
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
     </div>
+    {% if pair.ai_verdict %}
+    <p class="ai-verdict">
+        {% if pair.ai_verdict.same_place == true %}✅{% elif pair.ai_verdict.same_place == false %}❌{% else %}⚠️{% endif %}
+        {{ pair.ai_verdict.reasoning }}
+    </p>
+    {% else %}
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML">🤖 Chiedi all'AI</button>
+    {% endif %}
 </div>
 {% endfor %}
 {% else %}
@@ -97,6 +113,52 @@
     <ul class="reel-list">
         {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
     </ul>
+    {% if item.proposals %}
+    <form hx-post="/ui/audit/ai/split/apply" hx-target="#audit-results" hx-swap="innerHTML" class="ai-split-proposal">
+        {% for p in item.proposals %}
+        {% if p.error %}
+        <p class="ai-verdict">⚠️ {{ p.error }}</p>
+        {% else %}
+        <label class="multi-place-row">
+            <input type="hidden" name="place_json" value='{{ p.place_json }}'>
+            <span class="multi-place-row-content">
+                <strong>{{ p.place_name }}</strong>
+                <span class="note">{{ p.note }}</span>
+                {% if p.resolution.requires_confirmation %}
+                    {% if p.resolution.place_candidates %}
+                    <select onchange="patchMultiPlaceResolution(this, 'resolution_location_id')">
+                        <option value="">È un posto nuovo</option>
+                        {% for c in p.resolution.place_candidates %}
+                        <option value="{{ c.id }}">{{ c.name }} ({{ c.distance_m }}m)</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                    {% if p.resolution.hub_tier == 'ambiguous' %}
+                    <select onchange="patchMultiPlaceResolution(this, 'resolution_hub_id')">
+                        <option value="">— scegli hub —</option>
+                        {% for h in p.resolution.hub_options %}
+                        <option value="{{ h.id }}">{{ h.name }}</option>
+                        {% endfor %}
+                        <option value="__new_hub__">Crea nuovo hub</option>
+                    </select>
+                    {% endif %}
+                {% else %}
+                    {% if p.resolution.place_tier == 'auto' %}
+                    <span class="hint">Verrà spostato su: {{ p.resolution.place_location_name }}</span>
+                    {% else %}
+                    <span class="hint">Nuovo posto satellite di {{ p.resolution.hub_name }}</span>
+                    {% endif %}
+                {% endif %}
+            </span>
+        </label>
+        {% endif %}
+        {% endfor %}
+        <button type="submit">Applica</button>
+    </form>
+    {% else %}
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/split/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+            hx-vals='{"link": {{ item.link | tojson }}}'>🤖 Chiedi all'AI</button>
+    {% endif %}
 </div>
 {% endfor %}
 {% else %}

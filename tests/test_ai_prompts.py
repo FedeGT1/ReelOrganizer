@@ -1,4 +1,7 @@
-from app.ai.prompts import build_response_schema, build_system_prompt, build_ask_response_schema, build_ask_system_prompt
+from app.ai.prompts import (
+    build_response_schema, build_system_prompt, build_ask_response_schema, build_ask_system_prompt,
+    build_compare_response_schema, build_compare_system_prompt,
+)
 
 VALID_TYPES = {"food", "culture", "nature", "shopping", "stay", "transport", "experience"}
 CATEGORIES = {
@@ -163,3 +166,28 @@ def test_ask_system_prompt_encourages_markdown_bold_and_links():
     assert "markdown" in prompt.lower()
     assert "**" in prompt
     assert "[testo](url)" in prompt
+
+
+def test_compare_response_schema_has_required_fields():
+    schema = build_compare_response_schema()
+    assert schema["required"] == ["same_place", "reasoning"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["same_place"] == {"type": "boolean"}
+    assert schema["properties"]["reasoning"] == {"type": "string"}
+
+
+def test_compare_system_prompt_includes_both_places_names_and_notes():
+    prompt = build_compare_system_prompt(
+        "MODE OFF Hachioji Owada", ["Negozio di vestiti usati"],
+        "HARD-OFF Hachioji Owada", ["Negozio di elettronica usata"],
+    )
+    assert "MODE OFF Hachioji Owada" in prompt
+    assert "HARD-OFF Hachioji Owada" in prompt
+    assert "Negozio di vestiti usati" in prompt
+    assert "Negozio di elettronica usata" in prompt
+
+
+def test_compare_system_prompt_handles_empty_notes():
+    prompt = build_compare_system_prompt("Posto A", [], "Posto B", [])
+    assert "Posto A" in prompt
+    assert "Posto B" in prompt

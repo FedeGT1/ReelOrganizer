@@ -93,3 +93,21 @@ def test_ask_delegates_to_provider_with_built_prompt_and_schema(monkeypatch):
     assert call["messages"] == [{"role": "user", "content": "Dove mangio?"}]
     assert "Ichiran Ramen" in call["system"]
     assert call["schema"]["properties"] == {"answer": {"type": "string"}}
+
+
+def test_compare_places_delegates_to_provider_with_built_prompt_and_schema(monkeypatch):
+    expected = {"same_place": False, "reasoning": "Negozi diversi dello stesso gruppo."}
+    fake_provider = FakeProvider(expected)
+    monkeypatch.setattr(ai_client, "get_provider", lambda: fake_provider)
+
+    result = ai_client.compare_places(
+        "MODE OFF Hachioji Owada", ["Vestiti usati"],
+        "HARD-OFF Hachioji Owada", ["Elettronica usata"],
+    )
+
+    assert result == expected
+    call = fake_provider.calls[0]
+    assert call["enable_web_search"] is True
+    assert "MODE OFF Hachioji Owada" in call["system"]
+    assert "HARD-OFF Hachioji Owada" in call["system"]
+    assert call["schema"]["required"] == ["same_place", "reasoning"]
