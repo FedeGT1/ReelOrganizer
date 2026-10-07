@@ -11,6 +11,8 @@
     <input type="hidden" name="resolution_location_id" value="{{ resolution_location_id }}">
     <input type="hidden" name="resolution_hub_id" value="{{ resolution_hub_id }}">
     <input type="hidden" name="confidence" value="{{ confidence }}">
+    <input type="hidden" name="caption" value="{{ caption }}">
+    <input type="hidden" name="transcript" value="{{ transcript }}">
     <button type="submit">Salva comunque</button>
     <button type="button" hx-get="/ui/ai/panel" hx-target="#ai-chat-panel" hx-swap="innerHTML">Annulla</button>
 </form>

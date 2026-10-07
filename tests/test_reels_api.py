@@ -540,9 +540,12 @@ def test_ui_create_reel_without_duplicate_saves_normally(client, session):
         data={"link": "https://instagram.com/reel/fresh/", "location_id": hub.id},
     )
     assert response.status_code == 200
-    assert session.exec(
+    reel = session.exec(
         select(Reel).where(Reel.link == "https://instagram.com/reel/fresh/")
-    ).first() is not None
+    ).first()
+    assert reel is not None
+    assert reel.caption is None
+    assert reel.transcript is None
 
 
 def test_ui_reels_search_filters_by_note_or_location_name(client, session):

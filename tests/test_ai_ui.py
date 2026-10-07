@@ -232,6 +232,71 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
     assert 'name="confidence" value="high"' in response.text
 
 
+def test_ui_ai_message_threads_caption_and_transcript_into_confirm_form(client, session, monkeypatch):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+    session.commit()
+
+    monkeypatch.setattr(
+        ai_client, "detect_places", lambda message: {"is_multi_place": False, "place_names": None}
+    )
+    monkeypatch.setattr(
+        ai_client,
+        "categorize",
+        lambda hub_names, categories, messages: {
+            "place_name": "Ichiran Ramen",
+            "near_hub": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Famous ramen chain",
+            "confidence": "high",
+            "question": None,
+            "lat": 35.6595,
+            "lon": 139.7005,
+        },
+    )
+
+    response = client.post(
+        "/ui/ai/message",
+        data={
+            "link": "https://instagram.com/reel/abc",
+            "message": "Ramen a Tokyo",
+            "caption": "Didascalia originale",
+            "transcript": "Trascrizione originale",
+        },
+    )
+    assert response.status_code == 200
+    assert 'name="caption" value="Didascalia originale"' in response.text
+    assert 'name="transcript" value="Trascrizione originale"' in response.text
+
+
+def test_ui_ai_confirm_persists_caption_and_transcript_on_reel(client, session):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.commit()
+    session.refresh(hub)
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://instagram.com/reel/abc",
+            "place_name": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Ramen chain",
+            "lat": "",
+            "lon": "",
+            "resolution_location_id": hub.id,
+            "caption": "Didascalia originale",
+            "transcript": "Trascrizione originale",
+        },
+    )
+    assert response.status_code == 200
+
+    reel = session.exec(select(Reel)).first()
+    assert reel.caption == "Didascalia originale"
+    assert reel.transcript == "Trascrizione originale"
+
+
 def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(client, session):
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     session.add(hub)

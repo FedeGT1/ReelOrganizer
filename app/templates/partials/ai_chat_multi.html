@@ -1,6 +1,8 @@
 {% if rows %}
 <form hx-post="/ui/ai/multi/confirm" hx-target="#ai-chat-panel" hx-swap="innerHTML" class="ai-confirm-form multi-place-form">
     <input type="hidden" name="link" value="{{ link }}">
+    <input type="hidden" name="caption" value="{{ caption }}">
+    <input type="hidden" name="transcript" value="{{ transcript }}">
     {% for sid in session_ids %}<input type="hidden" name="session_ids" value="{{ sid }}">{% endfor %}
 
     {% for row in rows %}
@@ -53,6 +55,8 @@
         <span>{{ row.result.question }}</span>
         <form hx-post="/ui/ai/multi/message" hx-target="#ai-chat-panel" hx-swap="innerHTML">
             <input type="hidden" name="link" value="{{ link }}">
+            <input type="hidden" name="caption" value="{{ caption }}">
+            <input type="hidden" name="transcript" value="{{ transcript }}">
             {% for sid in session_ids %}<input type="hidden" name="session_ids" value="{{ sid }}">{% endfor %}
             <input type="hidden" name="clarify_session_id" value="{{ row.session_id }}">
             <input type="text" name="clarify_text" placeholder="Es. vicino ad Arashiyama" required>

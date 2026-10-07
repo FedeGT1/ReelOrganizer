@@ -1,7 +1,9 @@
 import logging
 import tempfile
 import threading
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -41,7 +43,24 @@ def _is_instagram_link(link: str) -> bool:
     )
 
 
-def _run_import(link: str) -> str:
+@dataclass
+class ImportResult:
+    caption: Optional[str]
+    transcript: Optional[str]
+
+
+def _build_prefill_message(result: ImportResult) -> str:
+    parts = []
+    if result.caption:
+        parts.append(f"Didascalia: {result.caption}")
+    if result.transcript:
+        parts.append(f"Trascrizione audio: {result.transcript}")
+    elif result.transcript is None:
+        parts.append("(trascrizione non disponibile)")
+    return "\n\n".join(parts)
+
+
+def _run_import(link: str) -> ImportResult:
     with tempfile.TemporaryDirectory() as tmp:
         result = instagram.fetch(link, Path(tmp))
         try:
@@ -50,17 +69,10 @@ def _run_import(link: str) -> str:
             logger.exception("transcription failed for link=%s", link)
             transcript = None
 
-    parts = []
-    if result.caption:
-        parts.append(f"Didascalia: {result.caption}")
-    if transcript:
-        parts.append(f"Trascrizione audio: {transcript}")
-    elif transcript is None:
-        parts.append("(trascrizione non disponibile)")
-    return "\n\n".join(parts)
+    return ImportResult(caption=result.caption, transcript=transcript)
 
 
-def _run_import_with_timeout(link: str, timeout_seconds: float) -> str:
+def _run_import_with_timeout(link: str, timeout_seconds: float) -> ImportResult:
     outcome: dict = {}
 
     def worker():
@@ -86,9 +98,14 @@ def ui_ai_import(request: Request, link: str = Form(...), session: Session = Dep
         return templates.TemplateResponse(request, "partials/ai_chat.html", context)
 
     prefill_message = ""
+    import_caption = ""
+    import_transcript = ""
     notice = None
     try:
-        prefill_message = _run_import_with_timeout(link, IMPORT_TIMEOUT_SECONDS)
+        result = _run_import_with_timeout(link, IMPORT_TIMEOUT_SECONDS)
+        prefill_message = _build_prefill_message(result)
+        import_caption = result.caption or ""
+        import_transcript = result.transcript or ""
     except instagram.InstagramFetchError:
         logger.exception("instagram fetch failed for link=%s", link)
         notice = FETCH_FAILED_NOTICE
@@ -101,4 +118,6 @@ def ui_ai_import(request: Request, link: str = Form(...), session: Session = Dep
 
     context = _build_ai_chat_context(session, None, link, notice=notice)
     context["prefill_message"] = prefill_message
+    context["caption"] = import_caption
+    context["transcript"] = import_transcript
     return templates.TemplateResponse(request, "partials/ai_chat.html", context)

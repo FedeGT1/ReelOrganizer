@@ -24,6 +24,8 @@ class Reel(SQLModel, table=True):
     link: str
     location_id: str = Field(foreign_key="location.id")
     note: Optional[str] = None
+    caption: Optional[str] = None
+    transcript: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

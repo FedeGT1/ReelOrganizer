@@ -25,6 +25,9 @@ def test_ui_ai_import_prefills_caption_and_transcript(client, session, monkeypat
     assert "Ramen a Tokyo" in response.text
     assert "miglior ramen di Tokyo" in response.text
     assert 'value="https://instagram.com/reel/abc"' in response.text
+    assert 'name="caption" value="Ramen a Tokyo"' in response.text
+    assert 'name="transcript" value="Questo e' in response.text
+    assert "miglior ramen di Tokyo" in response.text
 
 
 def test_ui_ai_import_rejects_non_instagram_link(client, session):

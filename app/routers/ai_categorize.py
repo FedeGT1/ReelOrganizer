@@ -206,7 +206,12 @@ def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_s
 
 
 def _build_ai_chat_context(
-    session: Session, ai_session_id: Optional[str], link: str, notice: Optional[str] = None
+    session: Session,
+    ai_session_id: Optional[str],
+    link: str,
+    notice: Optional[str] = None,
+    caption: str = "",
+    transcript: str = "",
 ) -> dict:
     history: list[dict] = []
     latest_result: Optional[dict] = None
@@ -245,6 +250,8 @@ def _build_ai_chat_context(
     return {
         "session_id": ai_session_id or "",
         "link": link or "",
+        "caption": caption or "",
+        "transcript": transcript or "",
         "history": history,
         "latest_result": latest_result,
         "can_confirm": can_confirm,
@@ -267,6 +274,8 @@ def ui_ai_message(
     session_id: str = Form(""),
     link: str = Form(""),
     message: str = Form(...),
+    caption: str = Form(""),
+    transcript: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not session_id:
@@ -286,7 +295,9 @@ def ui_ai_message(
             # so importing it at module load time would create a circular import.
             from app.routers.ai_multi_categorize import start_multi_place_batch
 
-            return start_multi_place_batch(request, session, combined_message, link, place_names)
+            return start_multi_place_batch(
+                request, session, combined_message, link, place_names, caption, transcript
+            )
     else:
         combined_message = message
 
@@ -301,7 +312,9 @@ def ui_ai_message(
         raise
 
     return templates.TemplateResponse(
-        request, "partials/ai_chat.html", _build_ai_chat_context(session, ai_session.id, link)
+        request,
+        "partials/ai_chat.html",
+        _build_ai_chat_context(session, ai_session.id, link, caption=caption, transcript=transcript),
     )
 
 
@@ -316,6 +329,8 @@ def _resolve_location_and_create_reel(
     resolution_location_id: str,
     resolution_hub_id: str = "",
     confidence: Optional[str] = None,
+    caption: str = "",
+    transcript: str = "",
 ) -> Reel:
     if resolution_location_id:
         location_id = resolution_location_id
@@ -343,7 +358,13 @@ def _resolve_location_and_create_reel(
         session.refresh(new_location)
         location_id = new_location.id
 
-    reel = Reel(link=link, location_id=location_id, note=note or None)
+    reel = Reel(
+        link=link,
+        location_id=location_id,
+        note=note or None,
+        caption=caption or None,
+        transcript=transcript or None,
+    )
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -371,6 +392,8 @@ def ui_ai_confirm(
     resolution_hub_id: str = Form(""),
     confidence: str = Form(""),
     confirm_duplicate: str = Form(""),
+    caption: str = Form(""),
+    transcript: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
@@ -395,11 +418,24 @@ def ui_ai_confirm(
                 resolution_location_id=resolution_location_id,
                 resolution_hub_id=resolution_hub_id,
                 confidence=confidence,
+                caption=caption,
+                transcript=transcript,
             )
             return HTMLResponse(warning_html)
 
     _resolve_location_and_create_reel(
-        session, link, place_name, types, note, lat, lon, resolution_location_id, resolution_hub_id, confidence
+        session,
+        link,
+        place_name,
+        types,
+        note,
+        lat,
+        lon,
+        resolution_location_id,
+        resolution_hub_id,
+        confidence,
+        caption,
+        transcript,
     )
 
     stale_ai_session = session.get(AiSession, session_id)

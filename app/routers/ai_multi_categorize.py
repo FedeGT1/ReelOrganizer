@@ -52,7 +52,9 @@ def _read_latest_result(session: Session, session_id: str) -> Optional[dict]:
     return json.loads(messages[-1].content)
 
 
-def _build_multi_context(session: Session, session_ids: list[str], link: str) -> dict:
+def _build_multi_context(
+    session: Session, session_ids: list[str], link: str, caption: str = "", transcript: str = ""
+) -> dict:
     # Defensive dedup: the rendered page never produces duplicate ids in a
     # real submission (the confirm form and each clarify form are sibling,
     # non-nested <form> elements, so a browser only ever submits one form's
@@ -91,6 +93,8 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
 
     return {
         "link": link or "",
+        "caption": caption or "",
+        "transcript": transcript or "",
         "session_ids": session_ids,
         "rows": rows,
         "taxonomy": get_taxonomy(session),
@@ -98,7 +102,13 @@ def _build_multi_context(session: Session, session_ids: list[str], link: str) ->
 
 
 def start_multi_place_batch(
-    request: Request, session: Session, original_message: str, link: str, place_names: list[str]
+    request: Request,
+    session: Session,
+    original_message: str,
+    link: str,
+    place_names: list[str],
+    caption: str = "",
+    transcript: str = "",
 ):
     hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
@@ -126,7 +136,7 @@ def start_multi_place_batch(
         ai_session, _, _ = _persist_categorize_result(session, message, result)
         session_ids.append(ai_session.id)
 
-    context = _build_multi_context(session, session_ids, link)
+    context = _build_multi_context(session, session_ids, link, caption, transcript)
     return templates.TemplateResponse(request, "partials/ai_chat_multi.html", context)
 
 
@@ -137,6 +147,8 @@ def ui_ai_multi_message(
     session_ids: list[str] = Form([]),
     clarify_session_id: str = Form(""),
     clarify_text: str = Form(""),
+    caption: str = Form(""),
+    transcript: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
@@ -145,7 +157,7 @@ def ui_ai_multi_message(
     if clarify_session_id and clarify_text:
         _run_turn(session, clarify_session_id, clarify_text)
 
-    context = _build_multi_context(session, session_ids, link)
+    context = _build_multi_context(session, session_ids, link, caption, transcript)
     return templates.TemplateResponse(request, "partials/ai_chat_multi.html", context)
 
 
@@ -156,6 +168,8 @@ def ui_ai_multi_confirm(
     session_ids: list[str] = Form([]),
     place_json: list[str] = Form([]),
     confirm_duplicate: str = Form(""),
+    caption: str = Form(""),
+    transcript: str = Form(""),
     session: Session = Depends(get_session),
 ):
     if not _is_safe_link(link):
@@ -173,6 +187,8 @@ def ui_ai_multi_confirm(
                 link=link,
                 session_ids=session_ids,
                 place_json=place_json,
+                caption=caption,
+                transcript=transcript,
             )
             return HTMLResponse(warning_html)
 
@@ -214,6 +230,8 @@ def ui_ai_multi_confirm(
             place.get("resolution_location_id", ""),
             place.get("resolution_hub_id", ""),
             place.get("confidence"),
+            caption,
+            transcript,
         )
 
     for session_id in session_ids:

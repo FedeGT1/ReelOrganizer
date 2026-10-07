@@ -29,6 +29,8 @@
         <input type="hidden" name="session_id" value="{{ session_id }}">
         <input type="hidden" name="link" value="{{ link }}">
         <input type="hidden" name="message" value="{{ candidate }}">
+        <input type="hidden" name="caption" value="{{ caption }}">
+        <input type="hidden" name="transcript" value="{{ transcript }}">
         <button type="submit" class="chip">{{ candidate }}</button>
     </form>
     {% endfor %}
@@ -45,6 +47,8 @@
     <input type="hidden" name="lat" value="{{ latest_result.lat if latest_result.lat is not none else '' }}">
     <input type="hidden" name="lon" value="{{ latest_result.lon if latest_result.lon is not none else '' }}">
     <input type="hidden" name="confidence" value="{{ latest_result.confidence or '' }}">
+    <input type="hidden" name="caption" value="{{ caption }}">
+    <input type="hidden" name="transcript" value="{{ transcript }}">
 
     {% if not resolution.requires_confirmation %}
         {% if resolution.place_tier == 'auto' %}
@@ -101,8 +105,12 @@
             hx-indicator="#ai-import-indicator">Importa da Instagram</button>
     <span id="ai-import-indicator" class="htmx-indicator">Scarico e trascrivo…</span>
     <textarea name="message" placeholder="Descrizione o didascalia del reel" required>{{ prefill_message|default('') }}</textarea>
+    <input type="hidden" name="caption" value="{{ caption }}">
+    <input type="hidden" name="transcript" value="{{ transcript }}">
     {% else %}
     <input type="hidden" name="link" value="{{ link }}">
+    <input type="hidden" name="caption" value="{{ caption }}">
+    <input type="hidden" name="transcript" value="{{ transcript }}">
     <textarea name="message" placeholder="Scrivi..." required></textarea>
     {% endif %}
     <button type="submit">Invia</button>
