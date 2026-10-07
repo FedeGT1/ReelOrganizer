@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Optional
 
@@ -7,8 +7,10 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.location_matching import normalize_place_name, resolve_place
-from app.models import Location
-from app.routers.locations import _merge_locations, _reel_counts
+from app.models import Location, Reel
+from app.routers.categories import get_taxonomy
+from app.routers.locations import _merge_locations
+from app.routers.reels import _serialize_reel
 from app.web import templates
 
 ui_router = APIRouter(prefix="/ui/audit", tags=["audit-ui"])
@@ -20,9 +22,34 @@ REVIEW_NAME_SIMILARITY_THRESHOLD = 0.5
 class AuditPair:
     a: Location
     b: Location
-    a_count: int
-    b_count: int
+    a_reels: list = field(default_factory=list)
+    b_reels: list = field(default_factory=list)
     distance_m: Optional[float] = None
+
+
+@dataclass
+class ImpreciseLocation:
+    location: Location
+    hub: Location
+    reels: list = field(default_factory=list)
+
+
+@dataclass
+class LowConfidenceLocation:
+    location: Location
+    reels: list = field(default_factory=list)
+
+
+@dataclass
+class SplitCandidate:
+    link: str
+    location: Location
+    reels: list = field(default_factory=list)
+
+
+def _reels_for_location(session: Session, location_id: str) -> list:
+    reels = session.exec(select(Reel).where(Reel.location_id == location_id)).all()
+    return [_serialize_reel(session, r) for r in reels]
 
 
 def _effective_coords(loc: Location, by_id: dict) -> tuple:
@@ -43,14 +70,57 @@ def _worth_reviewing(loc_name: str, other_name: str) -> bool:
     # complexes) routinely place several genuinely distinct, unrelated
     # places within even a few meters of each other -- proximity alone,
     # at any distance, is not a useful duplicate signal without some
-    # name correlation too.
-    ratio = SequenceMatcher(None, normalize_place_name(loc_name), normalize_place_name(other_name)).ratio()
-    return ratio >= REVIEW_NAME_SIMILARITY_THRESHOLD
+    # name correlation too. Word-set overlap (not raw character overlap)
+    # avoids being fooled by a shared district/chain word (e.g. both
+    # names containing "Akihabara" or "Shinjuku").
+    words_a = set(normalize_place_name(loc_name).split())
+    words_b = set(normalize_place_name(other_name).split())
+    if not words_a or not words_b:
+        return False
+    jaccard = len(words_a & words_b) / len(words_a | words_b)
+    return jaccard >= REVIEW_NAME_SIMILARITY_THRESHOLD
+
+
+def _find_imprecise_coordinates(session: Session, locations: list, by_id: dict) -> list:
+    result = []
+    for loc in locations:
+        if loc.is_hub or not loc.parent_id:
+            continue
+        parent = by_id.get(loc.parent_id)
+        if parent is not None and loc.lat == parent.lat and loc.lon == parent.lon:
+            result.append(ImpreciseLocation(
+                location=loc, hub=parent, reels=_reels_for_location(session, loc.id),
+            ))
+    return result
+
+
+def _find_low_confidence(session: Session, locations: list) -> list:
+    return [
+        LowConfidenceLocation(location=loc, reels=_reels_for_location(session, loc.id))
+        for loc in locations
+        if loc.geocode_confidence == "low"
+    ]
+
+
+def _find_split_candidates(session: Session, by_id: dict) -> list:
+    reels = session.exec(select(Reel)).all()
+    groups: dict = {}
+    for r in reels:
+        groups.setdefault((r.link, r.location_id), []).append(r)
+
+    result = []
+    for (link, location_id), group in groups.items():
+        if len(group) > 1:
+            result.append(SplitCandidate(
+                link=link,
+                location=by_id[location_id],
+                reels=[_serialize_reel(session, r) for r in group],
+            ))
+    return result
 
 
 def _find_anomalies(session: Session) -> dict:
     locations = session.exec(select(Location)).all()
-    reel_counts = _reel_counts(session)
     by_id = {loc.id: loc for loc in locations}
 
     certain_keys: set = set()
@@ -70,7 +140,8 @@ def _find_anomalies(session: Session) -> dict:
                 certain_keys.add(key)
                 certain_pairs.append(AuditPair(
                     a=loc, b=other,
-                    a_count=reel_counts.get(loc.id, 0), b_count=reel_counts.get(other.id, 0),
+                    a_reels=_reels_for_location(session, loc.id),
+                    b_reels=_reels_for_location(session, other.id),
                 ))
 
     # Second pass, after every `auto` pair is known, so a pair already
@@ -94,11 +165,20 @@ def _find_anomalies(session: Session) -> dict:
             review_keys.add(key)
             review_pairs.append(AuditPair(
                 a=loc, b=other,
-                a_count=reel_counts.get(loc.id, 0), b_count=reel_counts.get(other.id, 0),
+                a_reels=_reels_for_location(session, loc.id),
+                b_reels=_reels_for_location(session, other.id),
                 distance_m=candidate.distance_m,
             ))
 
-    return {"certain_pairs": certain_pairs, "review_pairs": review_pairs, "error": None}
+    return {
+        "certain_pairs": certain_pairs,
+        "review_pairs": review_pairs,
+        "imprecise_locations": _find_imprecise_coordinates(session, locations, by_id),
+        "low_confidence_locations": _find_low_confidence(session, locations),
+        "split_candidates": _find_split_candidates(session, by_id),
+        "taxonomy": get_taxonomy(session),
+        "error": None,
+    }
 
 
 @ui_router.get("/scan")

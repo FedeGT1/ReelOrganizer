@@ -1,0 +1,20 @@
+<li>
+    <div class="reel-info">
+        <a href="{{ reel.link }}" target="_blank" rel="noopener noreferrer">{{ reel.location_name }}</a>
+        <div class="reel-meta">
+            {% if reel.note %}<span class="note">{{ reel.note }}</span>{% endif %}
+            <span class="types">{% for t in reel.types %}{{ taxonomy[t].icon }}{% endfor %}</span>
+        </div>
+    </div>
+    {% if reel.maps_query %}
+    <a class="btn-maps" href="https://www.google.com/maps/search/?api=1&query={{ reel.maps_query | urlencode }}" target="_blank" rel="noopener noreferrer" aria-label="Apri in Google Maps">🗺️</a>
+    {% endif %}
+    <button class="btn-edit" hx-get="/ui/reels/{{ reel.id }}/edit-form" hx-target="#reel-add-form-panel" hx-swap="innerHTML"
+            onclick="document.getElementById('add-reel-dialog').showModal(); document.querySelector('.tab-btn[data-tab=manual]').click();"
+            aria-label="Modifica">✏️</button>
+    <button class="btn-delete" hx-delete="/ui/reels/{{ reel.id }}"
+            hx-target="{{ reel_delete_target | default('#reel-list') }}"
+            hx-swap="{{ reel_delete_swap | default('innerHTML') }}"
+            hx-on::after-request="{{ reel_delete_after | default('refreshReelList()') }}"
+            aria-label="Elimina">🗑</button>
+</li>

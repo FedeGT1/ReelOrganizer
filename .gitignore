@@ -10,3 +10,4 @@ data/whisper_models/
 
 .superpowers/
 .worktrees/
+.DS_Store

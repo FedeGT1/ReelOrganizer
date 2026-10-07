@@ -38,10 +38,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Japan Reel Organizer", lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
+_session_cookie_secure = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() != "false"
 app.add_middleware(
     SessionMiddleware,
     secret_key=_session_secret_key,
-    https_only=True,
+    https_only=_session_cookie_secure,
     same_site="lax",
     max_age=60 * 60 * 24 * 30,
 )

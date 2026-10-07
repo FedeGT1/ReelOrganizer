@@ -7,14 +7,25 @@ def test_audit_scan_flags_certain_duplicate(client, session):
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
+    session.refresh(loc_a)
+    session.refresh(loc_b)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc_a.id, note="Negozio di hobby"))
+    session.commit()
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
     assert "Surugaya" in response.text
     assert "Nessun duplicato quasi certo trovato." not in response.text
+    # The actual reel card (home-list layout) is rendered for the pair.
+    assert "Negozio di hobby" in response.text
+    assert "btn-edit" in response.text
+    assert "btn-delete" in response.text
 
 
-def test_audit_scan_flags_review_pair_for_nearby_different_names(client, session):
+def test_audit_scan_excludes_same_spot_different_business_sharing_only_a_district_word(client, session):
+    # Same exact coordinates, but the only shared word is the district
+    # name ("Shibuya") -- real data showed this pattern is normal city
+    # density, not a duplicate signal, even at 0m apart.
     loc_a = Location(name="Starbucks Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
     loc_b = Location(name="Pokémon Center Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
     session.add(loc_a)
@@ -23,17 +34,13 @@ def test_audit_scan_flags_review_pair_for_nearby_different_names(client, session
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert "Nessun duplicato quasi certo trovato." in response.text
-    assert "Starbucks Shibuya" in response.text
-    assert "Pokémon Center Shibuya" in response.text
+    assert "audit-pair" not in response.text
 
 
 def test_audit_scan_excludes_unrelated_names_merely_within_the_wide_candidate_radius(client, session):
     # Two real, distinct, unrelated places that just happen to be ~1km
-    # apart in the same city -- common in any dense tourist area (real
-    # name-similarity ratio here is ~0.24), and not a meaningful duplicate
-    # signal on its own: raw proximity alone, beyond the "suspiciously
-    # co-located" range, must not be enough to land in "da verificare".
+    # apart in the same city -- common in any dense tourist area, and not
+    # a meaningful duplicate signal on its own.
     loc_a = Location(name="Yasaka Koshindo", is_hub=False, lat=35.0036, lon=135.7788)
     loc_b = Location(name="Kawadoko sul fiume Kamogawa", is_hub=False, lat=35.0100, lon=135.7700)
     session.add(loc_a)
@@ -42,13 +49,10 @@ def test_audit_scan_excludes_unrelated_names_merely_within_the_wide_candidate_ra
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 0
+    assert "audit-pair" not in response.text
 
 
 def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(client, session):
-    # Real similarity ratio here is ~0.91 -- a genuine near-miss duplicate
-    # should still surface even when the two locations are much farther
-    # apart than the tight "suspiciously co-located" distance.
     loc_a = Location(name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
     loc_b = Location(name="Ichiran Ramen Shibuya Ten", is_hub=False, lat=35.6680, lon=139.7110)
     session.add(loc_a)
@@ -57,16 +61,11 @@ def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 1
     assert "Nessun caso da verificare." not in response.text
+    assert "Ichiran Ramen Shibuya" in response.text
 
 
 def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, session):
-    # Real-data evidence: dense areas (Akihabara, Shinjuku, temple
-    # complexes) routinely have several genuinely distinct, unrelated
-    # places within 150m -- even same-building/same-spot proximity isn't
-    # itself a useful duplicate signal if the names have nothing to do
-    # with each other (real similarity ratio here is ~0.27).
     loc_a = Location(name="M's Pop Life Adult Department Store", is_hub=False, lat=35.698, lon=139.771)
     loc_b = Location(name="BOOKOFF Akihabara Eki-mae", is_hub=False, lat=35.698, lon=139.771)
     session.add(loc_a)
@@ -75,7 +74,7 @@ def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, sessio
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 0
+    assert "audit-pair" not in response.text
 
 
 def test_audit_scan_shows_empty_state_when_no_anomalies(client, session):
@@ -86,6 +85,9 @@ def test_audit_scan_shows_empty_state_when_no_anomalies(client, session):
     assert response.status_code == 200
     assert "Nessun duplicato quasi certo trovato." in response.text
     assert "Nessun caso da verificare." in response.text
+    assert "Nessuna coordinata imprecisa trovata." in response.text
+    assert "Nessuna location con confidenza bassa." in response.text
+    assert "Nessun reel da dividere trovato." in response.text
 
 
 def test_audit_scan_does_not_list_the_same_pair_twice(client, session):
@@ -96,9 +98,7 @@ def test_audit_scan_does_not_list_the_same_pair_twice(client, session):
     session.commit()
 
     response = client.get("/ui/audit/scan")
-    # Exactly one <li> row for the one real pair -- if it were listed twice
-    # (once per direction the scan visits it from), this would be 2.
-    assert response.text.count("<li>") == 1
+    assert response.text.count('class="audit-pair"') == 1
 
 
 def test_audit_scan_does_not_duplicate_pair_across_sections_for_directional_match(client, session):
@@ -116,19 +116,10 @@ def test_audit_scan_does_not_duplicate_pair_across_sections_for_directional_matc
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    # Exactly one <li> row for the one real pair -- if it were listed in
-    # both the certain and the review section, this would be 2.
-    assert response.text.count("<li>") == 1
+    assert response.text.count('class="audit-pair"') == 1
 
 
 def test_audit_scan_never_flags_a_hub_against_its_own_satellite(client, session):
-    # Real-world shape: a satellite that couldn't be precisely geocoded
-    # inherited its hub's exact coordinates via the AI import's
-    # missing-coordinates safety net (app/routers/ai_categorize.py). At
-    # 0m apart with an unrelated name, this used to land in "da
-    # verificare" for every such satellite -- pure noise, since a hub
-    # (a city) and its satellite (a specific place in that city) can
-    # never legitimately be "the same place".
     hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
     satellite = Location(
         name="Mochimen UDON x MAGURO SUSHI", is_hub=False, parent_id=hub.id,
@@ -140,25 +131,13 @@ def test_audit_scan_never_flags_a_hub_against_its_own_satellite(client, session)
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 0
-    assert "Nessun duplicato quasi certo trovato." in response.text
-    assert "Nessun caso da verificare." in response.text
+    assert "audit-pair" not in response.text
 
 
 def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_hub_coordinates(client, session):
-    # Real-world shape: several unrelated satellites that couldn't be
-    # precisely geocoded all inherited their shared hub's exact
-    # coordinates via the AI import's missing-coordinates safety net.
-    # Comparing them by distance makes every such pair look "0m apart",
-    # flooding "da verificare" with places that have nothing to do with
-    # each other.
     hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    tower = Location(
-        name="Kyoto Tower", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
-    )
-    kiyomizu = Location(
-        name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
-    )
+    tower = Location(name="Kyoto Tower", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+    kiyomizu = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
     session.add(hub)
     session.add(tower)
     session.add(kiyomizu)
@@ -166,19 +145,13 @@ def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 0
+    assert "audit-pair" not in response.text
 
 
 def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordinates(client, session):
-    # Nulling the distance signal for inherited-coordinate satellites must
-    # not disable tier-1 exact-name matching, which doesn't need distance.
     hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    loc_a = Location(
-        name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
-    )
-    loc_b = Location(
-        name="kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
-    )
+    loc_a = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+    loc_b = Location(name="kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
     session.add(hub)
     session.add(loc_a)
     session.add(loc_b)
@@ -186,8 +159,125 @@ def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordin
 
     response = client.get("/ui/audit/scan")
     assert response.status_code == 200
-    assert response.text.count("<li>") == 1
+    assert response.text.count('class="audit-pair"') == 1
     assert "Nessun duplicato quasi certo trovato." not in response.text
+
+
+def test_audit_scan_flags_satellite_with_inherited_hub_coordinates(client, session):
+    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(
+        name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
+    )
+    session.add(hub)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna coordinata imprecisa trovata." not in response.text
+    assert "Kiyomizu-dera" in response.text
+    assert "coordinate ereditate da Kyoto / Kansai" in response.text
+    assert "Tempio famoso" in response.text
+
+
+def test_audit_scan_does_not_flag_a_satellite_with_its_own_coordinates(client, session):
+    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=34.9949, lon=135.7850)
+    session.add(hub)
+    session.add(satellite)
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna coordinata imprecisa trovata." in response.text
+
+
+def test_audit_scan_flags_low_confidence_location(client, session):
+    loc = Location(
+        name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0,
+        geocode_confidence="low",
+    )
+    session.add(loc)
+    session.commit()
+    session.refresh(loc)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc.id, note="Sushi a nastro"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna location con confidenza bassa." not in response.text
+    assert "Hama-Sushi" in response.text
+    assert "Sushi a nastro" in response.text
+
+
+def test_audit_scan_does_not_flag_high_confidence_location(client, session):
+    loc = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="high")
+    session.add(loc)
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna location con confidenza bassa." in response.text
+
+
+def test_audit_scan_flags_reel_that_may_need_splitting(client, session):
+    # Real-world shape: two reels sharing the exact same link and the
+    # exact same (too-generic) location, but describing two different
+    # specific places in their notes -- a sign the location should be
+    # split, not that anything should be merged.
+    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    session.add(kamakura)
+    session.commit()
+    session.refresh(kamakura)
+
+    link = "https://www.instagram.com/reel/same-link/"
+    session.add(Reel(link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in."))
+    session.add(Reel(link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista."))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessun reel da dividere trovato." not in response.text
+    assert "Kamakura" in response.text
+    assert "Grande statua del Buddha a Kotoku-in." in response.text
+    assert "Tempio famoso per i giardini e la vista." in response.text
+
+
+def test_audit_scan_does_not_flag_a_single_reel_per_link_as_a_split_candidate(client, session):
+    loc = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
+    session.add(loc)
+    session.commit()
+    session.refresh(loc)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc.id, note="Tempio"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessun reel da dividere trovato." in response.text
+
+
+def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_split_candidates(client, session):
+    # The normal multi-place import: one link, several DIFFERENT
+    # locations -- this is not a split candidate, it's already split.
+    loc_a = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(name="Kinkaku-ji", is_hub=False, lat=35.03, lon=135.73)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+    session.refresh(loc_a)
+    session.refresh(loc_b)
+
+    link = "https://www.instagram.com/reel/multi-place/"
+    session.add(Reel(link=link, location_id=loc_a.id, note="Tempio A"))
+    session.add(Reel(link=link, location_id=loc_b.id, note="Tempio B"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessun reel da dividere trovato." in response.text
 
 
 def test_ui_audit_merge_removes_pair_and_reassigns_reel(client, session):
@@ -246,3 +336,4 @@ def test_audit_page_renders(client):
     response = client.get("/strumenti/audit")
     assert response.status_code == 200
     assert 'hx-get="/ui/audit/scan"' in response.text
+    assert 'id="add-reel-dialog"' in response.text

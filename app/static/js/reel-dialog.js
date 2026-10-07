@@ -9,8 +9,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const tabButtons = dialog.querySelectorAll(".tab-btn");
     const panels = dialog.querySelectorAll(".tab-panel");
 
-    openBtn.addEventListener("click", () => dialog.showModal());
-    closeBtn.addEventListener("click", () => dialog.close());
+    if (openBtn) {
+        openBtn.addEventListener("click", () => dialog.showModal());
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => dialog.close());
+    }
 
     dialog.addEventListener("click", (event) => {
         if (event.target === dialog) {

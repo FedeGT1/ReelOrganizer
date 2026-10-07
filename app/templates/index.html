@@ -6,21 +6,7 @@
 
 <button type="button" id="open-add-reel" class="btn-add-reel">+ Aggiungi reel</button>
 
-<dialog id="add-reel-dialog">
-    <div class="dialog-header">
-        <div class="tabs">
-            <button type="button" class="tab-btn active" data-tab="ai">🤖 Assistente AI</button>
-            <button type="button" class="tab-btn" data-tab="manual">✏️ Manuale</button>
-        </div>
-        <button type="button" id="close-add-reel" aria-label="Chiudi">✕</button>
-    </div>
-    <div class="tab-panel" data-panel="ai" id="ai-chat-panel" hx-get="/ui/ai/panel" hx-trigger="load" hx-swap="innerHTML">
-        <p>Caricamento assistente AI...</p>
-    </div>
-    <div class="tab-panel" data-panel="manual" id="reel-add-form-panel" hidden hx-get="/ui/reels/add-form" hx-trigger="load" hx-swap="innerHTML">
-        <p>Caricamento form...</p>
-    </div>
-</dialog>
+{% include "partials/_edit_reel_dialog.html" %}
 
 <input type="search" id="reel-search-input" class="reel-search-input"
        placeholder="Cerca per nota o location..." autocomplete="off"

@@ -640,3 +640,51 @@ dialog#add-reel-dialog::backdrop {
     padding: 0.5rem;
     border: 1px dashed #999;
 }
+
+.audit-pair,
+.audit-item {
+    border: 2px solid var(--color-ink-medium);
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 0 0 1.5rem;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.audit-pair .distance {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.85rem;
+    color: var(--color-hanko);
+    margin: 0 0 0.75rem;
+}
+
+.audit-pair-side {
+    padding: 0.75rem 0;
+}
+
+.audit-pair-side:not(:last-child) {
+    border-bottom: 1px dashed var(--color-ink-medium);
+    margin-bottom: 0.75rem;
+    padding-bottom: 1rem;
+}
+
+.audit-pair-side h3,
+.audit-item h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+}
+
+.audit-item .hint {
+    font-weight: normal;
+    font-size: 0.85rem;
+    color: var(--color-ink-medium);
+}
+
+.audit-pair-side button,
+.audit-item > a {
+    margin-top: 0.5rem;
+}
+
+.audit-error {
+    color: var(--color-hanko);
+    font-weight: 600;
+}

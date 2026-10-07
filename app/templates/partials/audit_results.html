@@ -1,40 +1,104 @@
+{% set reel_delete_target = "#audit-results" %}
+{% set reel_delete_swap = "none" %}
+{% set reel_delete_after = "refreshAuditResults()" %}
+
 {% if error %}
 <p class="audit-error">{{ error }}</p>
 {% endif %}
 
 <h2>Duplicati quasi certi</h2>
 {% if certain_pairs %}
-<ul class="audit-pair-list">
-    {% for pair in certain_pairs %}
-    <li>
-        <span>{{ pair.a.name }} ({{ pair.a_count }} reel)</span>
+{% for pair in certain_pairs %}
+<div class="audit-pair">
+    <div class="audit-pair-side">
+        <h3>{{ pair.a.name }}</h3>
+        <ul class="reel-list">
+            {% for reel in pair.a_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+        </ul>
         <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni {{ pair.a.name }}</button>
-        <span>{{ pair.b.name }} ({{ pair.b_count }} reel)</span>
+    </div>
+    <div class="audit-pair-side">
+        <h3>{{ pair.b.name }}</h3>
+        <ul class="reel-list">
+            {% for reel in pair.b_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+        </ul>
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
-    </li>
-    {% endfor %}
-</ul>
+    </div>
+</div>
+{% endfor %}
 {% else %}
 <p>Nessun duplicato quasi certo trovato.</p>
 {% endif %}
 
 <h2>Da verificare</h2>
 {% if review_pairs %}
-<ul class="audit-pair-list">
-    {% for pair in review_pairs %}
-    <li>
-        <span>{{ pair.a.name }} ({{ pair.a_count }} reel)</span>
-        <span class="distance">{{ pair.distance_m }}m</span>
-        <span>{{ pair.b.name }} ({{ pair.b_count }} reel)</span>
+{% for pair in review_pairs %}
+<div class="audit-pair">
+    <p class="distance">{{ pair.distance_m }}m</p>
+    <div class="audit-pair-side">
+        <h3>{{ pair.a.name }}</h3>
+        <ul class="reel-list">
+            {% for reel in pair.a_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+        </ul>
         <button hx-post="/ui/audit/merge/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.a.name }}' e spostare qui i reel di '{{ pair.b.name }}'? '{{ pair.b.name }}' verrà eliminata.">Tieni {{ pair.a.name }}</button>
+    </div>
+    <div class="audit-pair-side">
+        <h3>{{ pair.b.name }}</h3>
+        <ul class="reel-list">
+            {% for reel in pair.b_reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+        </ul>
         <button hx-post="/ui/audit/merge/{{ pair.b.id }}/{{ pair.a.id }}" hx-target="#audit-results" hx-swap="innerHTML"
                 hx-confirm="Tenere '{{ pair.b.name }}' e spostare qui i reel di '{{ pair.a.name }}'? '{{ pair.a.name }}' verrà eliminata.">Tieni {{ pair.b.name }}</button>
-    </li>
-    {% endfor %}
-</ul>
+    </div>
+</div>
+{% endfor %}
 {% else %}
 <p>Nessun caso da verificare.</p>
+{% endif %}
+
+<h2>Coordinate imprecise</h2>
+{% if imprecise_locations %}
+{% for item in imprecise_locations %}
+<div class="audit-item">
+    <h3>{{ item.location.name }} <span class="hint">(coordinate ereditate da {{ item.hub.name }})</span></h3>
+    <ul class="reel-list">
+        {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+    </ul>
+    <a href="/locations">Modifica coordinate</a>
+</div>
+{% endfor %}
+{% else %}
+<p>Nessuna coordinata imprecisa trovata.</p>
+{% endif %}
+
+<h2>Confidenza bassa</h2>
+{% if low_confidence_locations %}
+{% for item in low_confidence_locations %}
+<div class="audit-item">
+    <h3>{{ item.location.name }}</h3>
+    <ul class="reel-list">
+        {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+    </ul>
+    <a href="/locations">Modifica coordinate</a>
+</div>
+{% endfor %}
+{% else %}
+<p>Nessuna location con confidenza bassa.</p>
+{% endif %}
+
+<h2>Possibili reel da dividere</h2>
+{% if split_candidates %}
+{% for item in split_candidates %}
+<div class="audit-item">
+    <h3>{{ item.location.name }} <span class="hint">({{ item.reels|length }} reel sullo stesso link)</span></h3>
+    <ul class="reel-list">
+        {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% else %}
+<p>Nessun reel da dividere trovato.</p>
 {% endif %}
