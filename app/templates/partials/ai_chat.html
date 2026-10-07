@@ -1,6 +1,16 @@
 {% if notice %}
 <p class="ai-notice">{{ notice }}</p>
 {% endif %}
+{% if duplicate_warning %}
+<div class="ai-notice">
+    <p>Hai già salvato questo reel per "{{ duplicate_warning.existing_location_name }}"{% if duplicate_warning.existing_note %}: {{ duplicate_warning.existing_note }}{% endif %}. Importare comunque (scarico e trascrivo)?</p>
+    <form hx-post="/ui/ai/import" hx-target="#ai-chat-panel" hx-swap="innerHTML" hx-indicator="#ai-import-indicator">
+        <input type="hidden" name="link" value="{{ duplicate_warning.link }}">
+        <input type="hidden" name="confirm_duplicate" value="true">
+        <button type="submit">Importa comunque</button>
+    </form>
+</div>
+{% endif %}
 <div id="ai-chat-messages">
     {% for turn in history %}
         {% if turn.role == 'user' %}

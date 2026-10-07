@@ -11,6 +11,8 @@ from sqlmodel import Session
 
 from app.db import get_session
 from app.ingest import instagram, transcribe
+from app.models import Location
+from app.reel_links import find_duplicate_reel
 from app.routers.ai_categorize import _build_ai_chat_context
 from app.web import templates
 
@@ -92,10 +94,31 @@ def _run_import_with_timeout(link: str, timeout_seconds: float) -> ImportResult:
 
 
 @router.post("/import")
-def ui_ai_import(request: Request, link: str = Form(...), session: Session = Depends(get_session)):
+def ui_ai_import(
+    request: Request,
+    link: str = Form(...),
+    confirm_duplicate: str = Form(""),
+    session: Session = Depends(get_session),
+):
     if not _is_instagram_link(link):
         context = _build_ai_chat_context(session, None, link, notice=NOT_INSTAGRAM_NOTICE)
         return templates.TemplateResponse(request, "partials/ai_chat.html", context)
+
+    if confirm_duplicate != "true":
+        duplicate = find_duplicate_reel(session, link)
+        if duplicate is not None:
+            existing_location = session.get(Location, duplicate.location_id)
+            context = _build_ai_chat_context(
+                session,
+                None,
+                link,
+                duplicate_warning={
+                    "existing_location_name": existing_location.name if existing_location else "?",
+                    "existing_note": duplicate.note,
+                    "link": link,
+                },
+            )
+            return templates.TemplateResponse(request, "partials/ai_chat.html", context)
 
     prefill_message = ""
     import_caption = ""

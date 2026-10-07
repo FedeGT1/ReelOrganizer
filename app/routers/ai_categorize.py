@@ -212,6 +212,7 @@ def _build_ai_chat_context(
     notice: Optional[str] = None,
     caption: str = "",
     transcript: str = "",
+    duplicate_warning: Optional[dict] = None,
 ) -> dict:
     history: list[dict] = []
     latest_result: Optional[dict] = None
@@ -258,6 +259,7 @@ def _build_ai_chat_context(
         "resolution": resolution,
         "taxonomy": get_taxonomy(session),
         "notice": notice,
+        "duplicate_warning": duplicate_warning,
     }
 
 

@@ -1,4 +1,5 @@
 from app.ingest import instagram, transcribe
+from app.models import Location, Reel
 from app.routers import instagram_import
 
 
@@ -28,6 +29,51 @@ def test_ui_ai_import_prefills_caption_and_transcript(client, session, monkeypat
     assert 'name="caption" value="Ramen a Tokyo"' in response.text
     assert 'name="transcript" value="Questo e' in response.text
     assert "miglior ramen di Tokyo" in response.text
+
+
+def test_ui_ai_import_warns_on_duplicate_link_without_downloading(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.commit()
+
+    def fetch_should_not_be_called(url, download_dir):
+        raise AssertionError("fetch should not run before the duplicate check")
+
+    monkeypatch.setattr(instagram, "fetch", fetch_should_not_be_called)
+
+    response = client.post("/ui/ai/import", data={"link": "https://instagram.com/reel/abc"})
+
+    assert response.status_code == 200
+    assert "Importa comunque" in response.text
+    assert "Tokyo / Kanto" in response.text
+
+
+def test_ui_ai_import_confirm_duplicate_proceeds_with_download(client, session, monkeypatch):
+    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.commit()
+
+    def fake_fetch(url, download_dir):
+        video_path = download_dir / "reel.mp4"
+        video_path.write_bytes(b"fake")
+        return instagram.FetchResult(caption="Ramen a Tokyo", video_path=video_path)
+
+    monkeypatch.setattr(instagram, "fetch", fake_fetch)
+    monkeypatch.setattr(transcribe, "transcribe", lambda video_path: "trascrizione")
+
+    response = client.post(
+        "/ui/ai/import",
+        data={"link": "https://instagram.com/reel/abc", "confirm_duplicate": "true"},
+    )
+
+    assert response.status_code == 200
+    assert "Ramen a Tokyo" in response.text
 
 
 def test_ui_ai_import_rejects_non_instagram_link(client, session):
