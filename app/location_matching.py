@@ -6,9 +6,10 @@ EARTH_RADIUS_METERS = 6_371_000.0
 
 
 def normalize_place_name(name: str) -> str:
-    without_accents = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode("ascii")
-    without_parens = re.sub(r"\([^)]*\)", " ", without_accents)
-    collapsed = re.sub(r"[^a-z0-9]+", " ", without_parens.lower())
+    decomposed = unicodedata.normalize("NFKD", name or "")
+    without_marks = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    without_parens = re.sub(r"\([^)]*\)", " ", without_marks)
+    collapsed = re.sub(r"[^\w]+", " ", without_parens.lower())
     return collapsed.strip()
 
 

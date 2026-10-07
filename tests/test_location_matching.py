@@ -30,6 +30,17 @@ def test_normalize_place_name_short_name_substring_check_against_hub_label():
     assert normalize_place_name("Hakone-Yumoto Eva Store") not in normalize_place_name("Hakone")
 
 
+def test_normalize_place_name_preserves_japanese_script():
+    # Regression: stripping non-ASCII via encode("ascii", "ignore") wiped
+    # out entire Japanese names (not just Latin diacritics), so any two
+    # different Japanese-only place names both normalized to "" and were
+    # then treated as an exact match of each other.
+    assert normalize_place_name("玉蘭 (Gyokuran)") == "玉蘭"
+    assert normalize_place_name("里海里山 (Satoumi Satoyama)") == "里海里山"
+    assert normalize_place_name("玉蘭 (Gyokuran)") != normalize_place_name("里海里山 (Satoumi Satoyama)")
+    assert normalize_place_name("Bee本舗 秋葉原店") == "bee本舗 秋葉原店"
+
+
 def test_haversine_distance_m_is_zero_for_identical_points():
     assert haversine_distance_m(35.6762, 139.6503, 35.6762, 139.6503) == 0.0
 

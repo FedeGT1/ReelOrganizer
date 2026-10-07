@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.location_matching import AUTO_MATCH_DISTANCE_METERS, normalize_place_name, resolve_place
+from app.location_matching import normalize_place_name, resolve_place
 from app.models import Location
 from app.routers.locations import _merge_locations, _reel_counts
 from app.web import templates
@@ -38,11 +38,12 @@ def _effective_coords(loc: Location, by_id: dict) -> tuple:
     return loc.lat, loc.lon
 
 
-def _worth_reviewing(loc_name: str, other_name: str, distance_m: float) -> bool:
-    if distance_m <= AUTO_MATCH_DISTANCE_METERS:
-        # Suspiciously co-located (e.g. two different shops in the same
-        # building) is worth a glance even with unrelated names.
-        return True
+def _worth_reviewing(loc_name: str, other_name: str) -> bool:
+    # Real-data evidence: dense areas (shopping districts, temple
+    # complexes) routinely place several genuinely distinct, unrelated
+    # places within even a few meters of each other -- proximity alone,
+    # at any distance, is not a useful duplicate signal without some
+    # name correlation too.
     ratio = SequenceMatcher(None, normalize_place_name(loc_name), normalize_place_name(other_name)).ratio()
     return ratio >= REVIEW_NAME_SIMILARITY_THRESHOLD
 
@@ -85,7 +86,7 @@ def _find_anomalies(session: Session) -> dict:
             other = by_id[candidate.id]
             if other.is_hub != loc.is_hub:
                 continue
-            if not _worth_reviewing(loc.name, other.name, candidate.distance_m):
+            if not _worth_reviewing(loc.name, other.name):
                 continue
             key = frozenset((loc.id, other.id))
             if key in certain_keys or key in review_keys:

@@ -61,6 +61,23 @@ def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(
     assert "Nessun caso da verificare." not in response.text
 
 
+def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, session):
+    # Real-data evidence: dense areas (Akihabara, Shinjuku, temple
+    # complexes) routinely have several genuinely distinct, unrelated
+    # places within 150m -- even same-building/same-spot proximity isn't
+    # itself a useful duplicate signal if the names have nothing to do
+    # with each other (real similarity ratio here is ~0.27).
+    loc_a = Location(name="M's Pop Life Adult Department Store", is_hub=False, lat=35.698, lon=139.771)
+    loc_b = Location(name="BOOKOFF Akihabara Eki-mae", is_hub=False, lat=35.698, lon=139.771)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert response.text.count("<li>") == 0
+
+
 def test_audit_scan_shows_empty_state_when_no_anomalies(client, session):
     session.add(Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503))
     session.commit()
