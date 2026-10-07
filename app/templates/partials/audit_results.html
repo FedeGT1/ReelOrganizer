@@ -32,7 +32,9 @@
         {{ pair.ai_verdict.reasoning }}
     </p>
     {% else %}
-    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML">🤖 Chiedi all'AI</button>
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+            hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>
+    <span class="htmx-indicator">Sto pensando…</span>
     {% endif %}
 </div>
 {% endfor %}
@@ -67,7 +69,9 @@
         {{ pair.ai_verdict.reasoning }}
     </p>
     {% else %}
-    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML">🤖 Chiedi all'AI</button>
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/compare/{{ pair.a.id }}/{{ pair.b.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+            hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>
+    <span class="htmx-indicator">Sto pensando…</span>
     {% endif %}
 </div>
 {% endfor %}
@@ -79,10 +83,27 @@
 {% if imprecise_locations %}
 {% for item in imprecise_locations %}
 <div class="audit-item">
-    <h3>{{ item.location.name }} <span class="hint">(coordinate ereditate da {{ item.hub.name }})</span></h3>
+    <h3>{{ item.location.name }} <span class="hint">({{ item.reason }})</span></h3>
     <ul class="reel-list">
         {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
     </ul>
+    {% if item.proposal %}
+        {% if item.proposal.error %}
+        <p class="ai-verdict">⚠️ {{ item.proposal.error }}</p>
+        {% else %}
+        <p class="ai-verdict">🤖 Proposta: lat {{ item.proposal.lat }}, lon {{ item.proposal.lon }} (confidenza: {{ item.proposal.confidence or 'n/d' }})</p>
+        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML">
+            <input type="hidden" name="lat" value="{{ item.proposal.lat }}">
+            <input type="hidden" name="lon" value="{{ item.proposal.lon }}">
+            <input type="hidden" name="confidence" value="{{ item.proposal.confidence or '' }}">
+            <button type="submit">Applica coordinate proposte</button>
+        </form>
+        {% endif %}
+    {% else %}
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/geocode/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+            hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>
+    <span class="htmx-indicator">Sto pensando…</span>
+    {% endif %}
     <a href="/locations">Modifica coordinate</a>
 </div>
 {% endfor %}
@@ -98,6 +119,23 @@
     <ul class="reel-list">
         {% for reel in item.reels %}{% include "partials/_reel_card.html" with context %}{% endfor %}
     </ul>
+    {% if item.proposal %}
+        {% if item.proposal.error %}
+        <p class="ai-verdict">⚠️ {{ item.proposal.error }}</p>
+        {% else %}
+        <p class="ai-verdict">🤖 Proposta: lat {{ item.proposal.lat }}, lon {{ item.proposal.lon }} (confidenza: {{ item.proposal.confidence or 'n/d' }})</p>
+        <form hx-post="/ui/audit/ai/geocode/apply/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML">
+            <input type="hidden" name="lat" value="{{ item.proposal.lat }}">
+            <input type="hidden" name="lon" value="{{ item.proposal.lon }}">
+            <input type="hidden" name="confidence" value="{{ item.proposal.confidence or '' }}">
+            <button type="submit">Applica coordinate proposte</button>
+        </form>
+        {% endif %}
+    {% else %}
+    <button class="btn-ai-compare" hx-post="/ui/audit/ai/geocode/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
+            hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>
+    <span class="htmx-indicator">Sto pensando…</span>
+    {% endif %}
     <a href="/locations">Modifica coordinate</a>
 </div>
 {% endfor %}
@@ -157,7 +195,8 @@
     </form>
     {% else %}
     <button class="btn-ai-compare" hx-post="/ui/audit/ai/split/{{ item.location.id }}" hx-target="#audit-results" hx-swap="innerHTML"
-            hx-vals='{"link": {{ item.link | tojson }}}'>🤖 Chiedi all'AI</button>
+            hx-vals='{"link": {{ item.link | tojson }}}' hx-indicator="next .htmx-indicator" hx-disabled-elt="this">🤖 Chiedi all'AI</button>
+    <span class="htmx-indicator">Sto pensando…</span>
     {% endif %}
 </div>
 {% endfor %}

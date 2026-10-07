@@ -35,16 +35,26 @@ class AuditPair:
 
 
 @dataclass
+class GeocodeProposal:
+    lat: Optional[float]
+    lon: Optional[float]
+    confidence: Optional[str]
+    error: Optional[str] = None
+
+
+@dataclass
 class ImpreciseLocation:
     location: Location
-    hub: Location
+    reason: str
     reels: list = field(default_factory=list)
+    proposal: Optional[GeocodeProposal] = None
 
 
 @dataclass
 class LowConfidenceLocation:
     location: Location
     reels: list = field(default_factory=list)
+    proposal: Optional[GeocodeProposal] = None
 
 
 @dataclass
@@ -71,6 +81,10 @@ def _reels_for_location(session: Session, location_id: str) -> list:
 
 
 def _effective_coords(loc: Location, by_id: dict) -> tuple:
+    if loc.lat == 0 and loc.lon == 0:
+        # "Null island" is never a real place -- it carries no proximity
+        # information (same reasoning as hub-inherited coordinates below).
+        return None, None
     if loc.parent_id:
         parent = by_id.get(loc.parent_id)
         if parent is not None and loc.lat == parent.lat and loc.lon == parent.lon:
@@ -102,12 +116,25 @@ def _worth_reviewing(loc_name: str, other_name: str) -> bool:
 def _find_imprecise_coordinates(session: Session, locations: list, by_id: dict) -> list:
     result = []
     for loc in locations:
+        if loc.lat == 0 and loc.lon == 0:
+            # "Null island" -- never a real place in Japan, a classic
+            # sentinel/default value from a bug or a bad manual edit.
+            # Checked for every location, hub or satellite.
+            result.append(ImpreciseLocation(
+                location=loc,
+                reason="coordinate a 0,0 -- quasi certamente un errore, nessun posto in Giappone è lì",
+                reels=_reels_for_location(session, loc.id),
+            ))
+            continue
+
         if loc.is_hub or not loc.parent_id:
             continue
         parent = by_id.get(loc.parent_id)
         if parent is not None and loc.lat == parent.lat and loc.lon == parent.lon:
             result.append(ImpreciseLocation(
-                location=loc, hub=parent, reels=_reels_for_location(session, loc.id),
+                location=loc,
+                reason=f"coordinate ereditate da {parent.name}",
+                reels=_reels_for_location(session, loc.id),
             ))
     return result
 
@@ -231,6 +258,27 @@ def _reassign_reel_location(
     session.commit()
     session.refresh(reel)
     return reel
+
+
+def _propose_geocode(session: Session, location: Location) -> GeocodeProposal:
+    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hub_names = [h.name for h in hubs]
+    taxonomy = get_taxonomy(session)
+    category_labels = {key: info["label"] for key, info in taxonomy.items()}
+
+    notes = [r["note"] for r in _reels_for_location(session, location.id) if r["note"]]
+    message = location.name if not notes else f"{location.name}. {' '.join(notes)}"
+
+    try:
+        result = ai_client.categorize(hub_names, category_labels, [{"role": "user", "content": message}])
+    except (AIProviderError, RuntimeError):
+        logger.exception("categorize call failed during geocode proposal for location=%s", location.id)
+        return GeocodeProposal(
+            lat=None, lon=None, confidence=None,
+            error="Errore nel contattare l'assistente, riprova.",
+        )
+
+    return GeocodeProposal(lat=result.get("lat"), lon=result.get("lon"), confidence=result.get("confidence"))
 
 
 def _find_anomalies(session: Session) -> dict:
@@ -374,6 +422,42 @@ def ui_audit_ai_split(
         if candidate.location.id == location_id and candidate.link == link:
             candidate.proposals = _propose_split(session, candidate)
             break
+    return templates.TemplateResponse(request, "partials/audit_results.html", context)
+
+
+@ui_router.post("/ai/geocode/apply/{location_id}")
+def ui_audit_ai_geocode_apply(
+    request: Request,
+    location_id: str,
+    lat: float = Form(...),
+    lon: float = Form(...),
+    confidence: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    location = session.get(Location, location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    location.lat = lat
+    location.lon = lon
+    location.geocode_confidence = confidence or None
+    session.add(location)
+    session.commit()
+    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+
+
+@ui_router.post("/ai/geocode/{location_id}")
+def ui_audit_ai_geocode(request: Request, location_id: str, session: Session = Depends(get_session)):
+    location = session.get(Location, location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    proposal = _propose_geocode(session, location)
+
+    context = _find_anomalies(session)
+    for item in context["imprecise_locations"] + context["low_confidence_locations"]:
+        if item.location.id == location_id:
+            item.proposal = proposal
+
     return templates.TemplateResponse(request, "partials/audit_results.html", context)
 
 

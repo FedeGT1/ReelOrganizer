@@ -21,6 +21,12 @@ def test_audit_scan_flags_certain_duplicate(client, session):
     assert response.status_code == 200
     assert "Surugaya" in response.text
     assert "Nessun duplicato quasi certo trovato." not in response.text
+    # The "Chiedi all'AI" button shows a loading indicator and disables
+    # itself while the request is in flight, so a slow AI call doesn't
+    # look like nothing happened.
+    assert 'hx-indicator="next .htmx-indicator"' in response.text
+    assert 'hx-disabled-elt="this"' in response.text
+    assert 'class="htmx-indicator"' in response.text
     # The actual reel card (home-list layout) is rendered for the pair.
     assert "Negozio di hobby" in response.text
     assert "btn-edit" in response.text
@@ -153,6 +159,22 @@ def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_
     assert "audit-pair" not in response.text
 
 
+def test_audit_scan_ignores_distance_between_unrelated_locations_both_at_zero_coordinates(client, session):
+    # Two different broken satellites that both happen to sit at the same
+    # sentinel (0, 0) value must not look like they're "right next to
+    # each other" -- that distance is meaningless, same reasoning as
+    # hub-inherited coordinates.
+    loc_a = Location(name="Posto Rotto A", is_hub=False, lat=0.0, lon=0.0)
+    loc_b = Location(name="Posto Rotto B", is_hub=False, lat=0.0, lon=0.0)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "audit-pair" not in response.text
+
+
 def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordinates(client, session):
     hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
     loc_a = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
@@ -200,6 +222,37 @@ def test_audit_scan_does_not_flag_a_satellite_with_its_own_coordinates(client, s
     assert "Nessuna coordinata imprecisa trovata." in response.text
 
 
+def test_audit_scan_flags_satellite_with_zero_coordinates(client, session):
+    # (0, 0) -- "null island" -- is never a real place in Japan; it's a
+    # classic sentinel/default value from a bug or a bad manual edit.
+    satellite = Location(name="Posto Rotto", is_hub=False, lat=0.0, lon=0.0)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Nota"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna coordinata imprecisa trovata." not in response.text
+    assert "Posto Rotto" in response.text
+    assert "0,0" in response.text or "0.0" in response.text
+
+
+def test_audit_scan_flags_hub_with_zero_coordinates(client, session):
+    # A hub at (0, 0) is just as broken as a satellite -- the existing
+    # check only looked at satellites with a parent, which would have
+    # missed this.
+    hub = Location(name="Hub Rotto", is_hub=True, lat=0.0, lon=0.0)
+    session.add(hub)
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+    assert response.status_code == 200
+    assert "Nessuna coordinata imprecisa trovata." not in response.text
+    assert "Hub Rotto" in response.text
+
+
 def test_audit_scan_flags_low_confidence_location(client, session):
     loc = Location(
         name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0,
@@ -216,6 +269,83 @@ def test_audit_scan_flags_low_confidence_location(client, session):
     assert "Nessuna location con confidenza bassa." not in response.text
     assert "Hama-Sushi" in response.text
     assert "Sushi a nastro" in response.text
+
+
+def test_ui_audit_ai_geocode_shows_proposal_for_imprecise_location(client, session, monkeypatch):
+    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+    session.add(hub)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
+    session.commit()
+
+    def fake_categorize(hub_names, categories, messages):
+        assert "Kiyomizu-dera" in messages[0]["content"]
+        return {
+            "place_name": "Kiyomizu-dera", "near_hub": "Kyoto / Kansai", "types": [],
+            "note": "", "confidence": "high", "question": None,
+            "lat": 34.9949, "lon": 135.7850,
+        }
+
+    monkeypatch.setattr(ai_client, "categorize", fake_categorize)
+
+    response = client.post(f"/ui/audit/ai/geocode/{satellite.id}")
+    assert response.status_code == 200
+    assert "34.9949" in response.text
+    assert "135.785" in response.text
+
+
+def test_ui_audit_ai_geocode_handles_provider_error_gracefully(client, session, monkeypatch):
+    loc = Location(name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="low")
+    session.add(loc)
+    session.commit()
+    session.refresh(loc)
+
+    def boom(hub_names, categories, messages):
+        raise AIProviderError("boom")
+
+    monkeypatch.setattr(ai_client, "categorize", boom)
+
+    response = client.post(f"/ui/audit/ai/geocode/{loc.id}")
+    assert response.status_code == 200
+    assert "riprova" in response.text.lower()
+
+
+def test_ui_audit_ai_geocode_returns_404_for_missing_location(client):
+    response = client.post("/ui/audit/ai/geocode/does-not-exist")
+    assert response.status_code == 404
+
+
+def test_ui_audit_ai_geocode_apply_updates_location_coordinates(client, session):
+    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(
+        name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
+        geocode_confidence="low",
+    )
+    session.add(hub)
+    session.add(satellite)
+    session.commit()
+    session.refresh(satellite)
+
+    response = client.post(
+        f"/ui/audit/ai/geocode/apply/{satellite.id}",
+        data={"lat": "34.9949", "lon": "135.7850", "confidence": "high"},
+    )
+    assert response.status_code == 200
+
+    session.refresh(satellite)
+    assert satellite.lat == 34.9949
+    assert satellite.lon == 135.7850
+    assert satellite.geocode_confidence == "high"
+
+
+def test_ui_audit_ai_geocode_apply_returns_404_for_missing_location(client):
+    response = client.post(
+        "/ui/audit/ai/geocode/apply/does-not-exist", data={"lat": "1.0", "lon": "1.0"}
+    )
+    assert response.status_code == 404
 
 
 def test_audit_scan_does_not_flag_high_confidence_location(client, session):
