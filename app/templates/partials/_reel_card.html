@@ -10,13 +10,6 @@
     {% if reel.maps_query %}
     <a class="btn-maps" href="https://www.google.com/maps/search/?api=1&query={{ reel.maps_query | urlencode }}" target="_blank" rel="noopener noreferrer" aria-label="Apri in Google Maps">🗺️</a>
     {% endif %}
-    {% if reel.can_regenerate %}
-    <button class="btn-regenerate" hx-put="/ui/reels/{{ reel.id }}/regenerate-note"
-            hx-target="closest li" hx-swap="outerHTML"
-            hx-indicator="next .htmx-indicator" hx-disabled-elt="this"
-            aria-label="Rigenera nota">🔄</button>
-    <span class="htmx-indicator">Rigenero…</span>
-    {% endif %}
     <button class="btn-edit" hx-get="/ui/reels/{{ reel.id }}/edit-form" hx-target="#reel-add-form-panel" hx-swap="innerHTML"
             onclick="document.getElementById('add-reel-dialog').showModal(); document.querySelector('.tab-btn[data-tab=manual]').click();"
             aria-label="Modifica">✏️</button>
@@ -25,4 +18,11 @@
             hx-swap="{{ reel_delete_swap | default('innerHTML') }}"
             hx-on::after-request="{{ reel_delete_after | default('refreshReelList()') }}"
             aria-label="Elimina">🗑</button>
+    {% if reel.can_regenerate %}
+    <button class="btn-regenerate" hx-put="/ui/reels/{{ reel.id }}/regenerate-note"
+            hx-target="closest li" hx-swap="outerHTML"
+            hx-indicator="next .htmx-indicator" hx-disabled-elt="this"
+            aria-label="Rigenera nota">🔄</button>
+    <span class="htmx-indicator">Rigenero…</span>
+    {% endif %}
 </li>
