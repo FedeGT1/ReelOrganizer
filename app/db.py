@@ -43,6 +43,9 @@ def _ensure_columns(target_engine: Engine) -> None:
 
 
 def _needs_user_migration(conn) -> bool:
+    user_row = conn.execute(text("SELECT 1 FROM user LIMIT 1")).first()
+    if user_row is None:
+        return True
     category_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(category)"))}
     if "user_id" not in category_cols:
         return True

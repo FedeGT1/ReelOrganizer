@@ -162,3 +162,34 @@ def test_migrate_category_table_is_idempotent(tmp_path, monkeypatch):
 
         count = conn.execute(text("SELECT COUNT(*) FROM category")).scalar()
         assert count == 1
+
+
+def test_create_db_and_tables_seeds_bootstrap_user_on_a_fresh_install(tmp_path, monkeypatch):
+    from sqlmodel import Session, create_engine, select
+
+    from app import db
+    from app.models import Category, Location, User
+
+    monkeypatch.setenv("AUTH_USERNAME", "owner")
+    monkeypatch.setenv("AUTH_PASSWORD", "ownerpass")
+    db_path = tmp_path / "fresh.db"
+    monkeypatch.setattr(db, "DB_PATH", str(db_path))
+    monkeypatch.setattr(db, "DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setattr(
+        db, "engine", create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    )
+
+    db.create_db_and_tables()
+
+    with Session(db.engine) as session:
+        users = session.exec(select(User)).all()
+        assert [u.username for u in users] == ["owner"]
+        locations = session.exec(select(Location).where(Location.user_id == users[0].id)).all()
+        categories = session.exec(select(Category).where(Category.user_id == users[0].id)).all()
+        assert len(locations) == 20
+        assert len(categories) == 7
+
+    # Idempotent: running it again on the same file must not create a second user.
+    db.create_db_and_tables()
+    with Session(db.engine) as session:
+        assert len(session.exec(select(User)).all()) == 1
