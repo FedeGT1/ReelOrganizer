@@ -121,11 +121,23 @@ def test_create_category():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        category = Category(key="food", label="Cibo", icon="🍜")
+        category = Category(user_id="user-1", key="food", label="Cibo", icon="🍜")
         session.add(category)
         session.commit()
         session.refresh(category)
 
         assert category.key == "food"
+        assert category.user_id == "user-1"
         assert category.label == "Cibo"
         assert isinstance(category.created_at, datetime)
+
+
+def test_two_users_can_have_a_category_with_the_same_key():
+    from app.models import Category
+
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(Category(user_id="user-1", key="food", label="Cibo", icon="🍜"))
+        session.add(Category(user_id="user-2", key="food", label="Food", icon="🍔"))
+        session.commit()  # must not raise a primary key collision

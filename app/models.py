@@ -18,6 +18,7 @@ class User(SQLModel, table=True):
 
 class Location(SQLModel, table=True):
     id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
     name: str
     is_hub: bool = True
     parent_id: Optional[str] = Field(default=None, foreign_key="location.id")
@@ -28,6 +29,7 @@ class Location(SQLModel, table=True):
 
 class Reel(SQLModel, table=True):
     id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
     link: str
     location_id: str = Field(foreign_key="location.id")
     note: Optional[str] = None
@@ -37,6 +39,7 @@ class Reel(SQLModel, table=True):
 
 
 class Category(SQLModel, table=True):
+    user_id: str = Field(foreign_key="user.id", primary_key=True)
     key: str = Field(primary_key=True)
     label: str
     icon: str
@@ -50,6 +53,7 @@ class ReelType(SQLModel, table=True):
 
 class AiSession(SQLModel, table=True):
     id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -64,6 +68,7 @@ class AiMessage(SQLModel, table=True):
 
 class AskSession(SQLModel, table=True):
     id: str = Field(default_factory=new_uuid, primary_key=True)
+    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
     location_id: Optional[str] = Field(default=None, foreign_key="location.id")
     category_key: Optional[str] = Field(default=None, foreign_key="category.key")
     created_at: datetime = Field(default_factory=datetime.utcnow)
