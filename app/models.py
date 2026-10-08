@@ -9,6 +9,13 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class User(SQLModel, table=True):
+    id: str = Field(default_factory=new_uuid, primary_key=True)
+    username: str = Field(unique=True, index=True)
+    password_hash: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Location(SQLModel, table=True):
     id: str = Field(default_factory=new_uuid, primary_key=True)
     name: str

@@ -1,6 +1,6 @@
 import pytest
 
-from app.auth import RateLimiter, get_client_ip, require_env, verify_credentials
+from app.auth import RateLimiter, get_client_ip, hash_password, require_env, verify_credentials, verify_password
 
 
 class FakeClock:
@@ -127,3 +127,22 @@ def test_rate_limiter_clear_all_resets_every_key():
 
     assert limiter.is_locked_out("1.2.3.4") is False
     assert limiter.is_locked_out("5.6.7.8") is False
+
+
+def test_hash_password_verifies_correct_password():
+    password_hash = hash_password("s3cret")
+    assert verify_password("s3cret", password_hash) is True
+
+
+def test_hash_password_rejects_wrong_password():
+    password_hash = hash_password("s3cret")
+    assert verify_password("wrong", password_hash) is False
+
+
+def test_hash_password_produces_different_hashes_for_same_password():
+    # Different random salt each call -- defends against rainbow tables.
+    assert hash_password("s3cret") != hash_password("s3cret")
+
+
+def test_verify_password_rejects_malformed_hash():
+    assert verify_password("s3cret", "not-a-valid-hash") is False
