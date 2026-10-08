@@ -1457,7 +1457,7 @@ from sqlmodel import Session, select
 
 from app.auth import get_current_user
 from app.db import get_session
-from app.models import Category, ReelType, User
+from app.models import Category, Reel, ReelType, User
 from app.scoping import get_owned_category, user_query
 from app.web import templates
 
@@ -1527,8 +1527,6 @@ def _delete_category(session: Session, user_id: str, key: str) -> None:
     category = get_owned_category(session, key, user_id)
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-
-    from app.models import Reel  # local import avoids a module-load cycle with reels.py
 
     owned_reel_ids = set(session.exec(user_query(Reel, user_id).with_only_columns(Reel.id)).all())
     for rt in session.exec(select(ReelType).where(ReelType.type == key)).all():
