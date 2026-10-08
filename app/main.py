@@ -4,14 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import require_env
 from app.auth_middleware import AuthMiddleware
-from app.db import create_db_and_tables, engine
+from app.db import create_db_and_tables
 from app.routers import ai_ask, ai_categorize, ai_multi_categorize, audit, auth, categories, export, instagram_cookies, instagram_import, locations, map as map_router, note_regeneration, reels
-from app.seed import seed_if_empty
 from app.web import templates
 
 _ai_log_path = os.environ.get("AI_DEBUG_LOG_PATH", "data/ai_debug.log")
@@ -31,8 +29,6 @@ _session_secret_key = require_env("SESSION_SECRET_KEY")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
-    with Session(engine) as session:
-        seed_if_empty(session)
     yield
 
 

@@ -39,22 +39,24 @@ DEFAULT_CATEGORIES = [
 ]
 
 
-def seed_if_empty(session: Session) -> None:
-    if session.exec(select(Location)).first() is None:
+def seed_user_if_empty(session: Session, user_id: str) -> None:
+    if session.exec(select(Location).where(Location.user_id == user_id)).first() is None:
         hub_by_name: dict[str, Location] = {}
         for name, lat, lon in HUBS:
-            hub = Location(name=name, is_hub=True, lat=lat, lon=lon)
+            hub = Location(name=name, is_hub=True, lat=lat, lon=lon, user_id=user_id)
             session.add(hub)
             session.flush()
             hub_by_name[name] = hub
 
         for name, hub_name, lat, lon in SATELLITES:
             parent = hub_by_name[hub_name]
-            session.add(Location(name=name, is_hub=False, parent_id=parent.id, lat=lat, lon=lon))
+            session.add(
+                Location(name=name, is_hub=False, parent_id=parent.id, lat=lat, lon=lon, user_id=user_id)
+            )
 
         session.commit()
 
-    if session.exec(select(Category)).first() is None:
+    if session.exec(select(Category).where(Category.user_id == user_id)).first() is None:
         for key, label, icon in DEFAULT_CATEGORIES:
-            session.add(Category(key=key, label=label, icon=icon))
+            session.add(Category(user_id=user_id, key=key, label=label, icon=icon))
         session.commit()
