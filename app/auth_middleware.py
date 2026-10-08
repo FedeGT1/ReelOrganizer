@@ -12,7 +12,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path in PUBLIC_PATHS or path.startswith("/static/"):
             return await call_next(request)
 
-        if request.session.get("authenticated"):
+        if request.session.get("user_id"):
             return await call_next(request)
 
         if path.startswith("/api/"):

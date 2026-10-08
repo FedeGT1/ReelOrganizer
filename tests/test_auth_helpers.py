@@ -1,6 +1,17 @@
 import pytest
+from sqlmodel import SQLModel, Session, create_engine
 
 from app.auth import RateLimiter, get_client_ip, hash_password, require_env, verify_credentials, verify_password
+from app.models import User
+
+
+def _session_with_user(username: str, password: str) -> Session:
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine)
+    session = Session(engine)
+    session.add(User(username=username, password_hash=hash_password(password)))
+    session.commit()
+    return session
 
 
 class FakeClock:
@@ -25,28 +36,26 @@ def test_require_env_raises_when_missing(monkeypatch):
         require_env("SOME_TEST_VAR")
 
 
-def test_verify_credentials_correct(monkeypatch):
-    monkeypatch.setenv("AUTH_USERNAME", "alice")
-    monkeypatch.setenv("AUTH_PASSWORD", "s3cret")
-    assert verify_credentials("alice", "s3cret") is True
+def test_verify_credentials_correct():
+    session = _session_with_user("alice", "s3cret")
+    user = verify_credentials(session, "alice", "s3cret")
+    assert user is not None
+    assert user.username == "alice"
 
 
-def test_verify_credentials_wrong_password(monkeypatch):
-    monkeypatch.setenv("AUTH_USERNAME", "alice")
-    monkeypatch.setenv("AUTH_PASSWORD", "s3cret")
-    assert verify_credentials("alice", "wrong") is False
+def test_verify_credentials_wrong_password():
+    session = _session_with_user("alice", "s3cret")
+    assert verify_credentials(session, "alice", "wrong") is None
 
 
-def test_verify_credentials_wrong_username(monkeypatch):
-    monkeypatch.setenv("AUTH_USERNAME", "alice")
-    monkeypatch.setenv("AUTH_PASSWORD", "s3cret")
-    assert verify_credentials("bob", "s3cret") is False
+def test_verify_credentials_wrong_username():
+    session = _session_with_user("alice", "s3cret")
+    assert verify_credentials(session, "bob", "s3cret") is None
 
 
-def test_verify_credentials_non_ascii_username_returns_false(monkeypatch):
-    monkeypatch.setenv("AUTH_USERNAME", "alice")
-    monkeypatch.setenv("AUTH_PASSWORD", "s3cret")
-    assert verify_credentials("café", "s3cret") is False
+def test_verify_credentials_non_ascii_username_returns_none():
+    session = _session_with_user("alice", "s3cret")
+    assert verify_credentials(session, "café", "s3cret") is None
 
 
 def test_get_client_ip_uses_x_forwarded_for():

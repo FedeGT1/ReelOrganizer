@@ -6,7 +6,6 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.auth import hash_password
 from app.models import new_uuid
 
 DB_PATH = os.environ.get("REEL_DB_PATH", "data/japan_reels.db")
@@ -55,6 +54,11 @@ def _needs_user_migration(conn) -> bool:
 
 
 def _get_or_create_bootstrap_user(conn) -> str:
+    # Deferred: app.auth now imports app.db.get_session (Task 5), so a
+    # module-level `from app.auth import hash_password` here would create an
+    # import cycle. Importing at call time, where it's actually used, avoids it.
+    from app.auth import hash_password
+
     row = conn.execute(text("SELECT id FROM user ORDER BY created_at LIMIT 1")).first()
     if row is not None:
         return row[0]

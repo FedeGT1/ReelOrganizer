@@ -12,6 +12,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(name="session")
 def session_fixture():
+    from app.auth import hash_password
+    from app.models import User
+
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -19,6 +22,8 @@ def session_fixture():
     )
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
+        session.add(User(username="testuser", password_hash=hash_password("testpass")))
+        session.commit()
         yield session
 
 

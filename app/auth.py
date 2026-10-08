@@ -3,9 +3,13 @@ import os
 import secrets
 import time
 from collections import defaultdict
-from typing import Callable
+from typing import Callable, Optional
 
-from fastapi import Request
+from fastapi import Depends, HTTPException, Request
+from sqlmodel import Session, select
+
+from app.db import get_session
+from app.models import User
 
 _SCRYPT_N = 2**14
 _SCRYPT_R = 8
@@ -50,12 +54,21 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def verify_credentials(username: str, password: str) -> bool:
-    expected_username = os.environ.get("AUTH_USERNAME", "")
-    expected_password = os.environ.get("AUTH_PASSWORD", "")
-    username_ok = secrets.compare_digest(username.encode("utf-8"), expected_username.encode("utf-8"))
-    password_ok = secrets.compare_digest(password.encode("utf-8"), expected_password.encode("utf-8"))
-    return username_ok and password_ok
+def verify_credentials(session: Session, username: str, password: str) -> Optional[User]:
+    user = session.exec(select(User).where(User.username == username)).first()
+    if user is None:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def get_current_user(request: Request, session: Session = Depends(get_session)) -> User:
+    user_id = request.session.get("user_id")
+    user = session.get(User, user_id) if user_id else None
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
 
 
 class RateLimiter:
