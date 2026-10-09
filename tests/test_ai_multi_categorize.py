@@ -98,8 +98,8 @@ def test_start_multi_place_batch_runs_categorize_calls_concurrently(client, sess
     assert elapsed < 0.6
 
 
-def test_ui_ai_message_routes_to_multi_place_batch_when_detected(client, session, monkeypatch):
-    session.add(Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681))
+def test_ui_ai_message_routes_to_multi_place_batch_when_detected(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -228,7 +228,7 @@ def test_multi_place_row_shows_clarify_form_for_unresolved_place(client, session
     assert response.text.count('name="place_json"') == 1
 
 
-def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session, monkeypatch):
+def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session, monkeypatch, test_user_id):
     monkeypatch.setattr(
         ai_client,
         "detect_places",
@@ -257,7 +257,7 @@ def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session
     clarify_session_id = re.search(r'name="clarify_session_id" value="([^"]+)"', first.text).group(1)
     all_session_ids = re.findall(r'name="session_ids" value="([^"]+)"', first.text)
 
-    session.add(Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681))
+    session.add(Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id))
     session.commit()
     monkeypatch.setattr(
         ai_client,
@@ -282,10 +282,26 @@ def test_ui_ai_multi_message_advances_only_the_clarified_session(client, session
     assert second.text.count('name="place_json"') == 2
 
 
-def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(client, session):
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+def test_multi_message_clarify_on_another_users_session_returns_404(client, session):
+    from app.models import AiSession
+
+    other_session = AiSession(user_id="other-user")
+    session.add(other_session)
+    session.commit()
+    session.refresh(other_session)
+
+    response = client.post(
+        "/ui/ai/multi/message",
+        data={"link": "https://instagram.com/reel/x", "clarify_session_id": other_session.id, "clarify_text": "Tokyo"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -318,12 +334,12 @@ def test_ui_ai_multi_confirm_creates_reel_per_checked_place_sharing_the_link(cli
     assert kiyomizu.geocode_confidence is None
 
 
-def test_ui_ai_multi_confirm_warns_when_link_already_saved_before_batch(client, session):
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+def test_ui_ai_multi_confirm_warns_when_link_already_saved_before_batch(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id, note="Già visto"))
+    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id, note="Già visto", user_id=test_user_id))
     session.commit()
 
     place_one = json.dumps({
@@ -347,12 +363,12 @@ def test_ui_ai_multi_confirm_warns_when_link_already_saved_before_batch(client, 
     assert len(reels) == 1
 
 
-def test_ui_ai_multi_confirm_duplicate_true_saves_anyway(client, session):
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+def test_ui_ai_multi_confirm_duplicate_true_saves_anyway(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/kyoto10", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     place_one = json.dumps({
@@ -376,8 +392,8 @@ def test_ui_ai_multi_confirm_duplicate_true_saves_anyway(client, session):
     assert len(reels) == 2
 
 
-def test_ui_ai_multi_confirm_applies_caption_and_transcript_to_every_reel(client, session):
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+def test_ui_ai_multi_confirm_applies_caption_and_transcript_to_every_reel(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -433,8 +449,8 @@ def test_ui_ai_multi_confirm_stores_confidence_on_newly_created_location(client,
     assert location.geocode_confidence == "low"
 
 
-def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, session):
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -458,7 +474,7 @@ def test_ui_ai_multi_confirm_only_creates_reels_for_checked_places(client, sessi
     assert len(session.exec(select(Reel)).all()) == 1
 
 
-def test_ui_ai_multi_confirm_validates_all_places_before_creating_any(client, session):
+def test_ui_ai_multi_confirm_validates_all_places_before_creating_any(client, session, test_user_id):
     # Regression guard: the old loop called _resolve_location_and_create_reel
     # one place at a time, and that function commits internally. If place #1
     # was valid and got created+committed, then place #2 in the SAME batch
@@ -466,7 +482,7 @@ def test_ui_ai_multi_confirm_validates_all_places_before_creating_any(client, se
     # reel sitting in the DB -- a resubmission of the fixed batch would then
     # duplicate it. The whole batch must be validated up front so either
     # nothing is created or everything is.
-    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)

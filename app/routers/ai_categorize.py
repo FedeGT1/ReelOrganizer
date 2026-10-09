@@ -9,13 +9,15 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.ai import client as ai_client
+from app.auth import get_current_user
 from app.db import get_session
 from app.location_matching import NEW_HUB_SENTINEL, resolve_place
-from app.models import AiMessage, AiSession, Location, Reel, ReelType
+from app.models import AiMessage, AiSession, Location, Reel, ReelType, User
 from app.reel_links import find_duplicate_reel
 from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.map import render_map_html
 from app.routers.reels import _is_safe_link, _reel_add_form_context, _reel_list_context
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -63,18 +65,16 @@ def _assistant_turn_text(result: dict) -> str:
     return " ".join(parts)
 
 
-def _apply_result_post_processing(session: Session, ai_session: AiSession, result: dict) -> Optional[str]:
-    """Shared post-AI-call bookkeeping: type filtering, location resolution,
-    and the missing-coordinates safety net. Mutates `result` in place and
-    returns the auto-matched place location id (None if ambiguous/new).
-    DB reads only -- callers own commit()."""
+def _apply_result_post_processing(
+    session: Session, user_id: str, ai_session: AiSession, result: dict
+) -> Optional[str]:
     logger.debug("session=%s parsed model result=%s", ai_session.id, result)
 
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, user_id)
     result["types"] = [t for t in result.get("types", []) if t in valid_type_keys]
 
     resolution = resolve_place(
-        session, result["place_name"], result.get("near_hub"), result.get("lat"), result.get("lon")
+        session, result["place_name"], result.get("near_hub"), result.get("lat"), result.get("lon"), user_id
     )
     logger.debug("session=%s resolution=%s", ai_session.id, resolution)
 
@@ -97,14 +97,14 @@ def _apply_result_post_processing(session: Session, ai_session: AiSession, resul
 
 
 def _run_turn(
-    session: Session, session_id: Optional[str], message: str
+    session: Session, user_id: str, session_id: Optional[str], message: str
 ) -> tuple[AiSession, dict, Optional[str]]:
     if session_id:
-        ai_session = session.get(AiSession, session_id)
+        ai_session = get_owned(session, AiSession, session_id, user_id)
         if ai_session is None:
             raise HTTPException(status_code=404, detail="AI session not found")
     else:
-        ai_session = AiSession()
+        ai_session = AiSession(user_id=user_id)
         session.add(ai_session)
         session.commit()
         session.refresh(ai_session)
@@ -125,10 +125,10 @@ def _run_turn(
         for m in history
     ]
 
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hubs = session.exec(user_query(Location, user_id).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
 
-    taxonomy = get_taxonomy(session)
+    taxonomy = get_taxonomy(session, user_id)
     category_labels = {key: info["label"] for key, info in taxonomy.items()}
 
     try:
@@ -146,7 +146,7 @@ def _run_turn(
             "lon": None,
         }
 
-    matched_location_id = _apply_result_post_processing(session, ai_session, result)
+    matched_location_id = _apply_result_post_processing(session, user_id, ai_session, result)
 
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
@@ -160,7 +160,8 @@ def _categorize_new_session_message(
     """The DB-free half of a fresh-session (no history) categorize turn --
     safe to call concurrently from multiple threads, since it never reads
     or writes a Session. Used by the multi-place batch to run the slow AI
-    calls for several places in parallel before persisting any of them."""
+    calls for several places in parallel before persisting any of them.
+    Unchanged -- DB-free, no user_id needed."""
     try:
         return ai_client.categorize(hub_names, category_labels, [{"role": "user", "content": message}])
     except (AIProviderError, RuntimeError):
@@ -178,20 +179,20 @@ def _categorize_new_session_message(
 
 
 def _persist_categorize_result(
-    session: Session, message: str, result: dict
+    session: Session, user_id: str, message: str, result: dict
 ) -> tuple[AiSession, dict, Optional[str]]:
     """The DB-only half: creates the session/messages and applies the same
     post-processing _run_turn does, for a result already computed by
     _categorize_new_session_message. Must run sequentially against a
     single shared Session -- not thread-safe."""
-    ai_session = AiSession()
+    ai_session = AiSession(user_id=user_id)
     session.add(ai_session)
     session.commit()
     session.refresh(ai_session)
 
     session.add(AiMessage(session_id=ai_session.id, role="user", content=message))
 
-    matched_location_id = _apply_result_post_processing(session, ai_session, result)
+    matched_location_id = _apply_result_post_processing(session, user_id, ai_session, result)
 
     session.add(AiMessage(session_id=ai_session.id, role="assistant", content=json.dumps(result)))
     session.commit()
@@ -200,13 +201,18 @@ def _persist_categorize_result(
 
 
 @router.post("/categorize", response_model=CategorizeResponse)
-def categorize_reel(payload: CategorizeRequest, session: Session = Depends(get_session)):
-    ai_session, result, matched_location_id = _run_turn(session, payload.session_id, payload.message)
+def categorize_reel(
+    payload: CategorizeRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    ai_session, result, matched_location_id = _run_turn(session, current_user.id, payload.session_id, payload.message)
     return CategorizeResponse(session_id=ai_session.id, matched_location_id=matched_location_id, **result)
 
 
 def _build_ai_chat_context(
     session: Session,
+    user_id: str,
     ai_session_id: Optional[str],
     link: str,
     notice: Optional[str] = None,
@@ -238,6 +244,7 @@ def _build_ai_chat_context(
             latest_result.get("near_hub"),
             latest_result.get("lat"),
             latest_result.get("lon"),
+            user_id,
         )
         if latest_result is not None
         else None
@@ -257,16 +264,18 @@ def _build_ai_chat_context(
         "latest_result": latest_result,
         "can_confirm": can_confirm,
         "resolution": resolution,
-        "taxonomy": get_taxonomy(session),
+        "taxonomy": get_taxonomy(session, user_id),
         "notice": notice,
         "duplicate_warning": duplicate_warning,
     }
 
 
 @ui_router.get("/panel")
-def ui_ai_panel(request: Request, session: Session = Depends(get_session)):
+def ui_ai_panel(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
     return templates.TemplateResponse(
-        request, "partials/ai_chat.html", _build_ai_chat_context(session, None, "")
+        request, "partials/ai_chat.html", _build_ai_chat_context(session, current_user.id, None, "")
     )
 
 
@@ -279,6 +288,7 @@ def ui_ai_message(
     caption: str = Form(""),
     transcript: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not session_id:
         if not _is_safe_link(link):
@@ -298,17 +308,17 @@ def ui_ai_message(
             from app.routers.ai_multi_categorize import start_multi_place_batch
 
             return start_multi_place_batch(
-                request, session, combined_message, link, place_names, caption, transcript
+                request, session, current_user.id, combined_message, link, place_names, caption, transcript
             )
     else:
         combined_message = message
 
     try:
-        ai_session, _, _ = _run_turn(session, session_id or None, combined_message)
+        ai_session, _, _ = _run_turn(session, current_user.id, session_id or None, combined_message)
     except HTTPException as exc:
         if exc.status_code == 404:
             context = _build_ai_chat_context(
-                session, None, "", notice="Sessione scaduta, ricomincia pure da qui."
+                session, current_user.id, None, "", notice="Sessione scaduta, ricomincia pure da qui."
             )
             return templates.TemplateResponse(request, "partials/ai_chat.html", context)
         raise
@@ -316,12 +326,13 @@ def ui_ai_message(
     return templates.TemplateResponse(
         request,
         "partials/ai_chat.html",
-        _build_ai_chat_context(session, ai_session.id, link, caption=caption, transcript=transcript),
+        _build_ai_chat_context(session, current_user.id, ai_session.id, link, caption=caption, transcript=transcript),
     )
 
 
 def _resolve_location_and_create_reel(
     session: Session,
+    user_id: str,
     link: str,
     place_name: str,
     types: list[str],
@@ -354,6 +365,7 @@ def _resolve_location_and_create_reel(
             lat=float(lat),
             lon=float(lon),
             geocode_confidence=confidence or None,
+            user_id=user_id,
         )
         session.add(new_location)
         session.commit()
@@ -366,12 +378,13 @@ def _resolve_location_and_create_reel(
         note=note or None,
         caption=caption or None,
         transcript=transcript or None,
+        user_id=user_id,
     )
     session.add(reel)
     session.commit()
     session.refresh(reel)
 
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, user_id)
     for type_value in types:
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
@@ -397,12 +410,13 @@ def ui_ai_confirm(
     caption: str = Form(""),
     transcript: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     if confirm_duplicate != "true":
-        duplicate = find_duplicate_reel(session, link)
+        duplicate = find_duplicate_reel(session, link, current_user.id)
         if duplicate is not None:
             existing_location = session.get(Location, duplicate.location_id)
             warning_html = templates.get_template(
@@ -427,6 +441,7 @@ def ui_ai_confirm(
 
     _resolve_location_and_create_reel(
         session,
+        current_user.id,
         link,
         place_name,
         types,
@@ -440,7 +455,7 @@ def ui_ai_confirm(
         transcript,
     )
 
-    stale_ai_session = session.get(AiSession, session_id)
+    stale_ai_session = get_owned(session, AiSession, session_id, current_user.id)
     if stale_ai_session is not None:
         for msg in session.exec(select(AiMessage).where(AiMessage.session_id == session_id)).all():
             session.delete(msg)
@@ -448,14 +463,14 @@ def ui_ai_confirm(
         session.commit()
 
     ai_chat_html = templates.get_template("partials/ai_chat.html").render(
-        _build_ai_chat_context(session, None, "")
+        _build_ai_chat_context(session, current_user.id, None, "")
     )
     reel_list_html = templates.get_template("partials/reel_list.html").render(
-        _reel_list_context(session)
+        _reel_list_context(session, current_user.id)
     )
-    map_html = render_map_html(session)
+    map_html = render_map_html(session, current_user.id)
     form_html = templates.get_template("partials/reel_add_form.html").render(
-        _reel_add_form_context(session)
+        _reel_add_form_context(session, current_user.id)
     )
 
     response = HTMLResponse(

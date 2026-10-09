@@ -16,10 +16,10 @@ from app.routers.ai_categorize import (
 )
 
 
-def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_categorize_creates_session_and_returns_proposal(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     def fake_categorize(hub_names, categories, messages):
@@ -78,9 +78,9 @@ def test_categorize_continues_existing_session(client, session, monkeypatch):
     assert second.json()["place_name"] == "Nikko"
 
 
-def test_categorize_matches_existing_location_case_insensitive(client, session, monkeypatch):
-    hub = Location(name="Nikko", is_hub=False, parent_id=None)
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_categorize_matches_existing_location_case_insensitive(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Nikko", is_hub=False, parent_id=None, user_id=test_user_id)
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -103,13 +103,13 @@ def test_categorize_matches_existing_location_case_insensitive(client, session, 
 
 
 def test_categorize_does_not_match_hub_when_hub_name_is_only_a_substring_of_a_new_place(
-    client, session, monkeypatch
+    client, session, monkeypatch, test_user_id
 ):
     # Regression: "Hakone" is a substring of "Hakone-Yumoto Eva Store", but
     # the store is a brand-new, distinct place, not the hub itself. Matching
     # it to the hub would discard the AI's own estimated coordinates for the
     # store and silently attach the reel to the hub's generic location.
-    hub = Location(name="Hakone", is_hub=True, lat=35.2323, lon=139.1069)
+    hub = Location(name="Hakone", is_hub=True, lat=35.2323, lon=139.1069, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -136,11 +136,11 @@ def test_categorize_does_not_match_hub_when_hub_name_is_only_a_substring_of_a_ne
 
 
 def test_categorize_still_matches_hub_when_place_name_is_contained_in_hub_label(
-    client, session, monkeypatch
+    client, session, monkeypatch, test_user_id
 ):
     # The reverse direction must still work: a short proposal like "Tokyo"
     # should match the "Tokyo / Kanto" hub label that contains it.
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -170,8 +170,23 @@ def test_categorize_with_unknown_session_id_returns_404(client):
     assert response.status_code == 404
 
 
-def test_categorize_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_categorize_ai_session_belonging_to_another_user_returns_404(client, session):
+    from app.models import AiSession
+
+    other_session = AiSession(user_id="other-user")
+    session.add(other_session)
+    session.commit()
+    session.refresh(other_session)
+
+    response = client.post(
+        "/api/ai/categorize", json={"session_id": other_session.id, "message": "test"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_categorize_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -220,11 +235,11 @@ def test_categorize_returns_friendly_question_when_ai_call_raises_runtime_error(
     assert "riprova" in response.json()["question"].lower()
 
 
-def test_empty_place_name_does_not_spuriously_match_location(client, session, monkeypatch):
+def test_empty_place_name_does_not_spuriously_match_location(client, session, monkeypatch, test_user_id):
     # Regression: when AI call fails, place_name is "" (empty string).
     # Before fix: "" in any location name is always True, so it would
     # spuriously match the first location. After fix: returns None.
-    location = Location(name="Tokyo / Kanto", is_hub=True)
+    location = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(location)
     session.commit()
     session.refresh(location)
@@ -239,7 +254,7 @@ def test_empty_place_name_does_not_spuriously_match_location(client, session, mo
     assert response.json()["matched_location_id"] is None
 
 
-def test_assistant_history_sent_to_model_is_natural_language_not_json(session, monkeypatch):
+def test_assistant_history_sent_to_model_is_natural_language_not_json(session, monkeypatch, test_user_id):
     # Regression: the assistant's previous structured turn used to be replayed
     # to the model as a raw json.dumps(...) blob, which can anchor the model
     # into repeating the same (null) lat/lon turn after turn. It should be
@@ -258,7 +273,7 @@ def test_assistant_history_sent_to_model_is_natural_language_not_json(session, m
             "lon": None,
         },
     )
-    ai_session, _, _ = _run_turn(session, None, "Un tempio in montagna")
+    ai_session, _, _ = _run_turn(session, test_user_id, None, "Un tempio in montagna")
 
     captured = {}
 
@@ -276,7 +291,7 @@ def test_assistant_history_sent_to_model_is_natural_language_not_json(session, m
         }
 
     monkeypatch.setattr(ai_client, "categorize", fake_categorize)
-    _run_turn(session, ai_session.id, "E' Nikko")
+    _run_turn(session, test_user_id, ai_session.id, "E' Nikko")
 
     assistant_messages = [m for m in captured["messages"] if m["role"] == "assistant"]
     assert len(assistant_messages) == 1
@@ -284,8 +299,8 @@ def test_assistant_history_sent_to_model_is_natural_language_not_json(session, m
     assert not assistant_messages[0]["content"].strip().startswith("{")
 
 
-def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -303,7 +318,7 @@ def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypa
             "lon": 139.7005,
         },
     )
-    ai_session, _, _ = _run_turn(session, None, "Ramen a Tokyo")
+    ai_session, _, _ = _run_turn(session, test_user_id, None, "Ramen a Tokyo")
 
     captured = {}
 
@@ -321,15 +336,15 @@ def test_assistant_proposal_history_is_summarized_not_raw_json(session, monkeypa
         }
 
     monkeypatch.setattr(ai_client, "categorize", fake_categorize)
-    _run_turn(session, ai_session.id, "conferma")
+    _run_turn(session, test_user_id, ai_session.id, "conferma")
 
     assistant_text = [m for m in captured["messages"] if m["role"] == "assistant"][0]["content"]
     assert "Ichiran Ramen" in assistant_text
     assert not assistant_text.strip().startswith("{")
 
 
-def test_safety_net_backfills_hub_coordinates_immediately_when_near_hub_is_known(session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_safety_net_backfills_hub_coordinates_immediately_when_near_hub_is_known(session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -348,14 +363,14 @@ def test_safety_net_backfills_hub_coordinates_immediately_when_near_hub_is_known
         },
     )
 
-    ai_session, first_result, _ = _run_turn(session, None, "Cibo di strada a Shinjuku")
+    ai_session, first_result, _ = _run_turn(session, test_user_id, None, "Cibo di strada a Shinjuku")
     assert first_result["question"] is None
     assert first_result["lat"] == 35.6762
     assert first_result["lon"] == 139.6503
 
 
-def test_safety_net_falls_back_to_hub_coordinates_once_near_hub_becomes_known(session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_safety_net_falls_back_to_hub_coordinates_once_near_hub_becomes_known(session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -374,7 +389,7 @@ def test_safety_net_falls_back_to_hub_coordinates_once_near_hub_becomes_known(se
         },
     )
 
-    ai_session, first_result, _ = _run_turn(session, None, "Cibo di strada a Shinjuku")
+    ai_session, first_result, _ = _run_turn(session, test_user_id, None, "Cibo di strada a Shinjuku")
     assert first_result["question"] is not None
     assert first_result["lat"] is None
 
@@ -393,7 +408,7 @@ def test_safety_net_falls_back_to_hub_coordinates_once_near_hub_becomes_known(se
         },
     )
 
-    ai_session2, second_result, matched = _run_turn(session, ai_session.id, "Shinjuku, Tokyo")
+    ai_session2, second_result, matched = _run_turn(session, test_user_id, ai_session.id, "Shinjuku, Tokyo")
     assert second_result["question"] is None
     assert second_result["lat"] == 35.6762
     assert second_result["lon"] == 139.6503
@@ -445,7 +460,7 @@ def test_categorize_response_omits_candidates_by_default(client, session, monkey
     assert response.json()["candidates"] is None
 
 
-def test_safety_net_does_not_trigger_when_candidates_present(session, monkeypatch):
+def test_safety_net_does_not_trigger_when_candidates_present(session, monkeypatch, test_user_id):
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -462,12 +477,12 @@ def test_safety_net_does_not_trigger_when_candidates_present(session, monkeypatc
         },
     )
 
-    _, result, _ = _run_turn(session, None, "Dragon Ball store")
+    _, result, _ = _run_turn(session, test_user_id, None, "Dragon Ball store")
     assert result["question"] is None
     assert result["candidates"] == ["Tokyo - Ikebukuro", "Osaka - Namba"]
 
 
-def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkeypatch):
+def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkeypatch, test_user_id):
     monkeypatch.setattr(
         ai_client,
         "categorize",
@@ -483,7 +498,7 @@ def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkey
             "candidates": ["Tokyo - Ikebukuro", "Osaka - Namba"],
         },
     )
-    ai_session, _, _ = _run_turn(session, None, "Dragon Ball store")
+    ai_session, _, _ = _run_turn(session, test_user_id, None, "Dragon Ball store")
 
     captured = {}
 
@@ -501,7 +516,7 @@ def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkey
         }
 
     monkeypatch.setattr(ai_client, "categorize", fake_categorize)
-    _run_turn(session, ai_session.id, "Tokyo - Ikebukuro")
+    _run_turn(session, test_user_id, ai_session.id, "Tokyo - Ikebukuro")
 
     assistant_text = [m for m in captured["messages"] if m["role"] == "assistant"][0]["content"]
     assert "Tokyo - Ikebukuro" in assistant_text
@@ -509,30 +524,30 @@ def test_assistant_candidates_history_is_summarized_not_raw_json(session, monkey
     assert not assistant_text.strip().startswith("{")
 
 
-def test_resolve_location_and_create_reel_uses_matched_location(session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_resolve_location_and_create_reel_uses_matched_location(session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
     reel = _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", ["food"], "Ramen chain", "", "", hub.id,
+        session, test_user_id, "https://instagram.com/reel/abc", "Tokyo / Kanto", ["food"], "Ramen chain", "", "", hub.id,
     )
 
     assert reel.location_id == hub.id
     assert session.exec(select(Location)).all() == [hub]
 
 
-def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="nature", label="Natura", icon="🌸"))
+    session.add(Category(key="nature", label="Natura", icon="🌸", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
     reel = _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/nikko", "Nikko", ["nature"], "Shrine town",
+        session, test_user_id, "https://instagram.com/reel/nikko", "Nikko", ["nature"], "Shrine town",
         "36.7198", "139.6982", "", hub.id,
     )
 
@@ -543,12 +558,12 @@ def test_resolve_location_and_create_reel_creates_new_satellite_under_hub(sessio
     assert reel.location_id == satellite.id
 
 
-def test_resolve_location_and_create_reel_creates_new_hub_when_sentinel_chosen(session):
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+def test_resolve_location_and_create_reel_creates_new_hub_when_sentinel_chosen(session, test_user_id):
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     reel = _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/sapporo", "Sapporo Ramen Alley", ["food"], "Ramen alley",
+        session, test_user_id, "https://instagram.com/reel/sapporo", "Sapporo Ramen Alley", ["food"], "Ramen alley",
         "43.0618", "141.3545", "", NEW_HUB_SENTINEL,
     )
 
@@ -558,23 +573,23 @@ def test_resolve_location_and_create_reel_creates_new_hub_when_sentinel_chosen(s
     assert reel.location_id == location.id
 
 
-def test_resolve_location_and_create_reel_requires_hub_choice_for_new_location(session):
+def test_resolve_location_and_create_reel_requires_hub_choice_for_new_location(session, test_user_id):
     with pytest.raises(HTTPException) as exc_info:
         _resolve_location_and_create_reel(
-            session, "https://instagram.com/reel/x", "Nowhere", [], "", "1.0", "1.0", "", "",
+            session, test_user_id, "https://instagram.com/reel/x", "Nowhere", [], "", "1.0", "1.0", "", "",
         )
 
     assert exc_info.value.status_code == 400
 
 
-def test_resolve_location_and_create_reel_stores_confidence_on_new_location(session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_resolve_location_and_create_reel_stores_confidence_on_new_location(session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
     _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/mystery", "Mystery Alley", [], "",
+        session, test_user_id, "https://instagram.com/reel/mystery", "Mystery Alley", [], "",
         "35.7", "139.7", "", hub.id, "low",
     )
 
@@ -582,16 +597,16 @@ def test_resolve_location_and_create_reel_stores_confidence_on_new_location(sess
     assert location.geocode_confidence == "low"
 
 
-def test_resolve_location_and_create_reel_leaves_matched_location_confidence_untouched(session):
+def test_resolve_location_and_create_reel_leaves_matched_location_confidence_untouched(session, test_user_id):
     hub = Location(
-        name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, geocode_confidence="high"
+        name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, geocode_confidence="high", user_id=test_user_id
     )
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
     _resolve_location_and_create_reel(
-        session, "https://instagram.com/reel/abc", "Tokyo / Kanto", [], "", "", "", hub.id, "", "low",
+        session, test_user_id, "https://instagram.com/reel/abc", "Tokyo / Kanto", [], "", "", "", hub.id, "", "low",
     )
 
     session.refresh(hub)
@@ -648,8 +663,8 @@ def test_categorize_new_session_message_does_not_touch_the_db(monkeypatch):
     assert result["place_name"] == "x"
 
 
-def test_persist_categorize_result_creates_session_and_applies_type_filter(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+def test_persist_categorize_result_creates_session_and_applies_type_filter(client, session, test_user_id):
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     result = {
@@ -659,7 +674,7 @@ def test_persist_categorize_result_creates_session_and_applies_type_filter(clien
     }
 
     ai_session, persisted_result, matched_location_id = _persist_categorize_result(
-        session, "Ramen a Tokyo", result
+        session, test_user_id, "Ramen a Tokyo", result
     )
 
     assert ai_session.id is not None
@@ -667,24 +682,24 @@ def test_persist_categorize_result_creates_session_and_applies_type_filter(clien
     assert matched_location_id is None
 
 
-def test_persist_categorize_result_applies_missing_coordinates_safety_net(session):
+def test_persist_categorize_result_applies_missing_coordinates_safety_net(session, test_user_id):
     result = {
         "place_name": "Un vicolo misterioso", "near_hub": None, "types": [], "note": "",
         "confidence": "low", "question": None, "lat": None, "lon": None,
     }
 
-    _, persisted_result, _ = _persist_categorize_result(session, "Un vicolo di street food", result)
+    _, persisted_result, _ = _persist_categorize_result(session, test_user_id, "Un vicolo di street food", result)
 
     assert persisted_result["question"] is not None
     assert "coordinate" in persisted_result["question"].lower()
 
 
-def test_persist_categorize_result_matches_run_turn_behavior_for_equivalent_input(client, session, monkeypatch):
+def test_persist_categorize_result_matches_run_turn_behavior_for_equivalent_input(client, session, monkeypatch, test_user_id):
     # _run_turn and the split (_categorize_new_session_message +
     # _persist_categorize_result) must produce identical persisted state
     # for the same first-turn input -- this is the regression guard that
     # the split didn't change behavior, only when the DB gets touched.
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -695,10 +710,10 @@ def test_persist_categorize_result_matches_run_turn_behavior_for_equivalent_inpu
     }
     monkeypatch.setattr(ai_client, "categorize", lambda hub_names, categories, messages: dict(canned))
 
-    run_turn_session, run_turn_result, run_turn_matched = _run_turn(session, None, "Ramen a Tokyo")
+    run_turn_session, run_turn_result, run_turn_matched = _run_turn(session, test_user_id, None, "Ramen a Tokyo")
 
     result = _categorize_new_session_message("Ramen a Tokyo", ["Tokyo / Kanto"], {"food": "Cibo"})
-    split_session, split_result, split_matched = _persist_categorize_result(session, "Ramen a Tokyo", result)
+    split_session, split_result, split_matched = _persist_categorize_result(session, test_user_id, "Ramen a Tokyo", result)
 
     assert split_result == run_turn_result
     assert split_matched == run_turn_matched

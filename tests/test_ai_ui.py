@@ -22,8 +22,8 @@ def test_ui_ai_panel_send_button_has_its_own_scoped_indicator(client):
     assert 'id="ai-send-indicator"' in response.text
 
 
-def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, session, monkeypatch):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_ui_ai_message_first_turn_creates_session_and_shows_proposal(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -82,8 +82,8 @@ def test_ui_ai_message_falls_back_to_single_place_when_detect_places_returns_mal
     assert "Ichiran Ramen" in response.text
 
 
-def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_turn(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_message_backfills_missing_coordinates_from_matching_hub_on_first_turn(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -171,8 +171,8 @@ def test_ui_ai_message_rejects_invalid_link_on_first_turn(client, session):
     assert session.exec(select(AiSession)).all() == []
 
 
-def test_ui_ai_message_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_ui_ai_message_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -202,8 +202,8 @@ def test_ui_ai_message_forces_question_when_new_location_missing_coordinates(cli
     assert "Conferma e salva" not in response.text
 
 
-def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, session, monkeypatch):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -232,8 +232,8 @@ def test_ui_ai_message_shows_confirm_button_when_proposal_is_complete(client, se
     assert 'name="confidence" value="high"' in response.text
 
 
-def test_ui_ai_message_threads_caption_and_transcript_into_confirm_form(client, session, monkeypatch):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True))
+def test_ui_ai_message_threads_caption_and_transcript_into_confirm_form(client, session, monkeypatch, test_user_id):
+    session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(
@@ -268,10 +268,10 @@ def test_ui_ai_message_threads_caption_and_transcript_into_confirm_form(client, 
     assert 'name="transcript" value="Trascrizione originale"' in response.text
 
 
-def test_ui_ai_confirm_persists_caption_and_transcript_on_reel(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_persists_caption_and_transcript_on_reel(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -297,10 +297,10 @@ def test_ui_ai_confirm_persists_caption_and_transcript_on_reel(client, session):
     assert reel.transcript == "Trascrizione originale"
 
 
-def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -325,13 +325,13 @@ def test_ui_ai_confirm_with_matched_location_creates_reel_on_existing_location(c
     assert session.exec(select(Location)).all() == [hub]
 
 
-def test_ui_ai_confirm_with_duplicate_link_warns_without_saving(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_with_duplicate_link_warns_without_saving(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto", user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -353,13 +353,13 @@ def test_ui_ai_confirm_with_duplicate_link_warns_without_saving(client, session)
     assert len(reels) == 1
 
 
-def test_ui_ai_confirm_duplicate_true_saves_anyway(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_duplicate_true_saves_anyway(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -381,10 +381,10 @@ def test_ui_ai_confirm_duplicate_true_saves_anyway(client, session):
     assert len(reels) == 2
 
 
-def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="nature", label="Natura", icon="🌸"))
+    session.add(Category(key="nature", label="Natura", icon="🌸", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -411,8 +411,8 @@ def test_ui_ai_confirm_creates_satellite_under_matching_hub(client, session):
     assert satellite.lat == 36.7198
 
 
-def test_ui_ai_confirm_creates_new_hub_when_sentinel_chosen(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+def test_ui_ai_confirm_creates_new_hub_when_sentinel_chosen(client, session, test_user_id):
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -456,8 +456,8 @@ def test_ui_ai_confirm_without_any_hub_choice_returns_400(client, session):
     assert session.exec(select(Reel)).all() == []
 
 
-def test_ui_ai_confirm_stores_confidence_on_new_location(client, session):
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+def test_ui_ai_confirm_stores_confidence_on_new_location(client, session, test_user_id):
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -500,10 +500,10 @@ def test_ui_ai_confirm_rejects_invalid_link(client, session):
     assert session.exec(select(Reel)).all() == []
 
 
-def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -530,8 +530,8 @@ def test_ui_ai_confirm_resets_panel_and_updates_reel_list(client, session):
     assert response.headers["hx-trigger"] == "reel-saved"
 
 
-def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch):
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+def test_ui_ai_confirm_cleans_up_the_ai_session(client, session, monkeypatch, test_user_id):
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     monkeypatch.setattr(

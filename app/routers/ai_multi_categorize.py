@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
 from app.location_matching import resolve_place
-from app.models import AiMessage, AiSession, Location
+from app.models import AiMessage, AiSession, Location, User
 from app.reel_links import find_duplicate_reel
 from app.routers.ai_categorize import (
     _build_ai_chat_context,
@@ -21,6 +22,7 @@ from app.routers.ai_categorize import (
 from app.routers.categories import get_taxonomy
 from app.routers.map import render_map_html
 from app.routers.reels import _is_safe_link, _reel_add_form_context, _reel_list_context
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 router = APIRouter(prefix="/ui/ai/multi", tags=["ai-multi"])
@@ -41,7 +43,10 @@ def _seed_message(original_message: str, place_name: str) -> str:
     )
 
 
-def _read_latest_result(session: Session, session_id: str) -> Optional[dict]:
+def _read_latest_result(session: Session, user_id: str, session_id: str) -> Optional[dict]:
+    ai_session = get_owned(session, AiSession, session_id, user_id)
+    if ai_session is None:
+        return None
     messages = session.exec(
         select(AiMessage)
         .where(AiMessage.session_id == session_id, AiMessage.role == "assistant")
@@ -53,7 +58,7 @@ def _read_latest_result(session: Session, session_id: str) -> Optional[dict]:
 
 
 def _build_multi_context(
-    session: Session, session_ids: list[str], link: str, caption: str = "", transcript: str = ""
+    session: Session, user_id: str, session_ids: list[str], link: str, caption: str = "", transcript: str = ""
 ) -> dict:
     # Defensive dedup: the rendered page never produces duplicate ids in a
     # real submission (the confirm form and each clarify form are sibling,
@@ -64,11 +69,11 @@ def _build_multi_context(
 
     rows = []
     for session_id in session_ids:
-        result = _read_latest_result(session, session_id)
+        result = _read_latest_result(session, user_id, session_id)
         if result is None:
             continue
         resolution = resolve_place(
-            session, result.get("place_name", ""), result.get("near_hub"), result.get("lat"), result.get("lon")
+            session, result.get("place_name", ""), result.get("near_hub"), result.get("lat"), result.get("lon"), user_id
         )
         resolved = result.get("question") is None
         place_payload = {
@@ -97,22 +102,23 @@ def _build_multi_context(
         "transcript": transcript or "",
         "session_ids": session_ids,
         "rows": rows,
-        "taxonomy": get_taxonomy(session),
+        "taxonomy": get_taxonomy(session, user_id),
     }
 
 
 def start_multi_place_batch(
     request: Request,
     session: Session,
+    user_id: str,
     original_message: str,
     link: str,
     place_names: list[str],
     caption: str = "",
     transcript: str = "",
 ):
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hubs = session.exec(user_query(Location, user_id).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
-    taxonomy = get_taxonomy(session)
+    taxonomy = get_taxonomy(session, user_id)
     category_labels = {key: info["label"] for key, info in taxonomy.items()}
 
     seeded_messages = [
@@ -133,10 +139,10 @@ def start_multi_place_batch(
 
     session_ids = []
     for message, result in zip(seeded_messages, results):
-        ai_session, _, _ = _persist_categorize_result(session, message, result)
+        ai_session, _, _ = _persist_categorize_result(session, user_id, message, result)
         session_ids.append(ai_session.id)
 
-    context = _build_multi_context(session, session_ids, link, caption, transcript)
+    context = _build_multi_context(session, user_id, session_ids, link, caption, transcript)
     return templates.TemplateResponse(request, "partials/ai_chat_multi.html", context)
 
 
@@ -150,14 +156,17 @@ def ui_ai_multi_message(
     caption: str = Form(""),
     transcript: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     if clarify_session_id and clarify_text:
-        _run_turn(session, clarify_session_id, clarify_text)
+        if get_owned(session, AiSession, clarify_session_id, current_user.id) is None:
+            raise HTTPException(status_code=404, detail="AI session not found")
+        _run_turn(session, current_user.id, clarify_session_id, clarify_text)
 
-    context = _build_multi_context(session, session_ids, link, caption, transcript)
+    context = _build_multi_context(session, current_user.id, session_ids, link, caption, transcript)
     return templates.TemplateResponse(request, "partials/ai_chat_multi.html", context)
 
 
@@ -171,12 +180,13 @@ def ui_ai_multi_confirm(
     caption: str = Form(""),
     transcript: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     if confirm_duplicate != "true":
-        duplicate = find_duplicate_reel(session, link)
+        duplicate = find_duplicate_reel(session, link, current_user.id)
         if duplicate is not None:
             existing_location = session.get(Location, duplicate.location_id)
             warning_html = templates.get_template(
@@ -221,6 +231,7 @@ def ui_ai_multi_confirm(
     for place in places:
         _resolve_location_and_create_reel(
             session,
+            current_user.id,
             link,
             place["place_name"],
             place.get("types", []),
@@ -235,7 +246,7 @@ def ui_ai_multi_confirm(
         )
 
     for session_id in session_ids:
-        stale_ai_session = session.get(AiSession, session_id)
+        stale_ai_session = get_owned(session, AiSession, session_id, current_user.id)
         if stale_ai_session is not None:
             for msg in session.exec(select(AiMessage).where(AiMessage.session_id == session_id)).all():
                 session.delete(msg)
@@ -243,14 +254,14 @@ def ui_ai_multi_confirm(
             session.commit()
 
     ai_chat_html = templates.get_template("partials/ai_chat.html").render(
-        _build_ai_chat_context(session, None, "")
+        _build_ai_chat_context(session, current_user.id, None, "")
     )
     reel_list_html = templates.get_template("partials/reel_list.html").render(
-        _reel_list_context(session)
+        _reel_list_context(session, current_user.id)
     )
-    map_html = render_map_html(session)
+    map_html = render_map_html(session, current_user.id)
     form_html = templates.get_template("partials/reel_add_form.html").render(
-        _reel_add_form_context(session)
+        _reel_add_form_context(session, current_user.id)
     )
 
     response = HTMLResponse(
