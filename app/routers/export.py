@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Location, Reel, ReelType
+from app.models import Location, Reel, ReelType, User
 from app.routers.categories import get_taxonomy
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -20,8 +22,8 @@ def _slugify_filename(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
 
 
-def _hub_locations(session: Session, hub: Location) -> list[Location]:
-    satellites = session.exec(select(Location).where(Location.parent_id == hub.id)).all()
+def _hub_locations(session: Session, user_id: str, hub: Location) -> list[Location]:
+    satellites = session.exec(user_query(Location, user_id).where(Location.parent_id == hub.id)).all()
     return sorted([hub, *satellites], key=lambda loc: loc.name)
 
 
@@ -36,10 +38,10 @@ def _reel_line(note: Optional[str], category_labels: list[str]) -> Optional[str]
     return None
 
 
-def build_export_markdown(session: Session, hub_id: Optional[str] = None) -> str:
-    taxonomy = get_taxonomy(session)
+def build_export_markdown(session: Session, user_id: str, hub_id: Optional[str] = None) -> str:
+    taxonomy = get_taxonomy(session, user_id)
 
-    hub_query = select(Location).where(Location.is_hub == True)
+    hub_query = user_query(Location, user_id).where(Location.is_hub == True)
     if hub_id is not None:
         hub_query = hub_query.where(Location.id == hub_id)
     hubs = sorted(session.exec(hub_query).all(), key=lambda loc: loc.name)
@@ -47,8 +49,8 @@ def build_export_markdown(session: Session, hub_id: Optional[str] = None) -> str
     sections = []
     for hub in hubs:
         location_blocks = []
-        for location in _hub_locations(session, hub):
-            reels = session.exec(select(Reel).where(Reel.location_id == location.id)).all()
+        for location in _hub_locations(session, user_id, hub):
+            reels = session.exec(user_query(Reel, user_id).where(Reel.location_id == location.id)).all()
             lines = []
             for reel in reels:
                 types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
@@ -65,14 +67,18 @@ def build_export_markdown(session: Session, hub_id: Optional[str] = None) -> str
 
 
 @router.get("/markdown")
-def export_markdown(hub_id: Optional[str] = None, session: Session = Depends(get_session)):
+def export_markdown(
+    hub_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     hub = None
     if hub_id is not None:
-        hub = session.get(Location, hub_id)
+        hub = get_owned(session, Location, hub_id, current_user.id)
         if hub is None or not hub.is_hub:
             raise HTTPException(status_code=404, detail="Hub not found")
 
-    content = build_export_markdown(session, hub_id)
+    content = build_export_markdown(session, current_user.id, hub_id)
     filename = f"export-{_slugify_filename(hub.name)}.md" if hub else "export.md"
 
     return PlainTextResponse(
@@ -83,9 +89,11 @@ def export_markdown(hub_id: Optional[str] = None, session: Session = Depends(get
 
 
 @ui_router.get("/export")
-def ui_export_panel(request: Request, session: Session = Depends(get_session)):
+def ui_export_panel(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
     hubs = sorted(
-        session.exec(select(Location).where(Location.is_hub == True)).all(),
+        session.exec(user_query(Location, current_user.id).where(Location.is_hub == True)).all(),
         key=lambda loc: loc.name,
     )
     return templates.TemplateResponse(request, "partials/export_panel.html", {"hubs": hubs})

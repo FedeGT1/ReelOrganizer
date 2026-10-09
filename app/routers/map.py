@@ -5,20 +5,28 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Location, Reel
+from app.models import Location, Reel, User
 from app.routers.categories import get_taxonomy, reel_ids_matching_types
+from app.scoping import user_query
 from app.web import templates
 
 router = APIRouter(prefix="/api/map", tags=["map"])
 ui_router = APIRouter(prefix="/ui", tags=["map-ui"])
 
 
-def compute_map(session: Session) -> list[dict]:
-    locations = session.exec(select(Location)).all()
+def compute_map(session: Session, user_id: str) -> list[dict]:
+    locations = session.exec(user_query(Location, user_id)).all()
+    # Note: not built from user_query(Reel, user_id).with_only_columns(...) -- in this
+    # SQLModel version, with_only_columns() on a select(Model) query keeps it typed as
+    # SelectOfScalar, so session.exec() applies .scalars() and silently drops the second
+    # (count) column. Selecting the columns directly avoids that.
     counts = dict(
         session.exec(
-            select(Reel.location_id, func.count(Reel.id)).group_by(Reel.location_id)
+            select(Reel.location_id, func.count(Reel.id))
+            .where(Reel.user_id == user_id)
+            .group_by(Reel.location_id)
         ).all()
     )
 
@@ -37,22 +45,23 @@ def compute_map(session: Session) -> list[dict]:
 
 
 @router.get("")
-def get_map(session: Session = Depends(get_session)):
-    return compute_map(session)
+def get_map(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    return compute_map(session, current_user.id)
 
 
-def locations_with_types(session: Session, type_values: list[str]) -> set[str]:
+def locations_with_types(session: Session, user_id: str, type_values: list[str]) -> set[str]:
     reel_ids = reel_ids_matching_types(session, type_values)
     if not reel_ids:
         return set()
     return set(
-        session.exec(select(Reel.location_id).where(Reel.id.in_(reel_ids))).all()
+        session.exec(user_query(Reel, user_id).with_only_columns(Reel.location_id).where(Reel.id.in_(reel_ids))).all()
     )
 
 
 def visible_location_ids(
     session: Session,
     locations: list[dict],
+    user_id: str,
     type_values: list[str] | None,
 ) -> tuple[set[str], set[str]]:
     """(visible_ids, anchor_hub_ids). Locations with no qualifying reel are
@@ -61,7 +70,7 @@ def visible_location_ids(
     have reels of their own."""
     type_values = type_values or []
     if type_values:
-        qualifying = locations_with_types(session, type_values)
+        qualifying = locations_with_types(session, user_id, type_values)
     else:
         qualifying = {loc["id"] for loc in locations if loc["reel_count"] > 0}
 
@@ -78,12 +87,12 @@ def visible_location_ids(
     return qualifying | anchor_hubs, anchor_hubs
 
 
-def render_map_html(session: Session, type_values: list[str] | None = None) -> str:
+def render_map_html(session: Session, user_id: str, type_values: list[str] | None = None) -> str:
     type_values = type_values or []
-    locations = compute_map(session)
+    locations = compute_map(session, user_id)
     hubs_by_id = {loc["id"]: loc for loc in locations if loc["is_hub"]}
-    matching_location_ids = locations_with_types(session, type_values) if type_values else set()
-    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, type_values)
+    matching_location_ids = locations_with_types(session, user_id, type_values) if type_values else set()
+    visible_ids, anchor_hub_ids = visible_location_ids(session, locations, user_id, type_values)
 
     map_locations = []
     for loc in locations:
@@ -115,7 +124,7 @@ def render_map_html(session: Session, type_values: list[str] | None = None) -> s
     return templates.get_template("partials/map.html").render(
         map_locations_json=map_locations_json,
         active_types=type_values,
-        taxonomy=get_taxonomy(session),
+        taxonomy=get_taxonomy(session, user_id),
     )
 
 
@@ -124,5 +133,6 @@ def ui_map(
     request: Request,
     type: list[str] = Query([]),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    return HTMLResponse(render_map_html(session, type))
+    return HTMLResponse(render_map_html(session, current_user.id, type))

@@ -2,14 +2,14 @@ from app.models import Location, Reel, ReelType
 from app.routers.map import compute_map, visible_location_ids
 
 
-def test_map_returns_lat_lon_for_hub_and_satellite(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_map_returns_lat_lon_for_hub_and_satellite(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
     satellite = Location(
-        name="Nikko", is_hub=False, parent_id=hub.id, lat=36.7199, lon=139.6982
+        name="Nikko", is_hub=False, parent_id=hub.id, lat=36.7199, lon=139.6982, user_id=test_user_id
     )
     session.add(satellite)
     session.commit()
@@ -28,73 +28,73 @@ def test_map_returns_lat_lon_for_hub_and_satellite(client, session):
     assert "map_inset" not in hub_entry
 
 
-def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(session):
-    empty_hub = Location(name="Empty", is_hub=True, lat=35.0, lon=135.0)
-    filled_hub = Location(name="Filled", is_hub=True, lat=36.0, lon=136.0)
+def test_visible_location_ids_hides_hub_with_no_reels_and_no_filled_children(session, test_user_id):
+    empty_hub = Location(name="Empty", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    filled_hub = Location(name="Filled", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(empty_hub)
     session.add(filled_hub)
     session.commit()
     session.refresh(filled_hub)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=filled_hub.id))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=filled_hub.id, user_id=test_user_id))
     session.commit()
 
-    locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, [])
+    locations = compute_map(session, test_user_id)
+    visible_ids, anchors = visible_location_ids(session, locations, test_user_id, [])
 
     assert filled_hub.id in visible_ids
     assert empty_hub.id not in visible_ids
     assert anchors == set()
 
 
-def test_visible_location_ids_keeps_empty_hub_as_anchor_for_filled_satellite(session):
-    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_visible_location_ids_keeps_empty_hub_as_anchor_for_filled_satellite(session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1)
+    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1, user_id=test_user_id)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=satellite.id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=satellite.id, user_id=test_user_id))
     session.commit()
 
-    locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, [])
+    locations = compute_map(session, test_user_id)
+    visible_ids, anchors = visible_location_ids(session, locations, test_user_id, [])
 
     assert hub.id in visible_ids
     assert satellite.id in visible_ids
     assert hub.id in anchors
 
 
-def test_visible_location_ids_uses_type_specific_emptiness_when_type_active(session):
-    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_visible_location_ids_uses_type_specific_emptiness_when_type_active(session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/c", location_id=hub.id)
+    reel = Reel(link="https://instagram.com/reel/c", location_id=hub.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
     session.add(ReelType(reel_id=reel.id, type="food"))
     session.commit()
 
-    locations = compute_map(session)
-    visible_ids, _ = visible_location_ids(session, locations, ["culture"])
+    locations = compute_map(session, test_user_id)
+    visible_ids, _ = visible_location_ids(session, locations, test_user_id, ["culture"])
 
     assert hub.id not in visible_ids
 
 
-def test_visible_location_ids_requires_all_selected_types(session):
-    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0)
-    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0)
+def test_visible_location_ids_requires_all_selected_types(session, test_user_id):
+    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(hub_both)
     session.add(hub_food_only)
     session.commit()
     session.refresh(hub_both)
     session.refresh(hub_food_only)
 
-    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id)
-    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id)
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id, user_id=test_user_id)
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id, user_id=test_user_id)
     session.add(reel_both)
     session.add(reel_food)
     session.commit()
@@ -105,24 +105,24 @@ def test_visible_location_ids_requires_all_selected_types(session):
     session.add(ReelType(reel_id=reel_food.id, type="food"))
     session.commit()
 
-    locations = compute_map(session)
-    visible_ids, _ = visible_location_ids(session, locations, ["food", "shopping"])
+    locations = compute_map(session, test_user_id)
+    visible_ids, _ = visible_location_ids(session, locations, test_user_id, ["food", "shopping"])
 
     assert hub_both.id in visible_ids
     assert hub_food_only.id not in visible_ids
 
 
-def test_visible_location_ids_anchor_hub_with_multi_type_satellite(session):
-    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_visible_location_ids_anchor_hub_with_multi_type_satellite(session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1)
+    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1, user_id=test_user_id)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
 
-    reel = Reel(link="https://instagram.com/reel/sat", location_id=satellite.id)
+    reel = Reel(link="https://instagram.com/reel/sat", location_id=satellite.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -130,25 +130,25 @@ def test_visible_location_ids_anchor_hub_with_multi_type_satellite(session):
     session.add(ReelType(reel_id=reel.id, type="shopping"))
     session.commit()
 
-    locations = compute_map(session)
-    visible_ids, anchors = visible_location_ids(session, locations, ["food", "shopping"])
+    locations = compute_map(session, test_user_id)
+    visible_ids, anchors = visible_location_ids(session, locations, test_user_id, ["food", "shopping"])
 
     assert hub.id in visible_ids
     assert satellite.id in visible_ids
     assert hub.id in anchors
 
 
-def test_ui_map_filters_by_multiple_types(client, session):
-    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0)
-    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_map_filters_by_multiple_types(client, session, test_user_id):
+    hub_both = Location(name="Both", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    hub_food_only = Location(name="FoodOnly", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(hub_both)
     session.add(hub_food_only)
     session.commit()
     session.refresh(hub_both)
     session.refresh(hub_food_only)
 
-    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id)
-    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id)
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub_both.id, user_id=test_user_id)
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub_food_only.id, user_id=test_user_id)
     session.add(reel_both)
     session.add(reel_food)
     session.commit()
@@ -167,3 +167,13 @@ def test_ui_map_filters_by_multiple_types(client, session):
     locations = {loc["id"]: loc for loc in _map_data(response.text)}
     assert hub_both.id in locations
     assert hub_food_only.id not in locations
+
+
+def test_get_map_only_returns_current_users_locations(client, session):
+    session.add(Location(name="Other Hub", is_hub=True, lat=1.0, lon=2.0, user_id="other-user"))
+    session.commit()
+
+    response = client.get("/api/map")
+
+    assert response.status_code == 200
+    assert "Other Hub" not in {loc["name"] for loc in response.json()}
