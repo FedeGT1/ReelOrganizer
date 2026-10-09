@@ -5,7 +5,7 @@ os.environ["AUTH_PASSWORD"] = "testpass"
 os.environ["SESSION_SECRET_KEY"] = "test-secret-key-not-for-production"
 
 import pytest
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
 from sqlmodel.pool import StaticPool
 from fastapi.testclient import TestClient
 
@@ -55,6 +55,13 @@ def client_fixture(session: Session):
     from app.main import app
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="test_user_id")
+def test_user_id_fixture(session: Session) -> str:
+    from app.models import User
+
+    return session.exec(select(User).where(User.username == "testuser")).first().id
 
 
 @pytest.fixture(name="anon_client")
