@@ -185,6 +185,25 @@ def test_categorize_ai_session_belonging_to_another_user_returns_404(client, ses
     assert response.status_code == 404
 
 
+def test_confirm_with_another_users_resolution_location_id_returns_404(client, session):
+    other_location = Location(name="Secret Spot", is_hub=True, lat=1.0, lon=1.0, user_id="other-user")
+    session.add(other_location)
+    session.commit()
+    session.refresh(other_location)
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "does-not-exist",
+            "link": "https://instagram.com/reel/foreign-location",
+            "place_name": "Secret Spot",
+            "resolution_location_id": other_location.id,
+        },
+    )
+
+    assert response.status_code == 404
+
+
 def test_categorize_forces_question_when_new_location_missing_coordinates(client, session, monkeypatch, test_user_id):
     session.add(Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id))
     session.commit()

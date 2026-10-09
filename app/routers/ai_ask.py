@@ -68,6 +68,8 @@ def _run_ask_turn(
         location_id = ask_session.location_id
         category_key = ask_session.category_key
     else:
+        if location_id and get_owned(session, Location, location_id, user_id) is None:
+            raise HTTPException(status_code=404, detail="Location not found")
         ask_session = AskSession(location_id=location_id, category_key=category_key, user_id=user_id)
         session.add(ask_session)
         session.commit()

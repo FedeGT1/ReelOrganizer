@@ -647,6 +647,33 @@ def test_ui_audit_ai_split_apply_can_reassign_to_an_existing_location(client, se
     assert reel.location_id == existing.id
 
 
+def test_ui_audit_ai_split_apply_with_another_users_resolution_location_id_returns_404(client, session, test_user_id):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    other_location = Location(user_id="other-user", name="Secret Spot", is_hub=False, lat=1.0, lon=1.0)
+    session.add(kamakura)
+    session.add(other_location)
+    session.commit()
+    session.refresh(kamakura)
+    session.refresh(other_location)
+
+    reel = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota")
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    place = json.dumps({
+        "reel_id": reel.id, "place_name": "Secret Spot", "note": "Nota",
+        "lat": None, "lon": None, "confidence": None,
+        "resolution_location_id": other_location.id, "resolution_hub_id": "",
+    })
+
+    response = client.post("/ui/audit/ai/split/apply", data={"place_json": [place]})
+    assert response.status_code == 404
+
+    session.refresh(reel)
+    assert reel.location_id == kamakura.id
+
+
 def test_ui_audit_ai_split_apply_validates_whole_batch_before_reassigning_any(client, session, test_user_id):
     kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)

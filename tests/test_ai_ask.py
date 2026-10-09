@@ -161,6 +161,20 @@ def test_run_ask_turn_with_unknown_session_id_raises_404(session, test_user_id):
     assert exc_info.value.status_code == 404
 
 
+def test_run_ask_turn_with_another_users_location_id_raises_404(session, test_user_id):
+    from fastapi import HTTPException
+    import pytest
+
+    other_location = Location(name="Secret Spot", is_hub=True, user_id="other-user")
+    session.add(other_location)
+    session.commit()
+    session.refresh(other_location)
+
+    with pytest.raises(HTTPException) as exc_info:
+        _run_ask_turn(session, test_user_id, None, other_location.id, None, "Ciao")
+    assert exc_info.value.status_code == 404
+
+
 def test_run_ask_turn_falls_back_to_friendly_answer_on_provider_error(session, monkeypatch, test_user_id):
     def boom(*a, **k):
         raise AIProviderError("boom")
@@ -242,6 +256,26 @@ def test_ui_ask_message_with_unknown_session_id_resets_panel_with_notice(client,
     assert response.status_code == 200
     assert 'name="message"' in response.text
     assert "Sessione scaduta" in response.text
+
+
+def test_ui_ask_message_with_another_users_location_id_shows_not_found_notice(client, session):
+    other_location = Location(name="Secret Spot", is_hub=True, user_id="other-user")
+    session.add(other_location)
+    session.commit()
+    session.refresh(other_location)
+
+    response = client.post(
+        "/ui/ask/message",
+        data={"location_id": other_location.id, "category_key": "", "message": "Ciao"},
+    )
+
+    # _run_ask_turn raises HTTPException(404), which ui_ask_message already
+    # translates into the same safe "session expired" reset shown for an
+    # unknown session_id (see test_ui_ask_message_with_unknown_session_id_resets_panel_with_notice).
+    # Critically, no AskSession pointing at the foreign location is created.
+    assert response.status_code == 200
+    assert "Sessione scaduta" in response.text
+    assert session.exec(select(AskSession)).first() is None
 
 
 def test_ui_ask_message_shows_friendly_error_when_ai_call_fails(client, session, monkeypatch):

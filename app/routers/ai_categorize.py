@@ -346,6 +346,8 @@ def _resolve_location_and_create_reel(
     transcript: str = "",
 ) -> Reel:
     if resolution_location_id:
+        if get_owned(session, Location, resolution_location_id, user_id) is None:
+            raise HTTPException(status_code=404, detail="Location not found")
         location_id = resolution_location_id
     else:
         if not lat or not lon:
