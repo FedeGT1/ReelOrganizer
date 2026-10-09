@@ -11,6 +11,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev --frozen
 
 COPY app ./app
+COPY scripts ./scripts
 
 ENV REEL_DB_PATH=/data/japan_reels.db
 ENV WHISPER_MODEL_CACHE_DIR=/data/whisper_models

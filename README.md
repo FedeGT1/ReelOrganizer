@@ -138,7 +138,23 @@ want to test this without the Docker volume.
 
 ## Persistence
 
-There are no migrations: the app creates a single fresh SQLite database at startup (path configurable via `REEL_DB_PATH`) and seeds it with default hubs and default categories if empty (both seeded independently, so clearing one doesn't require re-seeding the other). If you have an existing local `data/*.db` from before a schema *or seed data* change, delete it (`rm data/*.db`) so it gets recreated with the current schema/seed — there is no migration path for schema or seed-data changes. The downloaded Whisper model is cached separately (path configurable via `WHISPER_MODEL_CACHE_DIR`, defaults to `/data/whisper_models` in Docker) and isn't affected by resetting the database.
+The app creates the database at startup if it doesn't exist yet (path configurable via `REEL_DB_PATH`) and seeds a new account's hubs/categories independently of its reels, so clearing one doesn't require re-seeding the other. Since the multiuser migration, schema changes to an *existing* database are applied automatically and in place on startup — additive columns are added, and the one-time multiuser migration (see "Multiuser accounts" below) backfills existing data rather than requiring you to delete anything. **Never delete `data/*.db` to "reset" a schema change** — on an existing deployment that destroys your real data; the app upgrades it in place instead. The downloaded Whisper model is cached separately (path configurable via `WHISPER_MODEL_CACHE_DIR`, defaults to `/data/whisper_models` in Docker) and isn't affected by the database's schema.
+
+## Multiuser accounts
+
+Each account has its own private hubs, categories, and reels — nothing is shared between accounts. There is no self-service registration; accounts are created by the operator via a CLI command run inside the container:
+
+```bash
+docker exec -it reel-organizer uv run python -m scripts.create_user <username>
+```
+
+It prompts for a password (twice, hidden input) and seeds that new account with the default hubs and categories.
+
+**Upgrading an existing single-user deployment:** the first time the app starts after upgrading to a version with multiuser support, it automatically creates one account from your existing `AUTH_USERNAME`/`AUTH_PASSWORD` and attaches every existing hub, reel, and category to it — nothing to do manually, and login credentials stay the same. This runs exactly once (it's idempotent — restarting again does nothing further) and never deletes or duplicates data. Still, back up `data/*.db` before upgrading, as you would before any change that touches a live database:
+
+```bash
+cp /absolute/path/to/reelorganizer/data/japan_reels.db /absolute/path/to/reelorganizer/data/japan_reels.db.bak-$(date +%Y%m%d)
+```
 
 ## AI debug log
 
