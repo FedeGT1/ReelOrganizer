@@ -70,9 +70,9 @@ def _add(session, **kwargs):
 
 
 def test_resolve_place_exact_normalized_match_is_auto(session):
-    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765, user_id="user-1")
 
-    resolution = resolve_place(session, "nishiki market", None, None, None)
+    resolution = resolve_place(session, "nishiki market", None, None, None, user_id="user-1")
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == loc.id
@@ -80,28 +80,28 @@ def test_resolve_place_exact_normalized_match_is_auto(session):
 
 
 def test_resolve_place_formatting_duplicate_matches_via_normalization(session):
-    loc = _add(session, name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
+    loc = _add(session, name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77, user_id="user-1")
 
-    resolution = resolve_place(session, "Surugaya Akihabara (駿河屋秋葉原)", None, None, None)
+    resolution = resolve_place(session, "Surugaya Akihabara (駿河屋秋葉原)", None, None, None, user_id="user-1")
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == loc.id
 
 
 def test_resolve_place_short_name_matches_containing_hub_label(session):
-    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id="user-1")
 
-    resolution = resolve_place(session, "Tokyo", None, None, None)
+    resolution = resolve_place(session, "Tokyo", None, None, None, user_id="user-1")
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == hub.id
 
 
 def test_resolve_place_does_not_match_hub_when_hub_name_is_only_a_substring_of_new_place(session):
-    _add(session, name="Hakone", is_hub=True, lat=35.2323, lon=139.1069)
+    _add(session, name="Hakone", is_hub=True, lat=35.2323, lon=139.1069, user_id="user-1")
 
     resolution = resolve_place(
-        session, "Hakone-Yumoto Eva Store", "Hakone", 35.20139, 139.04361
+        session, "Hakone-Yumoto Eva Store", "Hakone", 35.20139, 139.04361, user_id="user-1"
     )
 
     assert resolution.place_tier == "ambiguous"
@@ -114,9 +114,9 @@ def test_resolve_place_similar_name_and_close_distance_is_auto(session):
     # "Ichiran Ramen Shibuya" (tier 1 must NOT fire here) but scores a high
     # SequenceMatcher ratio (~0.91) against it, so this exercises tier 2
     # specifically -- not tier 1 by coincidence.
-    loc = _add(session, name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    loc = _add(session, name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005, user_id="user-1")
 
-    resolution = resolve_place(session, "Ichiran Ramen Shibuya Ten", None, 35.6591, 139.7006)
+    resolution = resolve_place(session, "Ichiran Ramen Shibuya Ten", None, 35.6591, 139.7006, user_id="user-1")
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == loc.id
@@ -124,9 +124,9 @@ def test_resolve_place_similar_name_and_close_distance_is_auto(session):
 
 def test_resolve_place_close_distance_but_unrelated_name_requires_confirmation(session):
     # Two different shops in the same building: same coordinates, unrelated names.
-    _add(session, name="Starbucks Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    _add(session, name="Starbucks Shibuya", is_hub=False, lat=35.6590, lon=139.7005, user_id="user-1")
 
-    resolution = resolve_place(session, "Pokémon Center Shibuya", None, 35.6590, 139.7005)
+    resolution = resolve_place(session, "Pokémon Center Shibuya", None, 35.6590, 139.7005, user_id="user-1")
 
     assert resolution.place_tier == "ambiguous"
     assert resolution.place_location_id is None
@@ -135,9 +135,9 @@ def test_resolve_place_close_distance_but_unrelated_name_requires_confirmation(s
 
 def test_resolve_place_far_distance_returns_ranked_candidate_not_auto_match(session):
     # Kamakura town center vs. the Daibutsu (Kotoku-in), ~2.5km apart.
-    kamakura = _add(session, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    kamakura = _add(session, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466, user_id="user-1")
 
-    resolution = resolve_place(session, "Kotoku-in Daibutsu", None, 35.3166, 139.5360)
+    resolution = resolve_place(session, "Kotoku-in Daibutsu", None, 35.3166, 139.5360, user_id="user-1")
 
     assert resolution.place_tier == "ambiguous"
     assert resolution.place_location_id is None
@@ -145,9 +145,9 @@ def test_resolve_place_far_distance_returns_ranked_candidate_not_auto_match(sess
 
 
 def test_resolve_place_candidates_default_to_new_place_not_pre_selected(session):
-    _add(session, name="Some Other Shop", is_hub=False, lat=35.0, lon=135.0)
+    _add(session, name="Some Other Shop", is_hub=False, lat=35.0, lon=135.0, user_id="user-1")
 
-    resolution = resolve_place(session, "Unrelated New Shop", None, 35.0001, 135.0001)
+    resolution = resolve_place(session, "Unrelated New Shop", None, 35.0001, 135.0001, user_id="user-1")
 
     # Close distance (~15m) but unrelated name: shown as a candidate, never auto-picked.
     assert resolution.place_tier == "ambiguous"
@@ -155,9 +155,9 @@ def test_resolve_place_candidates_default_to_new_place_not_pre_selected(session)
 
 
 def test_resolve_place_empty_place_name_never_auto_matches(session):
-    _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id="user-1")
 
-    resolution = resolve_place(session, "", None, None, None)
+    resolution = resolve_place(session, "", None, None, None, user_id="user-1")
 
     assert resolution.place_tier == "ambiguous"
     assert resolution.place_location_id is None
@@ -165,9 +165,9 @@ def test_resolve_place_empty_place_name_never_auto_matches(session):
 
 def test_resolve_place_candidates_capped_and_sorted_by_distance(session):
     for i in range(7):
-        _add(session, name=f"Shop {i}", is_hub=False, lat=35.0 + i * 0.001, lon=135.0)
+        _add(session, name=f"Shop {i}", is_hub=False, lat=35.0 + i * 0.001, lon=135.0, user_id="user-1")
 
-    resolution = resolve_place(session, "New Nearby Shop", None, 35.0, 135.0)
+    resolution = resolve_place(session, "New Nearby Shop", None, 35.0, 135.0, user_id="user-1")
 
     assert len(resolution.place_candidates) == 5
     distances = [c.distance_m for c in resolution.place_candidates]
@@ -175,18 +175,18 @@ def test_resolve_place_candidates_capped_and_sorted_by_distance(session):
 
 
 def test_resolve_place_hub_exact_match_is_auto(session):
-    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id="user-1")
 
-    resolution = resolve_place(session, "Nikko", "Tokyo / Kanto", 36.7198, 139.6982)
+    resolution = resolve_place(session, "Nikko", "Tokyo / Kanto", 36.7198, 139.6982, user_id="user-1")
 
     assert resolution.hub_tier == "auto"
     assert resolution.hub_id == hub.id
 
 
 def test_resolve_place_hub_no_match_is_ambiguous_with_options(session):
-    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    hub = _add(session, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id="user-1")
 
-    resolution = resolve_place(session, "Nikko", "Somewhere Else", 36.7198, 139.6982)
+    resolution = resolve_place(session, "Nikko", "Somewhere Else", 36.7198, 139.6982, user_id="user-1")
 
     assert resolution.hub_tier == "ambiguous"
     assert resolution.hub_id is None
@@ -194,23 +194,23 @@ def test_resolve_place_hub_no_match_is_ambiguous_with_options(session):
 
 
 def test_resolve_place_hub_missing_near_hub_is_ambiguous(session):
-    resolution = resolve_place(session, "Nikko", None, 36.7198, 139.6982)
+    resolution = resolve_place(session, "Nikko", None, 36.7198, 139.6982, user_id="user-1")
 
     assert resolution.hub_tier == "ambiguous"
     assert resolution.hub_id is None
 
 
 def test_resolve_place_requires_confirmation_false_when_place_auto_matched(session):
-    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765, user_id="user-1")
 
-    resolution = resolve_place(session, "Nishiki Market", "Does Not Exist", None, None)
+    resolution = resolve_place(session, "Nishiki Market", "Does Not Exist", None, None, user_id="user-1")
 
     assert resolution.place_location_id == loc.id
     assert resolution.requires_confirmation is False
 
 
 def test_resolve_place_requires_confirmation_true_when_hub_ambiguous_even_without_candidates(session):
-    resolution = resolve_place(session, "Brand New City Area", "Unknown Hub", None, None)
+    resolution = resolve_place(session, "Brand New City Area", "Unknown Hub", None, None, user_id="user-1")
 
     assert resolution.place_candidates == []
     assert resolution.hub_tier == "ambiguous"
@@ -223,19 +223,19 @@ def test_resolve_place_new_hub_sentinel_is_a_non_empty_string():
 
 
 def test_resolve_place_excludes_specified_location_from_matching(session):
-    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765, user_id="user-1")
 
-    resolution = resolve_place(session, "Nishiki Market", None, None, None, exclude_location_id=loc.id)
+    resolution = resolve_place(session, "Nishiki Market", None, None, None, user_id="user-1", exclude_location_id=loc.id)
 
     assert resolution.place_tier == "ambiguous"
     assert resolution.place_location_id is None
 
 
 def test_resolve_place_excluded_location_never_appears_as_candidate(session):
-    excluded = _add(session, name="Some Shop", is_hub=False, lat=35.0, lon=135.0)
-    other = _add(session, name="Other Shop", is_hub=False, lat=35.0001, lon=135.0001)
+    excluded = _add(session, name="Some Shop", is_hub=False, lat=35.0, lon=135.0, user_id="user-1")
+    other = _add(session, name="Other Shop", is_hub=False, lat=35.0001, lon=135.0001, user_id="user-1")
 
-    resolution = resolve_place(session, "New Shop", None, 35.0, 135.0, exclude_location_id=excluded.id)
+    resolution = resolve_place(session, "New Shop", None, 35.0, 135.0, user_id="user-1", exclude_location_id=excluded.id)
 
     candidate_ids = {c.id for c in resolution.place_candidates}
     assert excluded.id not in candidate_ids
@@ -243,9 +243,18 @@ def test_resolve_place_excluded_location_never_appears_as_candidate(session):
 
 
 def test_resolve_place_exclude_location_id_defaults_to_none(session):
-    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+    loc = _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765, user_id="user-1")
 
-    resolution = resolve_place(session, "Nishiki Market", None, None, None)
+    resolution = resolve_place(session, "Nishiki Market", None, None, None, user_id="user-1")
 
     assert resolution.place_tier == "auto"
     assert resolution.place_location_id == loc.id
+
+
+def test_resolve_place_does_not_match_another_users_location(session):
+    _add(session, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765, user_id="user-2")
+
+    resolution = resolve_place(session, "nishiki market", None, None, None, user_id="user-1")
+
+    assert resolution.place_tier == "ambiguous"
+    assert resolution.place_location_id is None

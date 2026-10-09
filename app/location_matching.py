@@ -62,9 +62,11 @@ class PlaceResolution:
     requires_confirmation: bool = False
 
 
-def _resolve_hub(session: Session, near_hub: Optional[str]) -> tuple:
+def _resolve_hub(session: Session, near_hub: Optional[str], user_id: str) -> tuple:
     normalized_near_hub = normalize_place_name(near_hub or "")
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+    hubs = session.exec(
+        select(Location).where(Location.is_hub == True, Location.user_id == user_id)
+    ).all()
     if normalized_near_hub:
         for hub in hubs:
             if normalize_place_name(hub.name) == normalized_near_hub:
@@ -72,13 +74,17 @@ def _resolve_hub(session: Session, near_hub: Optional[str]) -> tuple:
     return "ambiguous", None, None
 
 
-def _hub_options(session: Session) -> list[HubOption]:
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+def _hub_options(session: Session, user_id: str) -> list[HubOption]:
+    hubs = session.exec(
+        select(Location).where(Location.is_hub == True, Location.user_id == user_id)
+    ).all()
     return [HubOption(id=h.id, name=h.name) for h in hubs]
 
 
-def _auto_place_resolution(session: Session, loc: Location, near_hub: Optional[str]) -> PlaceResolution:
-    hub_tier, hub_id, hub_name = _resolve_hub(session, near_hub)
+def _auto_place_resolution(
+    session: Session, loc: Location, near_hub: Optional[str], user_id: str
+) -> PlaceResolution:
+    hub_tier, hub_id, hub_name = _resolve_hub(session, near_hub, user_id)
     return PlaceResolution(
         place_tier="auto",
         place_location_id=loc.id,
@@ -96,10 +102,11 @@ def resolve_place(
     near_hub: Optional[str],
     lat: Optional[float],
     lon: Optional[float],
+    user_id: str,
     exclude_location_id: Optional[str] = None,
 ) -> PlaceResolution:
     normalized_place = normalize_place_name(place_name)
-    locations = session.exec(select(Location)).all()
+    locations = session.exec(select(Location).where(Location.user_id == user_id)).all()
     if exclude_location_id:
         locations = [loc for loc in locations if loc.id != exclude_location_id]
 
@@ -107,9 +114,9 @@ def resolve_place(
         for loc in locations:
             normalized_loc = normalize_place_name(loc.name)
             if normalized_place == normalized_loc:
-                return _auto_place_resolution(session, loc, near_hub)
+                return _auto_place_resolution(session, loc, near_hub, user_id)
             if loc.is_hub and normalized_place in normalized_loc:
-                return _auto_place_resolution(session, loc, near_hub)
+                return _auto_place_resolution(session, loc, near_hub, user_id)
 
         if lat is not None and lon is not None:
             for loc in locations:
@@ -118,7 +125,7 @@ def resolve_place(
                 distance = haversine_distance_m(float(lat), float(lon), loc.lat, loc.lon)
                 ratio = SequenceMatcher(None, normalized_place, normalize_place_name(loc.name)).ratio()
                 if distance <= AUTO_MATCH_DISTANCE_METERS and ratio >= NAME_SIMILARITY_THRESHOLD:
-                    return _auto_place_resolution(session, loc, near_hub)
+                    return _auto_place_resolution(session, loc, near_hub, user_id)
 
     candidates: list[PlaceCandidate] = []
     if lat is not None and lon is not None:
@@ -135,7 +142,7 @@ def resolve_place(
             for distance, loc in scored[:MAX_CANDIDATES]
         ]
 
-    hub_tier, hub_id, hub_name = _resolve_hub(session, near_hub)
+    hub_tier, hub_id, hub_name = _resolve_hub(session, near_hub, user_id)
 
     return PlaceResolution(
         place_tier="ambiguous",
@@ -145,6 +152,6 @@ def resolve_place(
         hub_tier=hub_tier,
         hub_id=hub_id,
         hub_name=hub_name,
-        hub_options=_hub_options(session),
+        hub_options=_hub_options(session, user_id),
         requires_confirmation=bool(candidates) or hub_tier == "ambiguous",
     )
