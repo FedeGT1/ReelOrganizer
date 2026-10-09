@@ -6,15 +6,30 @@ from app.location_matching import NEW_HUB_SENTINEL
 from app.models import Location, Reel
 
 
-def test_audit_scan_flags_certain_duplicate(client, session):
-    loc_a = Location(name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
-    loc_b = Location(name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
+def test_audit_scan_does_not_surface_another_users_anomalies(client, session, test_user_id):
+    session.add(Location(name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77, user_id="other-user"))
+    session.add(
+        Location(
+            name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701, user_id="other-user"
+        )
+    )
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+
+    assert response.status_code == 200
+    assert "Surugaya" not in response.text
+
+
+def test_audit_scan_flags_certain_duplicate(client, session, test_user_id):
+    loc_a = Location(user_id=test_user_id, name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
+    loc_b = Location(user_id=test_user_id, name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
     session.refresh(loc_a)
     session.refresh(loc_b)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc_a.id, note="Negozio di hobby"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=loc_a.id, note="Negozio di hobby"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -39,12 +54,12 @@ def test_audit_scan_flags_certain_duplicate(client, session):
     assert "btn-delete" in response.text
 
 
-def test_audit_scan_excludes_same_spot_different_business_sharing_only_a_district_word(client, session):
+def test_audit_scan_excludes_same_spot_different_business_sharing_only_a_district_word(client, session, test_user_id):
     # Same exact coordinates, but the only shared word is the district
     # name ("Shibuya") -- real data showed this pattern is normal city
     # density, not a duplicate signal, even at 0m apart.
-    loc_a = Location(name="Starbucks Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
-    loc_b = Location(name="Pokémon Center Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    loc_a = Location(user_id=test_user_id, name="Starbucks Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    loc_b = Location(user_id=test_user_id, name="Pokémon Center Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -54,12 +69,12 @@ def test_audit_scan_excludes_same_spot_different_business_sharing_only_a_distric
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_excludes_unrelated_names_merely_within_the_wide_candidate_radius(client, session):
+def test_audit_scan_excludes_unrelated_names_merely_within_the_wide_candidate_radius(client, session, test_user_id):
     # Two real, distinct, unrelated places that just happen to be ~1km
     # apart in the same city -- common in any dense tourist area, and not
     # a meaningful duplicate signal on its own.
-    loc_a = Location(name="Yasaka Koshindo", is_hub=False, lat=35.0036, lon=135.7788)
-    loc_b = Location(name="Kawadoko sul fiume Kamogawa", is_hub=False, lat=35.0100, lon=135.7700)
+    loc_a = Location(user_id=test_user_id, name="Yasaka Koshindo", is_hub=False, lat=35.0036, lon=135.7788)
+    loc_b = Location(user_id=test_user_id, name="Kawadoko sul fiume Kamogawa", is_hub=False, lat=35.0100, lon=135.7700)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -69,9 +84,9 @@ def test_audit_scan_excludes_unrelated_names_merely_within_the_wide_candidate_ra
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(client, session):
-    loc_a = Location(name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
-    loc_b = Location(name="Ichiran Ramen Shibuya Ten", is_hub=False, lat=35.6680, lon=139.7110)
+def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(client, session, test_user_id):
+    loc_a = Location(user_id=test_user_id, name="Ichiran Ramen Shibuya", is_hub=False, lat=35.6590, lon=139.7005)
+    loc_b = Location(user_id=test_user_id, name="Ichiran Ramen Shibuya Ten", is_hub=False, lat=35.6680, lon=139.7110)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -82,9 +97,9 @@ def test_audit_scan_still_flags_a_related_name_beyond_the_tight_proximity_range(
     assert "Ichiran Ramen Shibuya" in response.text
 
 
-def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, session):
-    loc_a = Location(name="M's Pop Life Adult Department Store", is_hub=False, lat=35.698, lon=139.771)
-    loc_b = Location(name="BOOKOFF Akihabara Eki-mae", is_hub=False, lat=35.698, lon=139.771)
+def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, session, test_user_id):
+    loc_a = Location(user_id=test_user_id, name="M's Pop Life Adult Department Store", is_hub=False, lat=35.698, lon=139.771)
+    loc_b = Location(user_id=test_user_id, name="BOOKOFF Akihabara Eki-mae", is_hub=False, lat=35.698, lon=139.771)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -94,8 +109,8 @@ def test_audit_scan_excludes_tight_proximity_with_unrelated_names(client, sessio
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_shows_empty_state_when_no_anomalies(client, session):
-    session.add(Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503))
+def test_audit_scan_shows_empty_state_when_no_anomalies(client, session, test_user_id):
+    session.add(Location(user_id=test_user_id, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -107,9 +122,9 @@ def test_audit_scan_shows_empty_state_when_no_anomalies(client, session):
     assert "Nessun reel da dividere trovato." in response.text
 
 
-def test_audit_scan_does_not_list_the_same_pair_twice(client, session):
-    loc_a = Location(name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
-    loc_b = Location(name="nishiki market", is_hub=False, lat=35.0051, lon=135.7651)
+def test_audit_scan_does_not_list_the_same_pair_twice(client, session, test_user_id):
+    loc_a = Location(user_id=test_user_id, name="Nishiki Market", is_hub=False, lat=35.005, lon=135.765)
+    loc_b = Location(user_id=test_user_id, name="nishiki market", is_hub=False, lat=35.0051, lon=135.7651)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -118,15 +133,15 @@ def test_audit_scan_does_not_list_the_same_pair_twice(client, session):
     assert response.text.count('class="audit-pair"') == 1
 
 
-def test_audit_scan_does_not_duplicate_pair_across_sections_for_directional_match(client, session):
+def test_audit_scan_does_not_duplicate_pair_across_sections_for_directional_match(client, session, test_user_id):
     # "Tokyo" (hub) auto-matches "Tokyo Bay Area" (hub) via the
     # short-name-contained-in-hub-label rule (tier 1), but the other hub's
     # own scan only finds "Tokyo" as a distance-based candidate (the
     # containment check only fires one direction) -- without fully
     # processing every `auto` match before any `candidate` match, this
     # pair would show up in both the certain and the review section.
-    hub_a = Location(name="Tokyo Bay Area", is_hub=True, lat=35.6762, lon=139.6503)
-    hub_b = Location(name="Tokyo", is_hub=True, lat=35.685, lon=139.655)
+    hub_a = Location(user_id=test_user_id, name="Tokyo Bay Area", is_hub=True, lat=35.6762, lon=139.6503)
+    hub_b = Location(user_id=test_user_id, name="Tokyo", is_hub=True, lat=35.685, lon=139.655)
     session.add(hub_a)
     session.add(hub_b)
     session.commit()
@@ -136,9 +151,9 @@ def test_audit_scan_does_not_duplicate_pair_across_sections_for_directional_matc
     assert response.text.count('class="audit-pair"') == 1
 
 
-def test_audit_scan_never_flags_a_hub_against_its_own_satellite(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
-    satellite = Location(
+def test_audit_scan_never_flags_a_hub_against_its_own_satellite(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+    satellite = Location(user_id=test_user_id,
         name="Mochimen UDON x MAGURO SUSHI", is_hub=False, parent_id=hub.id,
         lat=35.6762, lon=139.6503,
     )
@@ -151,10 +166,10 @@ def test_audit_scan_never_flags_a_hub_against_its_own_satellite(client, session)
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_hub_coordinates(client, session):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    tower = Location(name="Kyoto Tower", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
-    kiyomizu = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_hub_coordinates(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    tower = Location(user_id=test_user_id, name="Kyoto Tower", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+    kiyomizu = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
     session.add(hub)
     session.add(tower)
     session.add(kiyomizu)
@@ -165,13 +180,13 @@ def test_audit_scan_ignores_distance_between_satellites_that_inherited_the_same_
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_ignores_distance_between_unrelated_locations_both_at_zero_coordinates(client, session):
+def test_audit_scan_ignores_distance_between_unrelated_locations_both_at_zero_coordinates(client, session, test_user_id):
     # Two different broken satellites that both happen to sit at the same
     # sentinel (0, 0) value must not look like they're "right next to
     # each other" -- that distance is meaningless, same reasoning as
     # hub-inherited coordinates.
-    loc_a = Location(name="Posto Rotto A", is_hub=False, lat=0.0, lon=0.0)
-    loc_b = Location(name="Posto Rotto B", is_hub=False, lat=0.0, lon=0.0)
+    loc_a = Location(user_id=test_user_id, name="Posto Rotto A", is_hub=False, lat=0.0, lon=0.0)
+    loc_b = Location(user_id=test_user_id, name="Posto Rotto B", is_hub=False, lat=0.0, lon=0.0)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -181,10 +196,10 @@ def test_audit_scan_ignores_distance_between_unrelated_locations_both_at_zero_co
     assert "audit-pair" not in response.text
 
 
-def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordinates(client, session):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    loc_a = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
-    loc_b = Location(name="kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordinates(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    loc_a = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+    loc_b = Location(user_id=test_user_id, name="kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
     session.add(hub)
     session.add(loc_a)
     session.add(loc_b)
@@ -196,16 +211,16 @@ def test_audit_scan_still_flags_text_duplicates_that_share_inherited_hub_coordin
     assert "Nessun duplicato quasi certo trovato." not in response.text
 
 
-def test_audit_scan_flags_satellite_with_inherited_hub_coordinates(client, session):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    satellite = Location(
+def test_audit_scan_flags_satellite_with_inherited_hub_coordinates(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(user_id=test_user_id,
         name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
     )
     session.add(hub)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -216,9 +231,9 @@ def test_audit_scan_flags_satellite_with_inherited_hub_coordinates(client, sessi
     assert "Tempio famoso" in response.text
 
 
-def test_audit_scan_does_not_flag_a_satellite_with_its_own_coordinates(client, session):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    satellite = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=34.9949, lon=135.7850)
+def test_audit_scan_does_not_flag_a_satellite_with_its_own_coordinates(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=34.9949, lon=135.7850)
     session.add(hub)
     session.add(satellite)
     session.commit()
@@ -228,14 +243,14 @@ def test_audit_scan_does_not_flag_a_satellite_with_its_own_coordinates(client, s
     assert "Nessuna coordinata imprecisa trovata." in response.text
 
 
-def test_audit_scan_flags_satellite_with_zero_coordinates(client, session):
+def test_audit_scan_flags_satellite_with_zero_coordinates(client, session, test_user_id):
     # (0, 0) -- "null island" -- is never a real place in Japan; it's a
     # classic sentinel/default value from a bug or a bad manual edit.
-    satellite = Location(name="Posto Rotto", is_hub=False, lat=0.0, lon=0.0)
+    satellite = Location(user_id=test_user_id, name="Posto Rotto", is_hub=False, lat=0.0, lon=0.0)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Nota"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=satellite.id, note="Nota"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -245,11 +260,11 @@ def test_audit_scan_flags_satellite_with_zero_coordinates(client, session):
     assert "0,0" in response.text or "0.0" in response.text
 
 
-def test_audit_scan_flags_hub_with_zero_coordinates(client, session):
+def test_audit_scan_flags_hub_with_zero_coordinates(client, session, test_user_id):
     # A hub at (0, 0) is just as broken as a satellite -- the existing
     # check only looked at satellites with a parent, which would have
     # missed this.
-    hub = Location(name="Hub Rotto", is_hub=True, lat=0.0, lon=0.0)
+    hub = Location(user_id=test_user_id, name="Hub Rotto", is_hub=True, lat=0.0, lon=0.0)
     session.add(hub)
     session.commit()
 
@@ -259,15 +274,15 @@ def test_audit_scan_flags_hub_with_zero_coordinates(client, session):
     assert "Hub Rotto" in response.text
 
 
-def test_audit_scan_flags_low_confidence_location(client, session):
-    loc = Location(
+def test_audit_scan_flags_low_confidence_location(client, session, test_user_id):
+    loc = Location(user_id=test_user_id,
         name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0,
         geocode_confidence="low",
     )
     session.add(loc)
     session.commit()
     session.refresh(loc)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc.id, note="Sushi a nastro"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=loc.id, note="Sushi a nastro"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -277,14 +292,14 @@ def test_audit_scan_flags_low_confidence_location(client, session):
     assert "Sushi a nastro" in response.text
 
 
-def test_ui_audit_ai_geocode_shows_proposal_for_imprecise_location(client, session, monkeypatch):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    satellite = Location(name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
+def test_ui_audit_ai_geocode_shows_proposal_for_imprecise_location(client, session, test_user_id, monkeypatch):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681)
     session.add(hub)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=satellite.id, note="Tempio famoso"))
     session.commit()
 
     def fake_categorize(hub_names, categories, messages):
@@ -308,8 +323,8 @@ def test_ui_audit_ai_geocode_shows_proposal_for_imprecise_location(client, sessi
     assert "135.785" in response.text
 
 
-def test_ui_audit_ai_geocode_handles_provider_error_gracefully(client, session, monkeypatch):
-    loc = Location(name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="low")
+def test_ui_audit_ai_geocode_handles_provider_error_gracefully(client, session, test_user_id, monkeypatch):
+    loc = Location(user_id=test_user_id, name="Hama-Sushi (filiale non specificata)", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="low")
     session.add(loc)
     session.commit()
     session.refresh(loc)
@@ -329,9 +344,9 @@ def test_ui_audit_ai_geocode_returns_404_for_missing_location(client):
     assert response.status_code == 404
 
 
-def test_ui_audit_ai_geocode_apply_updates_location_coordinates(client, session):
-    hub = Location(name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
-    satellite = Location(
+def test_ui_audit_ai_geocode_apply_updates_location_coordinates(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Kyoto / Kansai", is_hub=True, lat=35.0116, lon=135.7681)
+    satellite = Location(user_id=test_user_id,
         name="Kiyomizu-dera", is_hub=False, parent_id=hub.id, lat=35.0116, lon=135.7681,
         geocode_confidence="low",
     )
@@ -359,8 +374,8 @@ def test_ui_audit_ai_geocode_apply_returns_404_for_missing_location(client):
     assert response.status_code == 404
 
 
-def test_audit_scan_does_not_flag_high_confidence_location(client, session):
-    loc = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="high")
+def test_audit_scan_does_not_flag_high_confidence_location(client, session, test_user_id):
+    loc = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0, geocode_confidence="high")
     session.add(loc)
     session.commit()
 
@@ -369,19 +384,19 @@ def test_audit_scan_does_not_flag_high_confidence_location(client, session):
     assert "Nessuna location con confidenza bassa." in response.text
 
 
-def test_audit_scan_flags_reel_that_may_need_splitting(client, session):
+def test_audit_scan_flags_reel_that_may_need_splitting(client, session, test_user_id):
     # Real-world shape: two reels sharing the exact same link and the
     # exact same (too-generic) location, but describing two different
     # specific places in their notes -- a sign the location should be
     # split, not that anything should be merged.
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)
     session.commit()
     session.refresh(kamakura)
 
     link = "https://www.instagram.com/reel/same-link/"
-    session.add(Reel(link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in."))
-    session.add(Reel(link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista."))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in."))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista."))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -392,12 +407,12 @@ def test_audit_scan_flags_reel_that_may_need_splitting(client, session):
     assert "Tempio famoso per i giardini e la vista." in response.text
 
 
-def test_audit_scan_does_not_flag_a_single_reel_per_link_as_a_split_candidate(client, session):
-    loc = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
+def test_audit_scan_does_not_flag_a_single_reel_per_link_as_a_split_candidate(client, session, test_user_id):
+    loc = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
     session.add(loc)
     session.commit()
     session.refresh(loc)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc.id, note="Tempio"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=loc.id, note="Tempio"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -405,11 +420,11 @@ def test_audit_scan_does_not_flag_a_single_reel_per_link_as_a_split_candidate(cl
     assert "Nessun reel da dividere trovato." in response.text
 
 
-def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_split_candidates(client, session):
+def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_split_candidates(client, session, test_user_id):
     # The normal multi-place import: one link, several DIFFERENT
     # locations -- this is not a split candidate, it's already split.
-    loc_a = Location(name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
-    loc_b = Location(name="Kinkaku-ji", is_hub=False, lat=35.03, lon=135.73)
+    loc_a = Location(user_id=test_user_id, name="Kiyomizu-dera", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(user_id=test_user_id, name="Kinkaku-ji", is_hub=False, lat=35.03, lon=135.73)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -417,8 +432,8 @@ def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_sp
     session.refresh(loc_b)
 
     link = "https://www.instagram.com/reel/multi-place/"
-    session.add(Reel(link=link, location_id=loc_a.id, note="Tempio A"))
-    session.add(Reel(link=link, location_id=loc_b.id, note="Tempio B"))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=loc_a.id, note="Tempio A"))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=loc_b.id, note="Tempio B"))
     session.commit()
 
     response = client.get("/ui/audit/scan")
@@ -426,16 +441,16 @@ def test_audit_scan_does_not_flag_multi_place_reels_on_different_locations_as_sp
     assert "Nessun reel da dividere trovato." in response.text
 
 
-def test_ui_audit_ai_compare_shows_different_verdict_in_the_matching_pair(client, session, monkeypatch):
-    loc_a = Location(name="MODE OFF Hachioji Owada", is_hub=False, lat=35.0, lon=135.0)
-    loc_b = Location(name="HARD-OFF Hachioji Owada", is_hub=False, lat=35.0001, lon=135.0001)
+def test_ui_audit_ai_compare_shows_different_verdict_in_the_matching_pair(client, session, test_user_id, monkeypatch):
+    loc_a = Location(user_id=test_user_id, name="MODE OFF Hachioji Owada", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(user_id=test_user_id, name="HARD-OFF Hachioji Owada", is_hub=False, lat=35.0001, lon=135.0001)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
     session.refresh(loc_a)
     session.refresh(loc_b)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=loc_a.id, note="Vestiti usati"))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=loc_b.id, note="Elettronica usata"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=loc_a.id, note="Vestiti usati"))
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/b", location_id=loc_b.id, note="Elettronica usata"))
     session.commit()
 
     captured = {}
@@ -455,9 +470,9 @@ def test_ui_audit_ai_compare_shows_different_verdict_in_the_matching_pair(client
     assert captured["args"][3] == ["Elettronica usata"]
 
 
-def test_ui_audit_ai_compare_shows_same_place_verdict(client, session, monkeypatch):
-    loc_a = Location(name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
-    loc_b = Location(name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
+def test_ui_audit_ai_compare_shows_same_place_verdict(client, session, test_user_id, monkeypatch):
+    loc_a = Location(user_id=test_user_id, name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
+    loc_b = Location(user_id=test_user_id, name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -472,9 +487,9 @@ def test_ui_audit_ai_compare_shows_same_place_verdict(client, session, monkeypat
     assert "Stesso negozio, nome scritto diversamente." in response.text
 
 
-def test_ui_audit_ai_compare_handles_provider_error_gracefully(client, session, monkeypatch):
-    loc_a = Location(name="Posto A", is_hub=False, lat=35.0, lon=135.0)
-    loc_b = Location(name="Posto B", is_hub=False, lat=35.0001, lon=135.0001)
+def test_ui_audit_ai_compare_handles_provider_error_gracefully(client, session, test_user_id, monkeypatch):
+    loc_a = Location(user_id=test_user_id, name="Posto A", is_hub=False, lat=35.0, lon=135.0)
+    loc_b = Location(user_id=test_user_id, name="Posto B", is_hub=False, lat=35.0001, lon=135.0001)
     session.add(loc_a)
     session.add(loc_b)
     session.commit()
@@ -489,8 +504,8 @@ def test_ui_audit_ai_compare_handles_provider_error_gracefully(client, session, 
     assert "riprova" in response.text.lower()
 
 
-def test_ui_audit_ai_compare_returns_404_for_missing_location(client, session):
-    loc = Location(name="Posto A", is_hub=False, lat=35.0, lon=135.0)
+def test_ui_audit_ai_compare_returns_404_for_missing_location(client, session, test_user_id):
+    loc = Location(user_id=test_user_id, name="Posto A", is_hub=False, lat=35.0, lon=135.0)
     session.add(loc)
     session.commit()
     session.refresh(loc)
@@ -499,15 +514,15 @@ def test_ui_audit_ai_compare_returns_404_for_missing_location(client, session):
     assert response.status_code == 404
 
 
-def test_ui_audit_ai_split_shows_a_proposal_per_reel(client, session, monkeypatch):
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+def test_ui_audit_ai_split_shows_a_proposal_per_reel(client, session, test_user_id, monkeypatch):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)
     session.commit()
     session.refresh(kamakura)
 
     link = "https://www.instagram.com/reel/same-link/"
-    reel_a = Reel(link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in.")
-    reel_b = Reel(link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista.")
+    reel_a = Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Grande statua del Buddha a Kotoku-in.")
+    reel_b = Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Tempio famoso per i giardini e la vista.")
     session.add(reel_a)
     session.add(reel_b)
     session.commit()
@@ -542,15 +557,15 @@ def test_ui_audit_ai_split_shows_a_proposal_per_reel(client, session, monkeypatc
     assert "Sto applicando…" in response.text
 
 
-def test_ui_audit_ai_split_handles_provider_error_for_one_reel(client, session, monkeypatch):
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+def test_ui_audit_ai_split_handles_provider_error_for_one_reel(client, session, test_user_id, monkeypatch):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)
     session.commit()
     session.refresh(kamakura)
 
     link = "https://www.instagram.com/reel/same-link/"
-    session.add(Reel(link=link, location_id=kamakura.id, note="Nota A"))
-    session.add(Reel(link=link, location_id=kamakura.id, note="Nota B"))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Nota A"))
+    session.add(Reel(user_id=test_user_id, link=link, location_id=kamakura.id, note="Nota B"))
     session.commit()
 
     def boom(hub_names, categories, messages):
@@ -563,14 +578,14 @@ def test_ui_audit_ai_split_handles_provider_error_for_one_reel(client, session, 
     assert "riprova" in response.text.lower()
 
 
-def test_ui_audit_ai_split_apply_creates_new_locations_and_reassigns_reels(client, session):
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+def test_ui_audit_ai_split_apply_creates_new_locations_and_reassigns_reels(client, session, test_user_id):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)
     session.commit()
     session.refresh(kamakura)
 
-    reel_a = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Kotoku-in")
-    reel_b = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Hase-dera")
+    reel_a = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Kotoku-in")
+    reel_b = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota Hase-dera")
     session.add(reel_a)
     session.add(reel_b)
     session.commit()
@@ -605,16 +620,16 @@ def test_ui_audit_ai_split_apply_creates_new_locations_and_reassigns_reels(clien
     assert hase.is_hub is True
 
 
-def test_ui_audit_ai_split_apply_can_reassign_to_an_existing_location(client, session):
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
-    existing = Location(name="Komachi Street", is_hub=False, lat=35.319, lon=139.549)
+def test_ui_audit_ai_split_apply_can_reassign_to_an_existing_location(client, session, test_user_id):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+    existing = Location(user_id=test_user_id, name="Komachi Street", is_hub=False, lat=35.319, lon=139.549)
     session.add(kamakura)
     session.add(existing)
     session.commit()
     session.refresh(kamakura)
     session.refresh(existing)
 
-    reel = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota")
+    reel = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota")
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -632,14 +647,14 @@ def test_ui_audit_ai_split_apply_can_reassign_to_an_existing_location(client, se
     assert reel.location_id == existing.id
 
 
-def test_ui_audit_ai_split_apply_validates_whole_batch_before_reassigning_any(client, session):
-    kamakura = Location(name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
+def test_ui_audit_ai_split_apply_validates_whole_batch_before_reassigning_any(client, session, test_user_id):
+    kamakura = Location(user_id=test_user_id, name="Kamakura", is_hub=False, lat=35.3193, lon=139.5466)
     session.add(kamakura)
     session.commit()
     session.refresh(kamakura)
 
-    reel_a = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota A")
-    reel_b = Reel(link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota B")
+    reel_a = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota A")
+    reel_b = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=kamakura.id, note="Nota B")
     session.add(reel_a)
     session.add(reel_b)
     session.commit()
@@ -664,16 +679,16 @@ def test_ui_audit_ai_split_apply_validates_whole_batch_before_reassigning_any(cl
     assert reel_a.location_id == kamakura.id
 
 
-def test_ui_audit_merge_removes_pair_and_reassigns_reel(client, session):
-    keep = Location(name="Shibuya Crossing", is_hub=False, lat=35.6590, lon=139.7005)
-    drop = Location(name="Shibuya Crossing ", is_hub=False, lat=35.6591, lon=139.7006)
+def test_ui_audit_merge_removes_pair_and_reassigns_reel(client, session, test_user_id):
+    keep = Location(user_id=test_user_id, name="Shibuya Crossing", is_hub=False, lat=35.6590, lon=139.7005)
+    drop = Location(user_id=test_user_id, name="Shibuya Crossing ", is_hub=False, lat=35.6591, lon=139.7006)
     session.add(keep)
     session.add(drop)
     session.commit()
     session.refresh(keep)
     session.refresh(drop)
 
-    reel = Reel(link="https://instagram.com/reel/x", location_id=drop.id)
+    reel = Reel(user_id=test_user_id, link="https://instagram.com/reel/x", location_id=drop.id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -687,16 +702,16 @@ def test_ui_audit_merge_removes_pair_and_reassigns_reel(client, session):
     assert session.get(Location, drop.id) is None
 
 
-def test_ui_audit_merge_renders_error_when_drop_has_children(client, session):
-    hub = Location(name="Hub A", is_hub=True, lat=35.0, lon=135.0)
-    other_hub = Location(name="Hub B", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_audit_merge_renders_error_when_drop_has_children(client, session, test_user_id):
+    hub = Location(user_id=test_user_id, name="Hub A", is_hub=True, lat=35.0, lon=135.0)
+    other_hub = Location(user_id=test_user_id, name="Hub B", is_hub=True, lat=36.0, lon=136.0)
     session.add(hub)
     session.add(other_hub)
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
 
-    satellite = Location(name="Satellite", is_hub=False, parent_id=hub.id, lat=35.001, lon=135.001)
+    satellite = Location(user_id=test_user_id, name="Satellite", is_hub=False, parent_id=hub.id, lat=35.001, lon=135.001)
     session.add(satellite)
     session.commit()
 

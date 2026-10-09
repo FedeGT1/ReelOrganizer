@@ -9,12 +9,14 @@ from sqlmodel import Session, select
 
 from app.ai import client as ai_client
 from app.ai.providers.base import AIProviderError
+from app.auth import get_current_user
 from app.db import get_session
 from app.location_matching import NEW_HUB_SENTINEL, normalize_place_name, resolve_place
-from app.models import Location, Reel, ReelType
+from app.models import Location, Reel, ReelType, User
 from app.routers.categories import get_taxonomy, get_valid_type_keys
 from app.routers.locations import _merge_locations
 from app.routers.reels import _serialize_reel
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 logger = logging.getLogger("app.ai")
@@ -75,8 +77,8 @@ class SplitProposal:
     error: Optional[str] = None
 
 
-def _reels_for_location(session: Session, location_id: str) -> list:
-    reels = session.exec(select(Reel).where(Reel.location_id == location_id)).all()
+def _reels_for_location(session: Session, user_id: str, location_id: str) -> list:
+    reels = session.exec(user_query(Reel, user_id).where(Reel.location_id == location_id)).all()
     return [_serialize_reel(session, r) for r in reels]
 
 
@@ -113,7 +115,7 @@ def _worth_reviewing(loc_name: str, other_name: str) -> bool:
     return jaccard >= REVIEW_NAME_SIMILARITY_THRESHOLD
 
 
-def _find_imprecise_coordinates(session: Session, locations: list, by_id: dict) -> list:
+def _find_imprecise_coordinates(session: Session, user_id: str, locations: list, by_id: dict) -> list:
     result = []
     for loc in locations:
         if loc.lat == 0 and loc.lon == 0:
@@ -123,7 +125,7 @@ def _find_imprecise_coordinates(session: Session, locations: list, by_id: dict) 
             result.append(ImpreciseLocation(
                 location=loc,
                 reason="coordinate a 0,0 -- quasi certamente un errore, nessun posto in Giappone è lì",
-                reels=_reels_for_location(session, loc.id),
+                reels=_reels_for_location(session, user_id, loc.id),
             ))
             continue
 
@@ -134,21 +136,21 @@ def _find_imprecise_coordinates(session: Session, locations: list, by_id: dict) 
             result.append(ImpreciseLocation(
                 location=loc,
                 reason=f"coordinate ereditate da {parent.name}",
-                reels=_reels_for_location(session, loc.id),
+                reels=_reels_for_location(session, user_id, loc.id),
             ))
     return result
 
 
-def _find_low_confidence(session: Session, locations: list) -> list:
+def _find_low_confidence(session: Session, user_id: str, locations: list) -> list:
     return [
-        LowConfidenceLocation(location=loc, reels=_reels_for_location(session, loc.id))
+        LowConfidenceLocation(location=loc, reels=_reels_for_location(session, user_id, loc.id))
         for loc in locations
         if loc.geocode_confidence == "low"
     ]
 
 
-def _find_split_candidates(session: Session, by_id: dict) -> list:
-    reels = session.exec(select(Reel)).all()
+def _find_split_candidates(session: Session, user_id: str, by_id: dict) -> list:
+    reels = session.exec(user_query(Reel, user_id)).all()
     groups: dict = {}
     for r in reels:
         groups.setdefault((r.link, r.location_id), []).append(r)
@@ -164,12 +166,12 @@ def _find_split_candidates(session: Session, by_id: dict) -> list:
     return result
 
 
-def _propose_split(session: Session, candidate: SplitCandidate) -> list:
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+def _propose_split(session: Session, user_id: str, candidate: SplitCandidate) -> list:
+    hubs = session.exec(user_query(Location, user_id).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
-    taxonomy = get_taxonomy(session)
+    taxonomy = get_taxonomy(session, user_id)
     category_labels = {key: info["label"] for key, info in taxonomy.items()}
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, user_id)
 
     proposals = []
     for reel in candidate.reels:
@@ -188,7 +190,9 @@ def _propose_split(session: Session, candidate: SplitCandidate) -> list:
 
         types = [t for t in result.get("types", []) if t in valid_type_keys]
         place_name = result.get("place_name", "")
-        resolution = resolve_place(session, place_name, result.get("near_hub"), result.get("lat"), result.get("lon"))
+        resolution = resolve_place(
+            session, place_name, result.get("near_hub"), result.get("lat"), result.get("lon"), user_id
+        )
 
         place_payload = {
             "reel_id": reel["id"],
@@ -210,6 +214,7 @@ def _propose_split(session: Session, candidate: SplitCandidate) -> list:
 
 def _reassign_reel_location(
     session: Session,
+    user_id: str,
     reel_id: str,
     place_name: str,
     types: list,
@@ -219,7 +224,7 @@ def _reassign_reel_location(
     resolution_hub_id: str = "",
     confidence: Optional[str] = None,
 ) -> Reel:
-    reel = session.get(Reel, reel_id)
+    reel = get_owned(session, Reel, reel_id, user_id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
 
@@ -239,6 +244,7 @@ def _reassign_reel_location(
             lat=float(lat),
             lon=float(lon),
             geocode_confidence=confidence or None,
+            user_id=user_id,
         )
         session.add(new_location)
         session.commit()
@@ -248,7 +254,7 @@ def _reassign_reel_location(
     reel.location_id = location_id
     session.add(reel)
 
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, user_id)
     for existing in session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all():
         session.delete(existing)
     session.commit()
@@ -260,13 +266,13 @@ def _reassign_reel_location(
     return reel
 
 
-def _propose_geocode(session: Session, location: Location) -> GeocodeProposal:
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+def _propose_geocode(session: Session, user_id: str, location: Location) -> GeocodeProposal:
+    hubs = session.exec(user_query(Location, user_id).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
-    taxonomy = get_taxonomy(session)
+    taxonomy = get_taxonomy(session, user_id)
     category_labels = {key: info["label"] for key, info in taxonomy.items()}
 
-    notes = [r["note"] for r in _reels_for_location(session, location.id) if r["note"]]
+    notes = [r["note"] for r in _reels_for_location(session, user_id, location.id) if r["note"]]
     message = location.name if not notes else f"{location.name}. {' '.join(notes)}"
 
     try:
@@ -281,15 +287,15 @@ def _propose_geocode(session: Session, location: Location) -> GeocodeProposal:
     return GeocodeProposal(lat=result.get("lat"), lon=result.get("lon"), confidence=result.get("confidence"))
 
 
-def _find_anomalies(session: Session) -> dict:
-    locations = session.exec(select(Location)).all()
+def _find_anomalies(session: Session, user_id: str) -> dict:
+    locations = session.exec(user_query(Location, user_id)).all()
     by_id = {loc.id: loc for loc in locations}
 
     certain_keys: set = set()
     certain_pairs: list[AuditPair] = []
     for loc in locations:
         lat, lon = _effective_coords(loc, by_id)
-        resolution = resolve_place(session, loc.name, None, lat, lon, exclude_location_id=loc.id)
+        resolution = resolve_place(session, loc.name, None, lat, lon, user_id, exclude_location_id=loc.id)
         if resolution.place_tier == "auto":
             other = by_id[resolution.place_location_id]
             if other.is_hub != loc.is_hub:
@@ -302,8 +308,8 @@ def _find_anomalies(session: Session) -> dict:
                 certain_keys.add(key)
                 certain_pairs.append(AuditPair(
                     a=loc, b=other,
-                    a_reels=_reels_for_location(session, loc.id),
-                    b_reels=_reels_for_location(session, other.id),
+                    a_reels=_reels_for_location(session, user_id, loc.id),
+                    b_reels=_reels_for_location(session, user_id, other.id),
                 ))
 
     # Second pass, after every `auto` pair is known, so a pair already
@@ -314,7 +320,7 @@ def _find_anomalies(session: Session) -> dict:
     review_pairs: list[AuditPair] = []
     for loc in locations:
         lat, lon = _effective_coords(loc, by_id)
-        resolution = resolve_place(session, loc.name, None, lat, lon, exclude_location_id=loc.id)
+        resolution = resolve_place(session, loc.name, None, lat, lon, user_id, exclude_location_id=loc.id)
         for candidate in resolution.place_candidates:
             other = by_id[candidate.id]
             if other.is_hub != loc.is_hub:
@@ -327,38 +333,44 @@ def _find_anomalies(session: Session) -> dict:
             review_keys.add(key)
             review_pairs.append(AuditPair(
                 a=loc, b=other,
-                a_reels=_reels_for_location(session, loc.id),
-                b_reels=_reels_for_location(session, other.id),
+                a_reels=_reels_for_location(session, user_id, loc.id),
+                b_reels=_reels_for_location(session, user_id, other.id),
                 distance_m=candidate.distance_m,
             ))
 
     return {
         "certain_pairs": certain_pairs,
         "review_pairs": review_pairs,
-        "imprecise_locations": _find_imprecise_coordinates(session, locations, by_id),
-        "low_confidence_locations": _find_low_confidence(session, locations),
-        "split_candidates": _find_split_candidates(session, by_id),
-        "taxonomy": get_taxonomy(session),
+        "imprecise_locations": _find_imprecise_coordinates(session, user_id, locations, by_id),
+        "low_confidence_locations": _find_low_confidence(session, user_id, locations),
+        "split_candidates": _find_split_candidates(session, user_id, by_id),
+        "taxonomy": get_taxonomy(session, user_id),
         "error": None,
     }
 
 
 @ui_router.get("/scan")
-def ui_audit_scan(request: Request, session: Session = Depends(get_session)):
-    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+def ui_audit_scan(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session, current_user.id))
 
 
 @ui_router.post("/ai/compare/{location_a_id}/{location_b_id}")
 def ui_audit_ai_compare(
-    request: Request, location_a_id: str, location_b_id: str, session: Session = Depends(get_session)
+    request: Request,
+    location_a_id: str,
+    location_b_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    loc_a = session.get(Location, location_a_id)
-    loc_b = session.get(Location, location_b_id)
+    loc_a = get_owned(session, Location, location_a_id, current_user.id)
+    loc_b = get_owned(session, Location, location_b_id, current_user.id)
     if loc_a is None or loc_b is None:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    notes_a = [r["note"] for r in _reels_for_location(session, loc_a.id) if r["note"]]
-    notes_b = [r["note"] for r in _reels_for_location(session, loc_b.id) if r["note"]]
+    notes_a = [r["note"] for r in _reels_for_location(session, current_user.id, loc_a.id) if r["note"]]
+    notes_b = [r["note"] for r in _reels_for_location(session, current_user.id, loc_b.id) if r["note"]]
 
     try:
         verdict = ai_client.compare_places(loc_a.name, notes_a, loc_b.name, notes_b)
@@ -366,7 +378,7 @@ def ui_audit_ai_compare(
         logger.exception("compare_places call failed for %s vs %s", loc_a.id, loc_b.id)
         verdict = {"same_place": None, "reasoning": "Errore nel contattare l'assistente, riprova."}
 
-    context = _find_anomalies(session)
+    context = _find_anomalies(session, current_user.id)
     target_key = frozenset((loc_a.id, loc_b.id))
     for pair in context["certain_pairs"] + context["review_pairs"]:
         if frozenset((pair.a.id, pair.b.id)) == target_key:
@@ -381,7 +393,10 @@ def ui_audit_ai_compare(
 # literal one (treating "apply" as a location_id).
 @ui_router.post("/ai/split/apply")
 def ui_audit_ai_split_apply(
-    request: Request, place_json: list[str] = Form([]), session: Session = Depends(get_session)
+    request: Request,
+    place_json: list[str] = Form([]),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     parsed_places = []
     for raw in place_json:
@@ -400,6 +415,7 @@ def ui_audit_ai_split_apply(
     for place in parsed_places:
         _reassign_reel_location(
             session,
+            current_user.id,
             place["reel_id"],
             place.get("place_name", ""),
             place.get("types", []),
@@ -410,17 +426,23 @@ def ui_audit_ai_split_apply(
             place.get("confidence"),
         )
 
-    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+    return templates.TemplateResponse(
+        request, "partials/audit_results.html", _find_anomalies(session, current_user.id)
+    )
 
 
 @ui_router.post("/ai/split/{location_id}")
 def ui_audit_ai_split(
-    request: Request, location_id: str, link: str = Form(...), session: Session = Depends(get_session)
+    request: Request,
+    location_id: str,
+    link: str = Form(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    context = _find_anomalies(session)
+    context = _find_anomalies(session, current_user.id)
     for candidate in context["split_candidates"]:
         if candidate.location.id == location_id and candidate.link == link:
-            candidate.proposals = _propose_split(session, candidate)
+            candidate.proposals = _propose_split(session, current_user.id, candidate)
             break
     return templates.TemplateResponse(request, "partials/audit_results.html", context)
 
@@ -433,8 +455,9 @@ def ui_audit_ai_geocode_apply(
     lon: float = Form(...),
     confidence: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    location = session.get(Location, location_id)
+    location = get_owned(session, Location, location_id, current_user.id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     location.lat = lat
@@ -442,18 +465,25 @@ def ui_audit_ai_geocode_apply(
     location.geocode_confidence = confidence or None
     session.add(location)
     session.commit()
-    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+    return templates.TemplateResponse(
+        request, "partials/audit_results.html", _find_anomalies(session, current_user.id)
+    )
 
 
 @ui_router.post("/ai/geocode/{location_id}")
-def ui_audit_ai_geocode(request: Request, location_id: str, session: Session = Depends(get_session)):
-    location = session.get(Location, location_id)
+def ui_audit_ai_geocode(
+    request: Request,
+    location_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    location = get_owned(session, Location, location_id, current_user.id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    proposal = _propose_geocode(session, location)
+    proposal = _propose_geocode(session, current_user.id, location)
 
-    context = _find_anomalies(session)
+    context = _find_anomalies(session, current_user.id)
     for item in context["imprecise_locations"] + context["low_confidence_locations"]:
         if item.location.id == location_id:
             item.proposal = proposal
@@ -462,13 +492,21 @@ def ui_audit_ai_geocode(request: Request, location_id: str, session: Session = D
 
 
 @ui_router.post("/merge/{keep_id}/{drop_id}")
-def ui_audit_merge(request: Request, keep_id: str, drop_id: str, session: Session = Depends(get_session)):
+def ui_audit_merge(
+    request: Request,
+    keep_id: str,
+    drop_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     try:
-        _merge_locations(session, keep_id, drop_id)
+        _merge_locations(session, current_user.id, keep_id, drop_id)
     except HTTPException as exc:
         if exc.status_code == 404:
             raise
-        context = _find_anomalies(session)
+        context = _find_anomalies(session, current_user.id)
         context["error"] = "Impossibile unire: la location da eliminare ha ancora città satellite collegate."
         return templates.TemplateResponse(request, "partials/audit_results.html", context)
-    return templates.TemplateResponse(request, "partials/audit_results.html", _find_anomalies(session))
+    return templates.TemplateResponse(
+        request, "partials/audit_results.html", _find_anomalies(session, current_user.id)
+    )
