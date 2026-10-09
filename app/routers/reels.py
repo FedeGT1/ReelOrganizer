@@ -6,12 +6,14 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Location, Reel, ReelType
+from app.models import Location, Reel, ReelType, User
 from app.reel_links import find_duplicate_reel
 from app.routers.categories import get_taxonomy, get_valid_type_keys, reel_ids_matching_types
 from app.routers.locations import _create_location
 from app.routers.map import render_map_html
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 router = APIRouter(prefix="/api/reels", tags=["reels"])
@@ -24,9 +26,9 @@ def _is_safe_link(link: str) -> bool:
     return urlparse(link).scheme.lower() in ("http", "https")
 
 
-def _location_and_satellite_ids(session: Session, location_id: str) -> list[str]:
+def _location_and_satellite_ids(session: Session, user_id: str, location_id: str) -> list[str]:
     satellite_ids = session.exec(
-        select(Location.id).where(Location.parent_id == location_id)
+        user_query(Location, user_id).with_only_columns(Location.id).where(Location.parent_id == location_id)
     ).all()
     return [location_id, *satellite_ids]
 
@@ -96,13 +98,21 @@ def _serialize_reel(session: Session, reel: Reel) -> dict:
 
 
 def _update_reel(
-    session: Session, reel_id: str, link: str, location_id: str, note: Optional[str], types: list[str]
+    session: Session,
+    user_id: str,
+    reel_id: str,
+    link: str,
+    location_id: str,
+    note: Optional[str],
+    types: list[str],
 ) -> Reel:
-    reel = session.get(Reel, reel_id)
+    reel = get_owned(session, Reel, reel_id, user_id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
+    if get_owned(session, Location, location_id, user_id) is None:
+        raise HTTPException(status_code=404, detail="Location not found")
 
     reel.link = link
     reel.location_id = location_id
@@ -113,7 +123,7 @@ def _update_reel(
         session.delete(t)
     session.commit()
 
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, user_id)
     for type_value in types:
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel_id, type=type_value))
@@ -128,10 +138,13 @@ def list_reels(
     type: list[str] = Query([]),
     q: Optional[str] = None,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    query = select(Reel)
+    query = user_query(Reel, current_user.id)
     if location_id is not None:
-        query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
+        query = query.where(
+            Reel.location_id.in_(_location_and_satellite_ids(session, current_user.id, location_id))
+        )
     reels = session.exec(query).all()
 
     reels = _filter_reels_by_types(session, reels, type)
@@ -141,15 +154,23 @@ def list_reels(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
+def create_reel(
+    payload: ReelCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     if not _is_safe_link(payload.link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
-    reel = Reel(link=payload.link, location_id=payload.location_id, note=payload.note)
+    if get_owned(session, Location, payload.location_id, current_user.id) is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    reel = Reel(
+        link=payload.link, location_id=payload.location_id, note=payload.note, user_id=current_user.id
+    )
     session.add(reel)
     session.commit()
     session.refresh(reel)
 
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, current_user.id)
     for type_value in payload.types:
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
@@ -159,14 +180,23 @@ def create_reel(payload: ReelCreate, session: Session = Depends(get_session)):
 
 
 @router.put("/{reel_id}")
-def update_reel(reel_id: str, payload: ReelCreate, session: Session = Depends(get_session)):
-    reel = _update_reel(session, reel_id, payload.link, payload.location_id, payload.note, payload.types)
+def update_reel(
+    reel_id: str,
+    payload: ReelCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    reel = _update_reel(
+        session, current_user.id, reel_id, payload.link, payload.location_id, payload.note, payload.types
+    )
     return _serialize_reel(session, reel)
 
 
 @router.delete("/{reel_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_reel(reel_id: str, session: Session = Depends(get_session)):
-    reel = session.get(Reel, reel_id)
+def delete_reel(
+    reel_id: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    reel = get_owned(session, Reel, reel_id, current_user.id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
 
@@ -179,64 +209,75 @@ def delete_reel(reel_id: str, session: Session = Depends(get_session)):
 
 def _reel_list_context(
     session: Session,
+    user_id: str,
     location_id: Optional[str] = None,
     type_values: Optional[list[str]] = None,
     q: Optional[str] = None,
 ) -> dict:
     type_values = type_values or []
-    query = select(Reel)
+    query = user_query(Reel, user_id)
     if location_id is not None:
-        query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, location_id)))
+        query = query.where(Reel.location_id.in_(_location_and_satellite_ids(session, user_id, location_id)))
     reels = session.exec(query).all()
 
     reels = _filter_reels_by_types(session, reels, type_values)
     reels = _filter_reels_by_text(session, reels, q)
 
-    filtered_location = session.get(Location, location_id) if location_id else None
+    filtered_location = get_owned(session, Location, location_id, user_id) if location_id else None
     return {
         "reels": [_serialize_reel(session, r) for r in reels],
-        "taxonomy": get_taxonomy(session),
+        "taxonomy": get_taxonomy(session, user_id),
         "filtered_location": filtered_location,
     }
 
 
 def _reel_add_form_context(
     session: Session,
+    user_id: str,
     error: Optional[str] = None,
     duplicate_warning: Optional[dict] = None,
 ) -> dict:
-    locations = session.exec(select(Location)).all()
+    locations = session.exec(user_query(Location, user_id)).all()
     return {
         "locations": locations,
         "hubs": [loc for loc in locations if loc.is_hub],
-        "taxonomy": get_taxonomy(session),
+        "taxonomy": get_taxonomy(session, user_id),
         "error": error,
         "duplicate_warning": duplicate_warning,
     }
 
 
-def _reel_edit_form_context(session: Session, reel: Reel) -> dict:
+def _reel_edit_form_context(session: Session, user_id: str, reel: Reel) -> dict:
     types = session.exec(select(ReelType).where(ReelType.reel_id == reel.id)).all()
     return {
         "reel": reel,
-        "locations": session.exec(select(Location)).all(),
-        "taxonomy": get_taxonomy(session),
+        "locations": session.exec(user_query(Location, user_id)).all(),
+        "taxonomy": get_taxonomy(session, user_id),
         "reel_type_keys": {t.type for t in types},
     }
 
 
 @ui_router.get("/reels/add-form")
-def ui_reel_add_form(request: Request, session: Session = Depends(get_session)):
-    return templates.TemplateResponse(request, "partials/reel_add_form.html", _reel_add_form_context(session))
+def ui_reel_add_form(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    return templates.TemplateResponse(
+        request, "partials/reel_add_form.html", _reel_add_form_context(session, current_user.id)
+    )
 
 
 @ui_router.get("/reels/{reel_id}/edit-form")
-def ui_reel_edit_form(request: Request, reel_id: str, session: Session = Depends(get_session)):
-    reel = session.get(Reel, reel_id)
+def ui_reel_edit_form(
+    request: Request,
+    reel_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    reel = get_owned(session, Reel, reel_id, current_user.id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
     return templates.TemplateResponse(
-        request, "partials/reel_edit_form.html", _reel_edit_form_context(session, reel)
+        request, "partials/reel_edit_form.html", _reel_edit_form_context(session, current_user.id, reel)
     )
 
 
@@ -249,16 +290,17 @@ def ui_update_reel(
     note: Optional[str] = Form(None),
     types: list[str] = Form([]),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    _update_reel(session, reel_id, link, location_id, note, types)
+    _update_reel(session, current_user.id, reel_id, link, location_id, note, types)
 
     form_html = templates.get_template("partials/reel_add_form.html").render(
-        _reel_add_form_context(session)
+        _reel_add_form_context(session, current_user.id)
     )
     reel_list_html = templates.get_template("partials/reel_list.html").render(
-        _reel_list_context(session)
+        _reel_list_context(session, current_user.id)
     )
-    map_html = render_map_html(session)
+    map_html = render_map_html(session, current_user.id)
 
     response = HTMLResponse(
         form_html
@@ -276,9 +318,10 @@ def ui_list_reels(
     type: list[str] = Query([]),
     q: Optional[str] = None,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
-        request, "partials/reel_list.html", _reel_list_context(session, location_id, type, q)
+        request, "partials/reel_list.html", _reel_list_context(session, current_user.id, location_id, type, q)
     )
 
 
@@ -296,17 +339,19 @@ def ui_create_reel(
     new_location_lon: Optional[float] = Form(None),
     confirm_duplicate: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not _is_safe_link(link):
         raise HTTPException(status_code=400, detail="link must be an http(s) URL")
 
     if confirm_duplicate != "true":
-        duplicate = find_duplicate_reel(session, link)
+        duplicate = find_duplicate_reel(session, link, current_user.id)
         if duplicate is not None:
             existing_location = session.get(Location, duplicate.location_id)
             form_html = templates.get_template("partials/reel_add_form.html").render(
                 _reel_add_form_context(
                     session,
+                    current_user.id,
                     duplicate_warning={
                         "existing_location_name": existing_location.name if existing_location else "?",
                         "existing_note": duplicate.note,
@@ -328,6 +373,7 @@ def ui_create_reel(
         try:
             new_location = _create_location(
                 session,
+                current_user.id,
                 new_location_name,
                 new_location_is_hub == "true",
                 new_location_parent_id or None,
@@ -338,28 +384,30 @@ def ui_create_reel(
             if exc.status_code != 400:
                 raise
             form_html = templates.get_template("partials/reel_add_form.html").render(
-                _reel_add_form_context(session, error="Un satellite richiede una città padre.")
+                _reel_add_form_context(session, current_user.id, error="Un satellite richiede una città padre.")
             )
             return HTMLResponse(form_html)
         location_id = new_location.id
+    elif get_owned(session, Location, location_id, current_user.id) is None:
+        raise HTTPException(status_code=404, detail="Location not found")
 
-    reel = Reel(link=link, location_id=location_id, note=note)
+    reel = Reel(link=link, location_id=location_id, note=note, user_id=current_user.id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
-    valid_type_keys = get_valid_type_keys(session)
+    valid_type_keys = get_valid_type_keys(session, current_user.id)
     for type_value in types:
         if type_value in valid_type_keys:
             session.add(ReelType(reel_id=reel.id, type=type_value))
     session.commit()
 
     form_html = templates.get_template("partials/reel_add_form.html").render(
-        _reel_add_form_context(session)
+        _reel_add_form_context(session, current_user.id)
     )
     reel_list_html = templates.get_template("partials/reel_list.html").render(
-        _reel_list_context(session)
+        _reel_list_context(session, current_user.id)
     )
-    map_html = render_map_html(session)
+    map_html = render_map_html(session, current_user.id)
 
     response = HTMLResponse(
         form_html
@@ -371,12 +419,19 @@ def ui_create_reel(
 
 
 @ui_router.delete("/reels/{reel_id}")
-def ui_delete_reel(request: Request, reel_id: str, session: Session = Depends(get_session)):
-    reel = session.get(Reel, reel_id)
+def ui_delete_reel(
+    request: Request,
+    reel_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    reel = get_owned(session, Reel, reel_id, current_user.id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
     for t in session.exec(select(ReelType).where(ReelType.reel_id == reel_id)).all():
         session.delete(t)
     session.delete(reel)
     session.commit()
-    return templates.TemplateResponse(request, "partials/reel_list.html", _reel_list_context(session))
+    return templates.TemplateResponse(
+        request, "partials/reel_list.html", _reel_list_context(session, current_user.id)
+    )

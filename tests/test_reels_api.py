@@ -3,13 +3,13 @@ from sqlmodel import select
 from app.models import Category, Location, Reel, ReelType
 
 
-def test_list_reels_with_types(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_list_reels_with_types(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id, note="Ramen")
+    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id, note="Ramen", user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -23,13 +23,13 @@ def test_list_reels_with_types(client, session):
     assert data[0]["types"] == ["food"]
 
 
-def test_list_reels_includes_location_coordinates(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_list_reels_includes_location_coordinates(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id)
+    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
 
@@ -40,13 +40,13 @@ def test_list_reels_includes_location_coordinates(client, session):
     assert data[0]["lon"] == 139.6503
 
 
-def test_list_reels_returns_null_coordinates_when_location_has_none(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=None, lon=None)
+def test_list_reels_returns_null_coordinates_when_location_has_none(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=None, lon=None, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id)
+    reel = Reel(link="https://instagram.com/reel/1", location_id=hub.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
 
@@ -57,58 +57,63 @@ def test_list_reels_returns_null_coordinates_when_location_has_none(client, sess
     assert data[0]["lon"] is None
 
 
-def test_list_reels_maps_query_uses_location_name_by_default(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_list_reels_maps_query_uses_location_name_by_default(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/api/reels")
     assert response.json()[0]["maps_query"] == "Tokyo / Kanto"
 
 
-def test_list_reels_maps_query_uses_coordinates_when_confidence_is_low(client, session):
+def test_list_reels_maps_query_uses_coordinates_when_confidence_is_low(client, session, test_user_id):
     hub = Location(
-        name="Mystery Alley", is_hub=True, lat=35.0067, lon=135.7727, geocode_confidence="low"
+        name="Mystery Alley",
+        is_hub=True,
+        lat=35.0067,
+        lon=135.7727,
+        geocode_confidence="low",
+        user_id=test_user_id,
     )
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/api/reels")
     assert response.json()[0]["maps_query"] == "35.0067,135.7727"
 
 
-def test_list_reels_maps_query_is_none_when_low_confidence_and_no_coordinates(client, session):
-    hub = Location(name="Hub", is_hub=True, geocode_confidence="low")
+def test_list_reels_maps_query_is_none_when_low_confidence_and_no_coordinates(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, geocode_confidence="low", user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/1", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/api/reels")
     assert response.json()[0]["maps_query"] is None
 
 
-def test_filter_reels_by_location_id(client, session):
-    hub_a = Location(name="Hub A", is_hub=True)
-    hub_b = Location(name="Hub B", is_hub=True)
+def test_filter_reels_by_location_id(client, session, test_user_id):
+    hub_a = Location(name="Hub A", is_hub=True, user_id=test_user_id)
+    hub_b = Location(name="Hub B", is_hub=True, user_id=test_user_id)
     session.add(hub_a)
     session.add(hub_b)
     session.commit()
     session.refresh(hub_a)
     session.refresh(hub_b)
 
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub_b.id))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id, user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub_b.id, user_id=test_user_id))
     session.commit()
 
     response = client.get(f"/api/reels?location_id={hub_a.id}")
@@ -117,19 +122,19 @@ def test_filter_reels_by_location_id(client, session):
     assert data[0]["location_id"] == hub_a.id
 
 
-def test_filter_reels_by_hub_location_id_includes_satellites(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_filter_reels_by_hub_location_id_includes_satellites(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id)
+    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id, user_id=test_user_id)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
 
-    session.add(Reel(link="https://instagram.com/reel/hub", location_id=hub.id))
-    session.add(Reel(link="https://instagram.com/reel/satellite", location_id=satellite.id))
+    session.add(Reel(link="https://instagram.com/reel/hub", location_id=hub.id, user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/satellite", location_id=satellite.id, user_id=test_user_id))
     session.commit()
 
     response = client.get(f"/api/reels?location_id={hub.id}")
@@ -137,14 +142,14 @@ def test_filter_reels_by_hub_location_id_includes_satellites(client, session):
     assert {r["location_id"] for r in data} == {hub.id, satellite.id}
 
 
-def test_filter_reels_by_type(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_filter_reels_by_type(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub.id)
-    reel_culture = Reel(link="https://instagram.com/reel/culture", location_id=hub.id)
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub.id, user_id=test_user_id)
+    reel_culture = Reel(link="https://instagram.com/reel/culture", location_id=hub.id, user_id=test_user_id)
     session.add(reel_food)
     session.add(reel_culture)
     session.commit()
@@ -160,10 +165,10 @@ def test_filter_reels_by_type(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/food"
 
 
-def test_create_reel_filters_invalid_types(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_create_reel_filters_invalid_types(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -182,10 +187,10 @@ def test_create_reel_filters_invalid_types(client, session):
     assert data["note"] == "Great ramen"
 
 
-def test_delete_reel(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_delete_reel(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -206,8 +211,8 @@ def test_delete_missing_reel_returns_404(client):
     assert response.status_code == 404
 
 
-def test_create_reel_rejects_javascript_link(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_create_reel_rejects_javascript_link(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -220,13 +225,13 @@ def test_create_reel_rejects_javascript_link(client, session):
     assert session.exec(select(Reel)).all() == []
 
 
-def test_update_reel_changes_fields(client, session):
-    hub = Location(name="Hub", is_hub=True)
-    other_hub = Location(name="Other Hub", is_hub=True)
+def test_update_reel_changes_fields(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
+    other_hub = Location(name="Other Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.add(other_hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
-    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
@@ -263,8 +268,8 @@ def test_update_reel_changes_fields(client, session):
     assert [t.type for t in remaining_types] == ["culture"]
 
 
-def test_update_missing_reel_returns_404(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_update_missing_reel_returns_404(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -276,10 +281,10 @@ def test_update_missing_reel_returns_404(client, session):
     assert response.status_code == 404
 
 
-def test_update_reel_rejects_javascript_link(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_update_reel_rejects_javascript_link(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
@@ -297,14 +302,14 @@ def test_update_reel_rejects_javascript_link(client, session):
     assert client.get("/api/reels").json()[0]["link"] == "https://instagram.com/reel/keep"
 
 
-def test_filter_reels_by_multiple_types_requires_all(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_filter_reels_by_multiple_types_requires_all(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub.id)
-    reel_food_only = Reel(link="https://instagram.com/reel/food", location_id=hub.id)
+    reel_both = Reel(link="https://instagram.com/reel/both", location_id=hub.id, user_id=test_user_id)
+    reel_food_only = Reel(link="https://instagram.com/reel/food", location_id=hub.id, user_id=test_user_id)
     session.add(reel_both)
     session.add(reel_food_only)
     session.commit()
@@ -322,14 +327,14 @@ def test_filter_reels_by_multiple_types_requires_all(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/both"
 
 
-def test_search_reels_matches_note(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_search_reels_matches_note(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Best ramen ever"))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit"))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Best ramen ever", user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit", user_id=test_user_id))
     session.commit()
 
     response = client.get("/api/reels?q=ramen")
@@ -339,17 +344,17 @@ def test_search_reels_matches_note(client, session):
     assert data[0]["note"] == "Best ramen ever"
 
 
-def test_search_reels_matches_location_name_case_insensitively(client, session):
-    hub = Location(name="Shibuya Crossing", is_hub=True)
-    other_hub = Location(name="Hub B", is_hub=True)
+def test_search_reels_matches_location_name_case_insensitively(client, session, test_user_id):
+    hub = Location(name="Shibuya Crossing", is_hub=True, user_id=test_user_id)
+    other_hub = Location(name="Hub B", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.add(other_hub)
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
 
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=other_hub.id))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=other_hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/api/reels?q=SHIBUYA")
@@ -359,14 +364,14 @@ def test_search_reels_matches_location_name_case_insensitively(client, session):
     assert data[0]["location_id"] == hub.id
 
 
-def test_search_reels_combines_with_type_filter(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_search_reels_combines_with_type_filter(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub.id, note="Great ramen")
-    reel_wrong_type = Reel(link="https://instagram.com/reel/other", location_id=hub.id, note="Great ramen too")
+    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub.id, note="Great ramen", user_id=test_user_id)
+    reel_wrong_type = Reel(link="https://instagram.com/reel/other", location_id=hub.id, note="Great ramen too", user_id=test_user_id)
     session.add(reel_match)
     session.add(reel_wrong_type)
     session.commit()
@@ -383,17 +388,17 @@ def test_search_reels_combines_with_type_filter(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/match"
 
 
-def test_search_reels_combines_with_location_filter(client, session):
-    hub_a = Location(name="Hub A", is_hub=True)
-    hub_b = Location(name="Hub B", is_hub=True)
+def test_search_reels_combines_with_location_filter(client, session, test_user_id):
+    hub_a = Location(name="Hub A", is_hub=True, user_id=test_user_id)
+    hub_b = Location(name="Hub B", is_hub=True, user_id=test_user_id)
     session.add(hub_a)
     session.add(hub_b)
     session.commit()
     session.refresh(hub_a)
     session.refresh(hub_b)
 
-    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub_a.id, note="Great ramen")
-    reel_wrong_location = Reel(link="https://instagram.com/reel/other", location_id=hub_b.id, note="Great ramen too")
+    reel_match = Reel(link="https://instagram.com/reel/match", location_id=hub_a.id, note="Great ramen", user_id=test_user_id)
+    reel_wrong_location = Reel(link="https://instagram.com/reel/other", location_id=hub_b.id, note="Great ramen too", user_id=test_user_id)
     session.add(reel_match)
     session.add(reel_wrong_location)
     session.commit()
@@ -405,7 +410,7 @@ def test_search_reels_combines_with_location_filter(client, session):
     assert data[0]["link"] == "https://instagram.com/reel/match"
 
 
-def test_ui_create_reel_with_new_hub_location_creates_location_and_reel(client, session):
+def test_ui_create_reel_with_new_hub_location_creates_location_and_reel(client, session, test_user_id):
     response = client.post(
         "/ui/reels",
         data={
@@ -430,8 +435,8 @@ def test_ui_create_reel_with_new_hub_location_creates_location_and_reel(client, 
     assert reel.location_id == location.id
 
 
-def test_ui_create_reel_with_new_satellite_location_creates_under_parent(client, session):
-    hub = Location(name="Parent Hub", is_hub=True, lat=1.0, lon=2.0)
+def test_ui_create_reel_with_new_satellite_location_creates_under_parent(client, session, test_user_id):
+    hub = Location(name="Parent Hub", is_hub=True, lat=1.0, lon=2.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -462,7 +467,7 @@ def test_ui_create_reel_with_new_satellite_location_creates_under_parent(client,
     assert reel.location_id == location.id
 
 
-def test_ui_create_reel_with_new_satellite_location_without_parent_shows_inline_error(client, session):
+def test_ui_create_reel_with_new_satellite_location_without_parent_shows_inline_error(client, session, test_user_id):
     response = client.post(
         "/ui/reels",
         data={
@@ -481,15 +486,15 @@ def test_ui_create_reel_with_new_satellite_location_without_parent_shows_inline_
     assert session.exec(select(Reel).where(Reel.link == "https://instagram.com/reel/orphan")).first() is None
 
 
-def test_ui_create_reel_with_duplicate_link_warns_without_saving(client, session):
-    hub = Location(name="Hub", is_hub=True)
-    other_hub = Location(name="Other Hub", is_hub=True)
+def test_ui_create_reel_with_duplicate_link_warns_without_saving(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
+    other_hub = Location(name="Other Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.add(other_hub)
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
-    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id, note="Già visto"))
+    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id, note="Già visto", user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -506,12 +511,12 @@ def test_ui_create_reel_with_duplicate_link_warns_without_saving(client, session
     ).first() is None
 
 
-def test_ui_create_reel_confirm_duplicate_saves_anyway(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_create_reel_confirm_duplicate_saves_anyway(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/dup/", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.post(
@@ -529,8 +534,8 @@ def test_ui_create_reel_confirm_duplicate_saves_anyway(client, session):
     assert len(matches) == 2
 
 
-def test_ui_create_reel_without_duplicate_saves_normally(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_create_reel_without_duplicate_saves_normally(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -548,17 +553,53 @@ def test_ui_create_reel_without_duplicate_saves_normally(client, session):
     assert reel.transcript is None
 
 
-def test_ui_reels_search_filters_by_note_or_location_name(client, session):
-    hub = Location(name="Shibuya", is_hub=True)
+def test_ui_reels_search_filters_by_note_or_location_name(client, session, test_user_id):
+    hub = Location(name="Shibuya", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Great ramen"))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit"))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub.id, note="Great ramen", user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub.id, note="Shrine visit", user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels?q=ramen")
     assert response.status_code == 200
     assert "Great ramen" in response.text
     assert "Shrine visit" not in response.text
+
+
+def test_list_reels_only_returns_current_users_reels(client, session, test_user_id):
+    from app.models import Location, Reel
+
+    other_hub = Location(name="Other Hub", is_hub=True, user_id="other-user")
+    session.add(other_hub)
+    session.commit()
+    session.refresh(other_hub)
+    session.add(Reel(link="https://instagram.com/reel/other", location_id=other_hub.id, user_id="other-user"))
+    session.commit()
+
+    response = client.get("/api/reels")
+
+    assert response.status_code == 200
+    assert "https://instagram.com/reel/other" not in {r["link"] for r in response.json()}
+
+
+def test_get_reel_belonging_to_another_user_returns_404(client, session, test_user_id):
+    from app.models import Location, Reel
+
+    other_hub = Location(name="Other Hub", is_hub=True, user_id="other-user")
+    session.add(other_hub)
+    session.commit()
+    session.refresh(other_hub)
+    other_reel = Reel(link="https://instagram.com/reel/other", location_id=other_hub.id, user_id="other-user")
+    session.add(other_reel)
+    session.commit()
+    session.refresh(other_reel)
+
+    response = client.put(
+        f"/api/reels/{other_reel.id}",
+        json={"link": "https://instagram.com/reel/x", "location_id": other_hub.id, "types": []},
+    )
+
+    assert response.status_code == 404
