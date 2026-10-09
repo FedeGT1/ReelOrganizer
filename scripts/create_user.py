@@ -45,8 +45,7 @@ def main() -> None:
         except UsernameTakenError as exc:
             print(str(exc), file=sys.stderr)
             sys.exit(1)
-
-    print(f"Created user '{user.username}' ({user.id}).")
+        print(f"Created user '{user.username}' ({user.id}).")
 
 
 if __name__ == "__main__":

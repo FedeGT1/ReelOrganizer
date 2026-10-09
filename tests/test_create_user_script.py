@@ -1,9 +1,12 @@
+import getpass
+import sys
+
 import pytest
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from app.auth import verify_password
 from app.models import Category, Location, User
-from scripts.create_user import UsernameTakenError, create_user
+from scripts.create_user import UsernameTakenError, create_user, main
 
 
 @pytest.fixture(name="session")
@@ -36,3 +39,25 @@ def test_create_user_rejects_duplicate_username(session):
 
     with pytest.raises(UsernameTakenError):
         create_user(session, "alice", "different-password")
+
+
+def test_main_prints_success_without_crashing_on_a_detached_session(monkeypatch, capsys):
+    # Regression test: main() used to read user.username/user.id for the
+    # success message *after* the `with Session(engine) as session:` block
+    # had already closed the session, raising DetachedInstanceError on a
+    # real Postgres-like backend (observed on a real deployment).
+    test_engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(test_engine)
+    monkeypatch.setattr("scripts.create_user.engine", test_engine)
+    monkeypatch.setattr(sys, "argv", ["create_user.py", "bob"])
+    monkeypatch.setattr(getpass, "getpass", lambda prompt="": "s3cret")
+
+    main()
+
+    output = capsys.readouterr().out
+    assert "Created user 'bob'" in output
+
+    with Session(test_engine) as session:
+        stored = session.exec(select(User).where(User.username == "bob")).first()
+        assert stored is not None
+        assert f"({stored.id})" in output
