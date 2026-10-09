@@ -16,12 +16,12 @@ def _map_data(response_text: str) -> list[dict]:
     return json.loads(match.group(1))
 
 
-def test_ui_map_renders_leaflet_container_and_location_data(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_map_renders_leaflet_container_and_location_data(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/tokyo", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/tokyo", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/map")
@@ -35,10 +35,10 @@ def test_ui_map_renders_leaflet_container_and_location_data(client, session):
     assert locations[0]["lon"] == 139.6503
 
 
-def test_ui_map_includes_type_filter_chips(client, session):
+def test_ui_map_includes_type_filter_chips(client, session, test_user_id):
     from app.models import Category
 
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/map")
@@ -49,11 +49,11 @@ def test_ui_map_includes_type_filter_chips(client, session):
     assert "window.clearTypes()" in response.text
 
 
-def test_ui_map_marks_multiple_active_checkboxes(client, session):
+def test_ui_map_marks_multiple_active_checkboxes(client, session, test_user_id):
     from app.models import Category
 
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
-    session.add(Category(key="shopping", label="Shopping", icon="🛍️"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
+    session.add(Category(key="shopping", label="Shopping", icon="🛍️", user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/map?type=food&type=shopping")
@@ -67,16 +67,16 @@ def test_ui_map_marks_multiple_active_checkboxes(client, session):
     assert "checked" in shopping_checkbox
 
 
-def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):
-    hub_with_food = Location(name="Has Food", is_hub=True, lat=35.0, lon=135.0)
-    hub_without_food = Location(name="No Food", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session, test_user_id):
+    hub_with_food = Location(name="Has Food", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    hub_without_food = Location(name="No Food", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(hub_with_food)
     session.add(hub_without_food)
     session.commit()
     session.refresh(hub_with_food)
     session.refresh(hub_without_food)
 
-    reel = Reel(link="https://instagram.com/reel/f", location_id=hub_with_food.id)
+    reel = Reel(link="https://instagram.com/reel/f", location_id=hub_with_food.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -91,12 +91,12 @@ def test_ui_map_type_filter_excludes_hub_without_matching_reel(client, session):
     assert hub_without_food.id not in locations
 
 
-def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session):
-    okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809)
+def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session, test_user_id):
+    okinawa = Location(name="Okinawa", is_hub=True, lat=26.2124, lon=127.6809, user_id=test_user_id)
     session.add(okinawa)
     session.commit()
     session.refresh(okinawa)
-    session.add(Reel(link="https://instagram.com/reel/okinawa", location_id=okinawa.id))
+    session.add(Reel(link="https://instagram.com/reel/okinawa", location_id=okinawa.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/map")
@@ -109,14 +109,14 @@ def test_ui_map_okinawa_renders_at_its_real_coordinates(client, session):
     assert locations[0]["lon"] == 127.6809
 
 
-def test_ui_map_removes_empty_hub_by_default(client, session):
-    empty_hub = Location(name="Empty Hub", is_hub=True, lat=35.0, lon=135.0)
-    filled_hub = Location(name="Filled Hub", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_map_removes_empty_hub_by_default(client, session, test_user_id):
+    empty_hub = Location(name="Empty Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    filled_hub = Location(name="Filled Hub", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(empty_hub)
     session.add(filled_hub)
     session.commit()
     session.refresh(filled_hub)
-    session.add(Reel(link="https://instagram.com/reel/d", location_id=filled_hub.id))
+    session.add(Reel(link="https://instagram.com/reel/d", location_id=filled_hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/map")
@@ -127,12 +127,12 @@ def test_ui_map_removes_empty_hub_by_default(client, session):
     assert empty_hub.id not in ids
 
 
-def test_ui_reels_get_renders_list_without_form(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_get_renders_list_without_form(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot"))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot", user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels")
@@ -141,10 +141,10 @@ def test_ui_reels_get_renders_list_without_form(client, session):
     assert "<form" not in response.text
 
 
-def test_ui_reels_add_form_renders_locations_and_categories(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_reels_add_form_renders_locations_and_categories(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels/add-form")
@@ -154,8 +154,8 @@ def test_ui_reels_add_form_renders_locations_and_categories(client, session):
     assert "Cibo" in response.text
 
 
-def test_ui_reels_post_resets_form_and_refreshes_list_and_map(client, session):
-    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_reels_post_resets_form_and_refreshes_list_and_map(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -172,8 +172,8 @@ def test_ui_reels_post_resets_form_and_refreshes_list_and_map(client, session):
     assert 'id="leaflet-map"' in response.text
 
 
-def test_ui_reels_post_rejects_javascript_link(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_post_rejects_javascript_link(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -186,12 +186,12 @@ def test_ui_reels_post_rejects_javascript_link(client, session):
     assert session.exec(select(Reel)).all() == []
 
 
-def test_ui_reels_delete_returns_updated_fragment(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_delete_returns_updated_fragment(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/gone", location_id=hub.id, note="Bye")
+    reel = Reel(link="https://instagram.com/reel/gone", location_id=hub.id, note="Bye", user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -201,17 +201,17 @@ def test_ui_reels_delete_returns_updated_fragment(client, session):
     assert "Bye" not in response.text
 
 
-def test_ui_reels_get_filters_by_location_id(client, session):
-    hub_a = Location(name="Hub A", is_hub=True, lat=35.0, lon=135.0)
-    hub_b = Location(name="Hub B", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_reels_get_filters_by_location_id(client, session, test_user_id):
+    hub_a = Location(name="Hub A", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    hub_b = Location(name="Hub B", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(hub_a)
     session.add(hub_b)
     session.commit()
     session.refresh(hub_a)
     session.refresh(hub_b)
 
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id, note="A spot"))
-    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub_b.id, note="B spot"))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id, note="A spot", user_id=test_user_id))
+    session.add(Reel(link="https://instagram.com/reel/b", location_id=hub_b.id, note="B spot", user_id=test_user_id))
     session.commit()
 
     response = client.get(f"/ui/reels?location_id={hub_a.id}")
@@ -222,20 +222,20 @@ def test_ui_reels_get_filters_by_location_id(client, session):
     assert "Mostra tutti" in response.text
 
 
-def test_ui_reels_get_by_hub_location_id_includes_satellite_reels(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_reels_get_by_hub_location_id_includes_satellite_reels(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
 
-    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id)
+    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id, user_id=test_user_id)
     session.add(satellite)
     session.commit()
     session.refresh(satellite)
 
-    session.add(Reel(link="https://instagram.com/reel/hub", location_id=hub.id, note="Hub spot"))
+    session.add(Reel(link="https://instagram.com/reel/hub", location_id=hub.id, note="Hub spot", user_id=test_user_id))
     session.add(
-        Reel(link="https://instagram.com/reel/satellite", location_id=satellite.id, note="Satellite spot")
+        Reel(link="https://instagram.com/reel/satellite", location_id=satellite.id, note="Satellite spot", user_id=test_user_id)
     )
     session.commit()
 
@@ -251,12 +251,12 @@ def test_ui_reels_get_without_filter_shows_no_banner(client):
     assert "Mostra tutti" not in response.text
 
 
-def test_ui_reels_mostra_tutti_banner_uses_clear_location_filter(client, session):
-    hub_a = Location(name="Hub A", is_hub=True)
+def test_ui_reels_mostra_tutti_banner_uses_clear_location_filter(client, session, test_user_id):
+    hub_a = Location(name="Hub A", is_hub=True, user_id=test_user_id)
     session.add(hub_a)
     session.commit()
     session.refresh(hub_a)
-    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id))
+    session.add(Reel(link="https://instagram.com/reel/a", location_id=hub_a.id, user_id=test_user_id))
     session.commit()
 
     response = client.get(f"/ui/reels?location_id={hub_a.id}")
@@ -264,13 +264,13 @@ def test_ui_reels_mostra_tutti_banner_uses_clear_location_filter(client, session
     assert "window.clearLocationFilter()" in response.text
 
 
-def test_ui_reels_edit_form_renders_prefilled_data(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_reels_edit_form_renders_prefilled_data(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot")
+    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id, note="Nice spot", user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -290,15 +290,15 @@ def test_ui_reels_edit_form_missing_reel_returns_404(client):
     assert response.status_code == 404
 
 
-def test_ui_reels_put_resets_form_and_refreshes_list_and_map(client, session):
-    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0)
-    other_hub = Location(name="Other Hub", is_hub=True, lat=36.0, lon=136.0)
+def test_ui_reels_put_resets_form_and_refreshes_list_and_map(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
+    other_hub = Location(name="Other Hub", is_hub=True, lat=36.0, lon=136.0, user_id=test_user_id)
     session.add(hub)
     session.add(other_hub)
     session.commit()
     session.refresh(hub)
     session.refresh(other_hub)
-    reel = Reel(link="https://instagram.com/reel/old", location_id=hub.id, note="Old note")
+    reel = Reel(link="https://instagram.com/reel/old", location_id=hub.id, note="Old note", user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -315,12 +315,12 @@ def test_ui_reels_put_resets_form_and_refreshes_list_and_map(client, session):
     assert 'id="leaflet-map"' in response.text
 
 
-def test_ui_reels_put_rejects_javascript_link(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_put_rejects_javascript_link(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/keep", location_id=hub.id)
+    reel = Reel(link="https://instagram.com/reel/keep", location_id=hub.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -332,12 +332,12 @@ def test_ui_reels_put_rejects_javascript_link(client, session):
     assert response.status_code == 400
 
 
-def test_ui_reels_list_includes_edit_button(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_list_includes_edit_button(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id)
+    reel = Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -354,24 +354,24 @@ def test_reel_dialog_js_refreshes_filters_after_save():
     assert "refreshMap()" in content
 
 
-def test_reel_list_delete_button_refreshes_filters_after_delete(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_reel_list_delete_button_refreshes_filters_after_delete(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels")
     assert 'hx-on::after-request="refreshReelList()"' in response.text
 
 
-def test_ui_reels_list_google_maps_link_uses_place_name_by_default(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_reels_list_google_maps_link_uses_place_name_by_default(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels")
@@ -379,14 +379,14 @@ def test_ui_reels_list_google_maps_link_uses_place_name_by_default(client, sessi
     assert "https://www.google.com/maps/search/?api=1&query=Tokyo%20/%20Kanto" in response.text
 
 
-def test_ui_reels_list_google_maps_link_uses_coordinates_when_confidence_is_low(client, session):
+def test_ui_reels_list_google_maps_link_uses_coordinates_when_confidence_is_low(client, session, test_user_id):
     hub = Location(
-        name="Mystery Alley", is_hub=True, lat=35.0067, lon=135.7727, geocode_confidence="low"
+        name="Mystery Alley", is_hub=True, lat=35.0067, lon=135.7727, geocode_confidence="low", user_id=test_user_id
     )
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels")
@@ -394,12 +394,12 @@ def test_ui_reels_list_google_maps_link_uses_coordinates_when_confidence_is_low(
     assert "https://www.google.com/maps/search/?api=1&query=35.0067%2C135.7727" in response.text
 
 
-def test_ui_reels_list_omits_google_maps_link_when_low_confidence_and_no_coordinates(client, session):
-    hub = Location(name="Hub", is_hub=True, geocode_confidence="low")
+def test_ui_reels_list_omits_google_maps_link_when_low_confidence_and_no_coordinates(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, geocode_confidence="low", user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.get("/ui/reels")
@@ -407,16 +407,16 @@ def test_ui_reels_list_omits_google_maps_link_when_low_confidence_and_no_coordin
     assert "google.com/maps" not in response.text
 
 
-def test_ui_reels_get_filters_by_type(client, session):
-    hub = Location(name="Hub", is_hub=True)
+def test_ui_reels_get_filters_by_type(client, session, test_user_id):
+    hub = Location(name="Hub", is_hub=True, user_id=test_user_id)
     session.add(hub)
-    session.add(Category(key="food", label="Cibo", icon="🍜"))
-    session.add(Category(key="culture", label="Cultura", icon="⛩️"))
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", user_id=test_user_id))
     session.commit()
     session.refresh(hub)
 
-    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub.id, note="Ramen spot")
-    reel_culture = Reel(link="https://instagram.com/reel/culture", location_id=hub.id, note="Shrine visit")
+    reel_food = Reel(link="https://instagram.com/reel/food", location_id=hub.id, note="Ramen spot", user_id=test_user_id)
+    reel_culture = Reel(link="https://instagram.com/reel/culture", location_id=hub.id, note="Shrine visit", user_id=test_user_id)
     session.add(reel_food)
     session.add(reel_culture)
     session.commit()
