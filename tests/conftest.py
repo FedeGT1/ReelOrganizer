@@ -71,3 +71,26 @@ def anon_client_fixture(session: Session):
     from app.main import app
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="second_user_client")
+def second_user_client_fixture(session: Session):
+    from app.auth import hash_password
+    from app.models import User
+    from app.seed import seed_user_if_empty
+
+    user = User(username="seconduser", password_hash=hash_password("secondpass"))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    # Mirrors scripts/create_user.py's own create_user(): seed default hubs
+    # and categories right after the account is created, the same way a
+    # real admin-created account would start out.
+    seed_user_if_empty(session, user.id)
+
+    client = _build_client(session)
+    client.post("/login", data={"username": "seconduser", "password": "secondpass"})
+    yield client
+    from app.main import app
+
+    app.dependency_overrides.clear()
