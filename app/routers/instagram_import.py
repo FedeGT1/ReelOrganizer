@@ -9,9 +9,10 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, Form, Request
 from sqlmodel import Session
 
+from app.auth import get_current_user
 from app.db import get_session
 from app.ingest import instagram, transcribe
-from app.models import Location
+from app.models import Location, User
 from app.reel_links import find_duplicate_reel
 from app.routers.ai_categorize import _build_ai_chat_context
 from app.web import templates
@@ -99,17 +100,19 @@ def ui_ai_import(
     link: str = Form(...),
     confirm_duplicate: str = Form(""),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     if not _is_instagram_link(link):
-        context = _build_ai_chat_context(session, None, link, notice=NOT_INSTAGRAM_NOTICE)
+        context = _build_ai_chat_context(session, current_user.id, None, link, notice=NOT_INSTAGRAM_NOTICE)
         return templates.TemplateResponse(request, "partials/ai_chat.html", context)
 
     if confirm_duplicate != "true":
-        duplicate = find_duplicate_reel(session, link)
+        duplicate = find_duplicate_reel(session, link, current_user.id)
         if duplicate is not None:
             existing_location = session.get(Location, duplicate.location_id)
             context = _build_ai_chat_context(
                 session,
+                current_user.id,
                 None,
                 link,
                 duplicate_warning={
@@ -139,7 +142,7 @@ def ui_ai_import(
         logger.exception("unexpected error during instagram import for link=%s", link)
         notice = FETCH_FAILED_NOTICE
 
-    context = _build_ai_chat_context(session, None, link, notice=notice)
+    context = _build_ai_chat_context(session, current_user.id, None, link, notice=notice)
     context["prefill_message"] = prefill_message
     context["caption"] = import_caption
     context["transcript"] = import_transcript

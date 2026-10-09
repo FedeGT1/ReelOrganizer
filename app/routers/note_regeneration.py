@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Location, Reel
+from app.models import Location, Reel, User
 from app.routers.ai_categorize import _categorize_new_session_message
 from app.routers.categories import get_taxonomy
 from app.routers.reels import _serialize_reel
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 ui_router = APIRouter(prefix="/ui/reels", tags=["note-regeneration"])
@@ -35,10 +37,10 @@ def _regen_source_message(reel: Reel) -> Optional[str]:
     return None
 
 
-def _hub_names_and_category_labels(session: Session) -> tuple[list[str], dict[str, str]]:
-    hubs = session.exec(select(Location).where(Location.is_hub == True)).all()
+def _hub_names_and_category_labels(session: Session, user_id: str) -> tuple[list[str], dict[str, str]]:
+    hubs = session.exec(user_query(Location, user_id).where(Location.is_hub == True)).all()
     hub_names = [h.name for h in hubs]
-    taxonomy = get_taxonomy(session)
+    taxonomy = get_taxonomy(session, user_id)
     category_labels = {key: info["label"] for key, info in taxonomy.items()}
     return hub_names, category_labels
 
@@ -58,12 +60,17 @@ def _regenerate_note(
 
 
 @ui_router.put("/{reel_id}/regenerate-note")
-def ui_regenerate_reel_note(request: Request, reel_id: str, session: Session = Depends(get_session)):
-    reel = session.get(Reel, reel_id)
+def ui_regenerate_reel_note(
+    request: Request,
+    reel_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    reel = get_owned(session, Reel, reel_id, current_user.id)
     if reel is None:
         raise HTTPException(status_code=404, detail="Reel not found")
 
-    hub_names, category_labels = _hub_names_and_category_labels(session)
+    hub_names, category_labels = _hub_names_and_category_labels(session, current_user.id)
     updated = _regenerate_note(reel, hub_names, category_labels)
     if updated:
         session.add(reel)
@@ -72,16 +79,18 @@ def ui_regenerate_reel_note(request: Request, reel_id: str, session: Session = D
 
     card_html = templates.get_template("partials/_reel_card.html").render(
         reel=_serialize_reel(session, reel),
-        taxonomy=get_taxonomy(session),
+        taxonomy=get_taxonomy(session, current_user.id),
         regen_error=None if updated else "Non sono riuscito a rigenerare la nota, riprova.",
     )
     return HTMLResponse(card_html)
 
 
 @ui_router.post("/regenerate-notes")
-def ui_regenerate_all_notes(request: Request, session: Session = Depends(get_session)):
-    reels = session.exec(select(Reel)).all()
-    hub_names, category_labels = _hub_names_and_category_labels(session)
+def ui_regenerate_all_notes(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    reels = session.exec(user_query(Reel, current_user.id)).all()
+    hub_names, category_labels = _hub_names_and_category_labels(session, current_user.id)
 
     regenerable = [r for r in reels if _regen_source_message(r) is not None]
     skipped = len(reels) - len(regenerable)

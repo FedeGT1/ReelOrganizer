@@ -31,12 +31,12 @@ def test_ui_ai_import_prefills_caption_and_transcript(client, session, monkeypat
     assert "miglior ramen di Tokyo" in response.text
 
 
-def test_ui_ai_import_warns_on_duplicate_link_without_downloading(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_ai_import_warns_on_duplicate_link_without_downloading(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto", user_id=test_user_id))
     session.commit()
 
     def fetch_should_not_be_called(url, download_dir):
@@ -51,12 +51,12 @@ def test_ui_ai_import_warns_on_duplicate_link_without_downloading(client, sessio
     assert "Tokyo / Kanto" in response.text
 
 
-def test_ui_ai_import_confirm_duplicate_proceeds_with_download(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_ai_import_confirm_duplicate_proceeds_with_download(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto"))
+    session.add(Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="Già visto", user_id=test_user_id))
     session.commit()
 
     def fake_fetch(url, download_dir):
@@ -74,6 +74,24 @@ def test_ui_ai_import_confirm_duplicate_proceeds_with_download(client, session, 
 
     assert response.status_code == 200
     assert "Ramen a Tokyo" in response.text
+
+
+def test_import_duplicate_warning_does_not_use_another_users_reel(client, session, monkeypatch):
+    from app.models import Location, Reel
+
+    other_hub = Location(name="Other Hub", is_hub=True, user_id="other-user")
+    session.add(other_hub)
+    session.commit()
+    session.refresh(other_hub)
+    session.add(
+        Reel(link="https://instagram.com/reel/abc", location_id=other_hub.id, note="segreto", user_id="other-user")
+    )
+    session.commit()
+
+    response = client.post("/ui/ai/import", data={"link": "https://instagram.com/reel/abc"})
+
+    assert "segreto" not in response.text
+    assert "Other Hub" not in response.text
 
 
 def test_ui_ai_import_rejects_non_instagram_link(client, session):

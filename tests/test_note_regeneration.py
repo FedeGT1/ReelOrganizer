@@ -40,8 +40,8 @@ def _fake_categorize(note_value):
     return _inner
 
 
-def test_ui_regenerate_reel_note_updates_note_from_caption_and_transcript(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_regenerate_reel_note_updates_note_from_caption_and_transcript(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -51,6 +51,7 @@ def test_ui_regenerate_reel_note_updates_note_from_caption_and_transcript(client
         note="vecchia nota",
         caption="Ramen a Tokyo",
         transcript="Il miglior ramen della citta",
+        user_id=test_user_id,
     )
     session.add(reel)
     session.commit()
@@ -66,12 +67,12 @@ def test_ui_regenerate_reel_note_updates_note_from_caption_and_transcript(client
     assert reel.note == "Nota rigenerata e piu ricca"
 
 
-def test_ui_regenerate_reel_note_falls_back_to_current_note_when_no_source(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_regenerate_reel_note_falls_back_to_current_note_when_no_source(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    reel = Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="vecchia nota")
+    reel = Reel(link="https://instagram.com/reel/abc", location_id=hub.id, note="vecchia nota", user_id=test_user_id)
     session.add(reel)
     session.commit()
     session.refresh(reel)
@@ -85,8 +86,8 @@ def test_ui_regenerate_reel_note_falls_back_to_current_note_when_no_source(clien
     assert reel.note == "Nota rigenerata dalla vecchia nota"
 
 
-def test_ui_regenerate_reel_note_keeps_old_note_on_ai_failure(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_ui_regenerate_reel_note_keeps_old_note_on_ai_failure(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -95,6 +96,7 @@ def test_ui_regenerate_reel_note_keeps_old_note_on_ai_failure(client, session, m
         location_id=hub.id,
         note="vecchia nota",
         caption="Ramen a Tokyo",
+        user_id=test_user_id,
     )
     session.add(reel)
     session.commit()
@@ -127,8 +129,27 @@ def test_ui_regenerate_reel_note_unknown_id_returns_404(client, session):
     assert response.status_code == 404
 
 
-def test_ui_regenerate_all_notes_updates_only_eligible_reels(client, session, monkeypatch):
-    hub = Location(name="Tokyo / Kanto", is_hub=True)
+def test_regenerate_note_for_another_users_reel_returns_404(client, session):
+    from app.models import Location, Reel
+
+    other_hub = Location(name="Other Hub", is_hub=True, user_id="other-user")
+    session.add(other_hub)
+    session.commit()
+    session.refresh(other_hub)
+    other_reel = Reel(
+        link="x", location_id=other_hub.id, caption="test", user_id="other-user"
+    )
+    session.add(other_reel)
+    session.commit()
+    session.refresh(other_reel)
+
+    response = client.put(f"/ui/reels/{other_reel.id}/regenerate-note")
+
+    assert response.status_code == 404
+
+
+def test_ui_regenerate_all_notes_updates_only_eligible_reels(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -138,11 +159,12 @@ def test_ui_regenerate_all_notes_updates_only_eligible_reels(client, session, mo
         location_id=hub.id,
         note="vecchia nota a",
         caption="Caption A",
+        user_id=test_user_id,
     )
     with_only_note = Reel(
-        link="https://instagram.com/reel/b", location_id=hub.id, note="vecchia nota b"
+        link="https://instagram.com/reel/b", location_id=hub.id, note="vecchia nota b", user_id=test_user_id
     )
-    nothing_at_all = Reel(link="https://instagram.com/reel/c", location_id=hub.id, note=None)
+    nothing_at_all = Reel(link="https://instagram.com/reel/c", location_id=hub.id, note=None, user_id=test_user_id)
     session.add(with_source)
     session.add(with_only_note)
     session.add(nothing_at_all)
