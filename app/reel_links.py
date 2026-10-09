@@ -22,9 +22,9 @@ def reel_link_key(link: str) -> str:
     return extract_reel_shortcode(link) or link
 
 
-def find_duplicate_reel(session: Session, link: str) -> Optional[Reel]:
+def find_duplicate_reel(session: Session, link: str, user_id: str) -> Optional[Reel]:
     key = reel_link_key(link)
-    for reel in session.exec(select(Reel)).all():
+    for reel in session.exec(select(Reel).where(Reel.user_id == user_id)).all():
         if reel_link_key(reel.link) == key:
             return reel
     return None

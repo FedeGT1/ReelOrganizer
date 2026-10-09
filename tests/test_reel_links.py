@@ -33,24 +33,37 @@ def test_reel_link_key_treats_link_variants_as_equal():
 
 
 def test_find_duplicate_reel_matches_normalized_variant(session):
-    hub = Location(name="Hub", is_hub=True)
+    hub = Location(name="Hub", is_hub=True, user_id="user-1")
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/ABC123/", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/ABC123/", location_id=hub.id, user_id="user-1"))
     session.commit()
 
-    found = find_duplicate_reel(session, "https://www.instagram.com/reel/ABC123/?igshid=xyz")
+    found = find_duplicate_reel(session, "https://www.instagram.com/reel/ABC123/?igshid=xyz", user_id="user-1")
     assert found is not None
     assert found.location_id == hub.id
 
 
 def test_find_duplicate_reel_returns_none_when_no_match(session):
-    hub = Location(name="Hub", is_hub=True)
+    hub = Location(name="Hub", is_hub=True, user_id="user-1")
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/ABC123/", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/ABC123/", location_id=hub.id, user_id="user-1"))
     session.commit()
 
-    assert find_duplicate_reel(session, "https://instagram.com/reel/OTHER/") is None
+    assert find_duplicate_reel(session, "https://instagram.com/reel/OTHER/", user_id="user-1") is None
+
+
+def test_find_duplicate_reel_ignores_another_users_reel(session):
+    hub = Location(name="Hub", is_hub=True, user_id="user-2")
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/ABC123/", location_id=hub.id, user_id="user-2"))
+    session.commit()
+
+    result = find_duplicate_reel(session, "https://instagram.com/reel/ABC123/", user_id="user-1")
+
+    assert result is None
