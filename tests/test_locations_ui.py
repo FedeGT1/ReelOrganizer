@@ -1,8 +1,8 @@
 from app.models import Location, Reel
 
 
-def test_ui_locations_list_renders_existing_locations(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_locations_list_renders_existing_locations(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
 
@@ -12,12 +12,12 @@ def test_ui_locations_list_renders_existing_locations(client, session):
     assert "<form" in response.text
 
 
-def test_ui_locations_list_shows_satellite_parent_name(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_locations_list_shows_satellite_parent_name(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id, lat=35.3, lon=139.5)
+    satellite = Location(name="Kamakura", is_hub=False, parent_id=hub.id, lat=35.3, lon=139.5, user_id=test_user_id)
     session.add(satellite)
     session.commit()
 
@@ -45,8 +45,8 @@ def test_ui_locations_create_satellite_without_parent_shows_inline_error(client)
     assert "richiede" in response.text.lower()
 
 
-def test_ui_locations_edit_form_renders_prefilled_row(client, session):
-    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503)
+def test_ui_locations_edit_form_renders_prefilled_row(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -61,8 +61,8 @@ def test_ui_locations_edit_form_unknown_id_returns_404(client):
     assert response.status_code == 404
 
 
-def test_ui_locations_update_and_rerenders_list(client, session):
-    hub = Location(name="Old Name", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_locations_update_and_rerenders_list(client, session, test_user_id):
+    hub = Location(name="Old Name", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -75,8 +75,8 @@ def test_ui_locations_update_and_rerenders_list(client, session):
     assert "New Name" in response.text
 
 
-def test_ui_locations_delete_removes_it_and_rerenders_list(client, session):
-    hub = Location(name="Doomed", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_locations_delete_removes_it_and_rerenders_list(client, session, test_user_id):
+    hub = Location(name="Doomed", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
@@ -86,17 +86,21 @@ def test_ui_locations_delete_removes_it_and_rerenders_list(client, session):
     assert "Doomed" not in response.text
 
 
-def test_ui_locations_list_groups_satellites_under_their_hub_and_indents_them(client, session):
-    hub_b = Location(name="Zeta Hub", is_hub=True, lat=30.0, lon=130.0)
-    hub_a = Location(name="Alpha Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_locations_list_groups_satellites_under_their_hub_and_indents_them(client, session, test_user_id):
+    hub_b = Location(name="Zeta Hub", is_hub=True, lat=30.0, lon=130.0, user_id=test_user_id)
+    hub_a = Location(name="Alpha Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub_b)
     session.add(hub_a)
     session.commit()
     session.refresh(hub_b)
     session.refresh(hub_a)
 
-    satellite_of_b = Location(name="Zeta Satellite", is_hub=False, parent_id=hub_b.id, lat=30.1, lon=130.1)
-    satellite_of_a = Location(name="Alpha Satellite", is_hub=False, parent_id=hub_a.id, lat=35.1, lon=135.1)
+    satellite_of_b = Location(
+        name="Zeta Satellite", is_hub=False, parent_id=hub_b.id, lat=30.1, lon=130.1, user_id=test_user_id
+    )
+    satellite_of_a = Location(
+        name="Alpha Satellite", is_hub=False, parent_id=hub_a.id, lat=35.1, lon=135.1, user_id=test_user_id
+    )
     session.add(satellite_of_b)
     session.add(satellite_of_a)
     session.commit()
@@ -114,12 +118,12 @@ def test_ui_locations_list_groups_satellites_under_their_hub_and_indents_them(cl
     assert 'class="satellite-row"' in text
 
 
-def test_ui_locations_delete_with_reels_shows_inline_error(client, session):
-    hub = Location(name="Hub With Reels", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_locations_delete_with_reels_shows_inline_error(client, session, test_user_id):
+    hub = Location(name="Hub With Reels", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id))
+    session.add(Reel(link="https://instagram.com/reel/x", location_id=hub.id, user_id=test_user_id))
     session.commit()
 
     response = client.delete(f"/ui/locations/{hub.id}")
@@ -128,12 +132,14 @@ def test_ui_locations_delete_with_reels_shows_inline_error(client, session):
     assert "reel" in response.text.lower()
 
 
-def test_ui_locations_delete_with_children_shows_inline_error(client, session):
-    hub = Location(name="Parent Hub", is_hub=True, lat=35.0, lon=135.0)
+def test_ui_locations_delete_with_children_shows_inline_error(client, session, test_user_id):
+    hub = Location(name="Parent Hub", is_hub=True, lat=35.0, lon=135.0, user_id=test_user_id)
     session.add(hub)
     session.commit()
     session.refresh(hub)
-    satellite = Location(name="Child Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1)
+    satellite = Location(
+        name="Child Satellite", is_hub=False, parent_id=hub.id, lat=35.1, lon=135.1, user_id=test_user_id
+    )
     session.add(satellite)
     session.commit()
 

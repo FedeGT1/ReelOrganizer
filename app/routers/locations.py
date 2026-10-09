@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from app.auth import get_current_user
 from app.db import get_session
-from app.models import Location, Reel
+from app.models import Location, Reel, User
+from app.scoping import get_owned, user_query
 from app.web import templates
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
@@ -21,24 +23,32 @@ class LocationPayload(BaseModel):
     lon: float
 
 
-def _has_children(session: Session, location_id: str) -> bool:
+def _has_children(session: Session, location_id: str, user_id: str) -> bool:
     return (
-        session.exec(select(Location).where(Location.parent_id == location_id)).first()
+        session.exec(
+            user_query(Location, user_id).where(Location.parent_id == location_id)
+        ).first()
         is not None
     )
 
 
-def _has_reels(session: Session, location_id: str) -> bool:
+def _has_reels(session: Session, location_id: str, user_id: str) -> bool:
     return (
-        session.exec(select(Reel).where(Reel.location_id == location_id)).first()
+        session.exec(user_query(Reel, user_id).where(Reel.location_id == location_id)).first()
         is not None
     )
 
 
-def _reel_counts(session: Session) -> dict:
+def _reel_counts(session: Session, user_id: str) -> dict:
+    # Note: not built from user_query(Reel, user_id).with_only_columns(...) — in this
+    # SQLModel version, with_only_columns() on a select(Model) query keeps it typed as
+    # SelectOfScalar, so session.exec() applies .scalars() and silently drops the second
+    # (count) column. Selecting the columns directly avoids that.
     return dict(
         session.exec(
-            select(Reel.location_id, func.count(Reel.id)).group_by(Reel.location_id)
+            select(Reel.location_id, func.count(Reel.id))
+            .where(Reel.user_id == user_id)
+            .group_by(Reel.location_id)
         ).all()
     )
 
@@ -56,12 +66,20 @@ def _serialize_location(location: Location, reel_count: int) -> dict:
 
 
 def _create_location(
-    session: Session, name: str, is_hub: bool, parent_id: Optional[str], lat: float, lon: float
+    session: Session,
+    user_id: str,
+    name: str,
+    is_hub: bool,
+    parent_id: Optional[str],
+    lat: float,
+    lon: float,
 ) -> Location:
     if not is_hub and not parent_id:
         raise HTTPException(status_code=400, detail="A satellite location requires a parent_id")
+    if parent_id and get_owned(session, Location, parent_id, user_id) is None:
+        raise HTTPException(status_code=404, detail="Location not found")
     location = Location(
-        name=name, is_hub=is_hub, parent_id=None if is_hub else parent_id, lat=lat, lon=lon
+        name=name, is_hub=is_hub, parent_id=None if is_hub else parent_id, lat=lat, lon=lon, user_id=user_id
     )
     session.add(location)
     session.commit()
@@ -71,6 +89,7 @@ def _create_location(
 
 def _update_location(
     session: Session,
+    user_id: str,
     location_id: str,
     name: str,
     is_hub: bool,
@@ -78,12 +97,14 @@ def _update_location(
     lat: float,
     lon: float,
 ) -> Location:
-    location = session.get(Location, location_id)
+    location = get_owned(session, Location, location_id, user_id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     if not is_hub and not parent_id:
         raise HTTPException(status_code=400, detail="A satellite location requires a parent_id")
-    if not is_hub and _has_children(session, location_id):
+    if parent_id and get_owned(session, Location, parent_id, user_id) is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    if not is_hub and _has_children(session, location_id, user_id):
         raise HTTPException(
             status_code=409,
             detail="Cannot turn a location with child locations into a satellite; reassign or delete them first",
@@ -99,16 +120,16 @@ def _update_location(
     return location
 
 
-def _delete_location(session: Session, location_id: str) -> None:
-    location = session.get(Location, location_id)
+def _delete_location(session: Session, user_id: str, location_id: str) -> None:
+    location = get_owned(session, Location, location_id, user_id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
-    if _has_children(session, location_id):
+    if _has_children(session, location_id, user_id):
         raise HTTPException(
             status_code=409,
             detail="Cannot delete a location that still has child locations; reassign or delete them first",
         )
-    if _has_reels(session, location_id):
+    if _has_reels(session, location_id, user_id):
         raise HTTPException(
             status_code=409,
             detail="Cannot delete a location that still has reels attached; move or delete them first",
@@ -117,17 +138,17 @@ def _delete_location(session: Session, location_id: str) -> None:
     session.commit()
 
 
-def _merge_locations(session: Session, keep_id: str, drop_id: str) -> None:
-    keep = session.get(Location, keep_id)
-    drop = session.get(Location, drop_id)
+def _merge_locations(session: Session, user_id: str, keep_id: str, drop_id: str) -> None:
+    keep = get_owned(session, Location, keep_id, user_id)
+    drop = get_owned(session, Location, drop_id, user_id)
     if keep is None or drop is None:
         raise HTTPException(status_code=404, detail="Location not found")
-    if _has_children(session, drop_id):
+    if _has_children(session, drop_id, user_id):
         raise HTTPException(
             status_code=409,
             detail="Cannot merge a location that still has child locations; reassign or delete them first",
         )
-    for reel in session.exec(select(Reel).where(Reel.location_id == drop_id)).all():
+    for reel in session.exec(user_query(Reel, user_id).where(Reel.location_id == drop_id)).all():
         reel.location_id = keep_id
         session.add(reel)
     session.commit()
@@ -136,26 +157,34 @@ def _merge_locations(session: Session, keep_id: str, drop_id: str) -> None:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_location(payload: LocationPayload, session: Session = Depends(get_session)):
+def create_location(
+    payload: LocationPayload,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     location = _create_location(
-        session, payload.name, payload.is_hub, payload.parent_id, payload.lat, payload.lon
+        session, current_user.id, payload.name, payload.is_hub, payload.parent_id, payload.lat, payload.lon
     )
     return _serialize_location(location, 0)
 
 
 @router.get("")
-def list_locations(session: Session = Depends(get_session)):
-    locations = session.exec(select(Location)).all()
-    counts = _reel_counts(session)
+def list_locations(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    locations = session.exec(user_query(Location, current_user.id)).all()
+    counts = _reel_counts(session, current_user.id)
     return [_serialize_location(loc, counts.get(loc.id, 0)) for loc in locations]
 
 
 @router.put("/{location_id}")
 def update_location(
-    location_id: str, payload: LocationPayload, session: Session = Depends(get_session)
+    location_id: str,
+    payload: LocationPayload,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     location = _update_location(
         session,
+        current_user.id,
         location_id,
         payload.name,
         payload.is_hub,
@@ -163,23 +192,30 @@ def update_location(
         payload.lat,
         payload.lon,
     )
-    counts = _reel_counts(session)
+    counts = _reel_counts(session, current_user.id)
     return _serialize_location(location, counts.get(location.id, 0))
 
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_location(location_id: str, session: Session = Depends(get_session)):
-    _delete_location(session, location_id)
+def delete_location(
+    location_id: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
+    _delete_location(session, current_user.id, location_id)
 
 
 @router.post("/{keep_id}/merge/{drop_id}", status_code=status.HTTP_204_NO_CONTENT)
-def merge_locations(keep_id: str, drop_id: str, session: Session = Depends(get_session)):
-    _merge_locations(session, keep_id, drop_id)
+def merge_locations(
+    keep_id: str,
+    drop_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    _merge_locations(session, current_user.id, keep_id, drop_id)
 
 
-def _location_list_context(session: Session, error: Optional[str] = None) -> dict:
-    locations = session.exec(select(Location)).all()
-    counts = _reel_counts(session)
+def _location_list_context(session: Session, user_id: str, error: Optional[str] = None) -> dict:
+    locations = session.exec(user_query(Location, user_id)).all()
+    counts = _reel_counts(session, user_id)
     hubs = sorted((loc for loc in locations if loc.is_hub), key=lambda loc: loc.name)
     hubs_by_id = {loc.id: loc for loc in hubs}
 
@@ -224,9 +260,11 @@ def _location_list_context(session: Session, error: Optional[str] = None) -> dic
 
 
 @ui_router.get("")
-def ui_list_locations(request: Request, session: Session = Depends(get_session)):
+def ui_list_locations(
+    request: Request, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)
+):
     return templates.TemplateResponse(
-        request, "partials/location_list.html", _location_list_context(session)
+        request, "partials/location_list.html", _location_list_context(session, current_user.id)
     )
 
 
@@ -239,29 +277,35 @@ def ui_create_location(
     lat: float = Form(...),
     lon: float = Form(...),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        _create_location(session, name, is_hub == "true", parent_id or None, lat, lon)
+        _create_location(session, current_user.id, name, is_hub == "true", parent_id or None, lat, lon)
     except HTTPException as exc:
+        if exc.status_code == 404:
+            raise
         return templates.TemplateResponse(
             request,
             "partials/location_list.html",
-            _location_list_context(session, error="Un satellite richiede una città padre."),
+            _location_list_context(session, current_user.id, error="Un satellite richiede una città padre."),
         )
     return templates.TemplateResponse(
-        request, "partials/location_list.html", _location_list_context(session)
+        request, "partials/location_list.html", _location_list_context(session, current_user.id)
     )
 
 
 @ui_router.get("/{location_id}/edit")
 def ui_edit_location_form(
-    request: Request, location_id: str, session: Session = Depends(get_session)
+    request: Request,
+    location_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    location = session.get(Location, location_id)
+    location = get_owned(session, Location, location_id, current_user.id)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     hubs = session.exec(
-        select(Location).where(Location.is_hub == True, Location.id != location_id)
+        user_query(Location, current_user.id).where(Location.is_hub == True, Location.id != location_id)
     ).all()
     return templates.TemplateResponse(
         request, "partials/location_edit_row.html", {"location": location, "hubs": hubs}
@@ -278,9 +322,12 @@ def ui_update_location(
     lat: float = Form(...),
     lon: float = Form(...),
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        _update_location(session, location_id, name, is_hub == "true", parent_id or None, lat, lon)
+        _update_location(
+            session, current_user.id, location_id, name, is_hub == "true", parent_id or None, lat, lon
+        )
     except HTTPException as exc:
         if exc.status_code == 404:
             raise
@@ -292,31 +339,34 @@ def ui_update_location(
         return templates.TemplateResponse(
             request,
             "partials/location_list.html",
-            _location_list_context(session, error=error),
+            _location_list_context(session, current_user.id, error=error),
         )
     return templates.TemplateResponse(
-        request, "partials/location_list.html", _location_list_context(session)
+        request, "partials/location_list.html", _location_list_context(session, current_user.id)
     )
 
 
 @ui_router.delete("/{location_id}")
 def ui_delete_location(
-    request: Request, location_id: str, session: Session = Depends(get_session)
+    request: Request,
+    location_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
-        _delete_location(session, location_id)
+        _delete_location(session, current_user.id, location_id)
     except HTTPException as exc:
         if exc.status_code == 404:
             raise
-        if _has_children(session, location_id):
+        if _has_children(session, location_id, current_user.id):
             error = "Questa città ha città satellite collegate: riassegnale o eliminale prima."
         else:
             error = "Questa città ha reel collegati: spostali o eliminali prima dalla lista reel."
         return templates.TemplateResponse(
             request,
             "partials/location_list.html",
-            _location_list_context(session, error=error),
+            _location_list_context(session, current_user.id, error=error),
         )
     return templates.TemplateResponse(
-        request, "partials/location_list.html", _location_list_context(session)
+        request, "partials/location_list.html", _location_list_context(session, current_user.id)
     )
