@@ -2,7 +2,7 @@
 authors:
   - "fedegt1"
 created_at: "2026-10-09"
-updated_at: "2026-10-09"
+updated_at: "2026-10-16"
 tags:
   - kind/meta
   - status/authoritative
@@ -28,6 +28,9 @@ old-to-new table here. If one is ever imported later, that table belongs on this
 | `kind/change-request` | Something asked for outside agreed scope |
 | `kind/bug-report` | Behaviour contradicting a stated expectation |
 | `kind/meta` | This page, `doc-map.md`, `README.md` |
+| `kind/design` | Governance design page (`governance/design/`) |
+| `kind/unit` | Governance unit page (`governance/units/`) |
+| `kind/adr` | Architecture decision record (`governance/adrs/`) |
 
 ## `component/`
 
@@ -75,6 +78,7 @@ exactly one component tag:
 | `status/authoritative` | Verified against code on `dev` |
 | `status/draft` | Written but not (fully) verified |
 | `status/superseded` | Kept for the record, do not act on it |
+| `status/record` | Closed governance unit, kept as a record |
 
 ## See also
 

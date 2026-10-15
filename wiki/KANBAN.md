@@ -2,12 +2,14 @@
 authors:
   - "fedegt1"
 created_at: "2026-10-09"
-updated_at: "2026-10-15"
+updated_at: "2026-10-16"
 tags:
   - kind/meta
   - status/authoritative
-connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG"]
+connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
+
+> **Governance** — posture: bootstrap · focus: Bootstrap Brownfield in execute: tutti i task di execute fatti; pronto per la chiusura del Bootstrap; richiesta group-reels-by-place parcheggiata · design: [[current-system-design]]
 
 # Kanban
 
@@ -17,6 +19,7 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
+- [[group-reels-by-place]] — group reels by place in the reel list. Parked until the Bootstrap closes; becomes the first Delivery unit.
 - [[tiktok-import]] — import from TikTok in addition to Instagram. Not started.
 
 ## WIP
@@ -29,6 +32,10 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## DONE
 
+- [x] bootstrap-brownfield-04 — Inizializza governance/adrs/README.md | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: bootstrap-brownfield-01, bootstrap-brownfield-02
+- [x] bootstrap-brownfield-03 — Aggiorna CLAUDE.md con stack, comandi, convenzioni, guardrail | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: bootstrap-brownfield-01, bootstrap-brownfield-02
+- [x] bootstrap-brownfield-02 — Formalizza ADR-002: lista completa dal server, paginazione solo client | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: —
+- [x] bootstrap-brownfield-01 — Formalizza ADR-001: un luogo, una Location | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: —
 - Multiuser retrofit (accounts, per-user scoping, additive migration) — see
   [[03-the-multiuser-retrofit]] and the `CHANGELOG` row dated 2026-10-09.
 

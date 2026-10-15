@@ -2,11 +2,11 @@
 authors:
   - "fedegt1"
 created_at: "2026-10-09"
-updated_at: "2026-10-09"
+updated_at: "2026-10-16"
 tags:
   - kind/meta
   - status/authoritative
-connected files: ["WIKI-RULES.md", "_meta/tags.md", "_meta/doc-map.md", "glossary.md"]
+connected files: ["WIKI-RULES.md", "_meta/tags.md", "_meta/doc-map.md", "glossary.md", "governance/INDEX"]
 ---
 
 # ReelOrganizer wiki
@@ -44,10 +44,14 @@ component page]] for what it is; this page is just the map of the wiki.
 - [[RELEASES]] — what is deployed where, with dates.
 - [[glossary]] — business terms, acronyms, external systems.
 
+## Governance
+
+- [[governance/INDEX]] — design, units and the control plane (opened 2026-10-16).
+
 ## Open asks
 
-- `change-requests/business-requests/` — currently just
-  [[tiktok-import]] (backlog, not started).
+- `change-requests/business-requests/` — [[group-reels-by-place]]
+  (parked in governance) and [[tiktok-import]] (backlog, not started).
 
 ## Not yet written
 
