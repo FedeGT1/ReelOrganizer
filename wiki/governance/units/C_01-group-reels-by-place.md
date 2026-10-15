@@ -8,8 +8,8 @@ tags:
   - status/draft
 connected files: ["group-reels-by-place", "current-system-design", "001-one-place-one-location", "002-client-side-reel-pagination", "hub-satellite-location"]
 unit_kind: change
-phase: plan
-status: planned
+phase: execute
+status: wip
 owner: "fedegt1"
 amendments: none
 ---
@@ -216,7 +216,37 @@ Fonte unica: la `## Spec` di questa pagina e gli ADR [[001-one-place-one-locatio
 
 ## Implementation record
 
-*(non ancora)*
+### C_01_01 — Refresh baseline: consumatori della lista reel
+
+- **Stato:** wip
+- **Branch:** governance/C_01_01-refresh-baseline-reel-list
+
+#### 1. Cosa è stato fatto
+
+Aggiornata la §2 di `governance/design/current-system-design.md` con i consumatori verificati del frammento lista (`reels.py`, `ai_categorize.py`, `ai_multi_categorize.py`) e della card (`note_regeneration.py`, `audit_results.html`). Trovato inoltre che l'audit rende `<ul class="reel-list">` proprie fuori da `#reel-list`: le regole CSS `.reel-list` si applicano anche lì e `reel-list.js` no.
+
+#### 2. File modificati
+
+- `wiki/governance/design/current-system-design.md` — §2, paragrafo sui consumatori.
+
+#### 3. Verifica
+
+- Ogni consumatore citato ritrovato con `grep` su `dev`: passed.
+- `check_wiki.py`: nessun nuovo errore.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: nessuno.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Segnalazione per C_01_05: le regole CSS `.reel-list` valgono anche nell'audit; l'intestazione di gruppo non deve alterare quelle liste.
 
 ## Closure record
 
