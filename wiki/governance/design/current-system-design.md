@@ -6,9 +6,9 @@ updated_at: "2026-10-16"
 tags:
   - kind/design
   - status/authoritative
-connected files: ["001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
+connected files: ["C_01-group-reels-by-place", "001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
 posture: delivery
-focus: "Delivery: da aprire come prima unità la richiesta group-reels-by-place (change)"
+focus: "Delivery C_01 group-reels-by-place: Piano approvato, 7 task pronti; primo task C_01_01"
 ---
 
 # Current System Design — ReelOrganizer
@@ -27,8 +27,8 @@ focus: "Delivery: da aprire come prima unità la richiesta group-reels-by-place 
 
 ## Item aperti
 
-- Richiesta parcheggiata: [[group-reels-by-place]] — raggruppare i reel per luogo nella
-  lista. Diventa la prima unità Delivery (`change`) alla chiusura del Bootstrap.
+- In corso: [[C_01-group-reels-by-place]] — raggruppare i reel per luogo nella lista
+  (richiesta [[group-reels-by-place]]).
 - Richiesta di backlog: [[tiktok-import]] — non iniziata, non prioritaria.
 - Le domande aperte di §7 sotto.
 

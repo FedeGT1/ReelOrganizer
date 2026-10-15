@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery: da aprire come prima unità la richiesta group-reels-by-place (change) · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: Piano approvato, 7 task pronti; primo task C_01_01 · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,6 +19,13 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
+- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: planned | branch: — | merged: no | depends_on: —
+- [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_01
+- [ ] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_02
+- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
+- [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
+- [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
+- [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_04, C_01_05, C_01_06
 - [[group-reels-by-place]] — group reels by place in the reel list. Parked until the Bootstrap closes; becomes the first Delivery unit.
 - [[tiktok-import]] — import from TikTok in addition to Instagram. Not started.
 

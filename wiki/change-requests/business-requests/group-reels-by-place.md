@@ -15,8 +15,8 @@ connected files: ["components/reel-organizer/README", "concepts/hub-satellite-lo
 |---|---|
 | Requested by | The operator (fedegt1), directly in chat |
 | Requested on | 2026-10-16 |
-| Status | proposed — governance opened (Bootstrap Brownfield); will become the first Delivery unit once the Bootstrap closes |
-| Spec | none yet |
+| Status | under analysis — in Delivery brainstorm as [[C_01-group-reels-by-place]] |
+| Spec | [[C_01-group-reels-by-place]] (draft) |
 | Branches | none yet |
 
 ## The request
