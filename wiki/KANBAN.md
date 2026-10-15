@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: bootstrap · focus: Bootstrap Brownfield in execute: tutti i task di execute fatti; pronto per la chiusura del Bootstrap; richiesta group-reels-by-place parcheggiata · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery: da aprire come prima unità la richiesta group-reels-by-place (change) · design: [[current-system-design]]
 
 # Kanban
 

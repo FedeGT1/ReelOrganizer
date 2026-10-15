@@ -5,11 +5,11 @@ created_at: "2026-10-16"
 updated_at: "2026-10-16"
 tags:
   - kind/unit
-  - status/draft
+  - status/record
 connected files: ["current-system-design", "group-reels-by-place"]
 unit_kind: bootstrap-brownfield
-phase: execute
-status: wip
+phase: —
+status: done
 owner: "fedegt1"
 amendments: none
 ---
@@ -37,6 +37,78 @@ Fonte unica: [[current-system-design]] §6 e §7. ADR selezionati dall'owner il 
 Gli ADR prima, poi `CLAUDE.md` e indice ADR.
 
 #### bootstrap-brownfield-01 — Formalizza ADR-001: un luogo, una Location
+
+- **Slug:** adr-one-place-one-location
+- **Descrizione:** Scrive il file governance/adrs/001-one-place-one-location.md dal template: i reel dello stesso luogo condividono `location_id`; chi decide cos'è «lo stesso luogo» è `resolve_place`.
+- **Tier di modello:** simple
+- **Depends on:** —
+- **Criterio di completamento:** la pagina ADR esiste, segue `adr.md`, riporta la conferma dell'owner con data, ed è linkata da `governance/INDEX.md`.
+- **Passo di verifica:** `check_wiki.py` pulito; ogni percorso di codice citato esiste su `dev`.
+
+#### bootstrap-brownfield-02 — Formalizza ADR-002: lista reel completa dal server, paginazione solo client
+
+- **Slug:** adr-client-side-pagination
+- **Descrizione:** Scrive il file governance/adrs/002-client-side-reel-pagination.md: il server restituisce tutti i reel, `app/static/js/reel-list.js` ne mostra 5 alla volta. Elenca anche l'assenza di `ORDER BY` come conseguenza.
+- **Tier di modello:** simple
+- **Depends on:** —
+- **Criterio di completamento:** la pagina ADR esiste, segue `adr.md`, riporta la conferma dell'owner con data, ed è linkata da `governance/INDEX.md`.
+- **Passo di verifica:** `check_wiki.py` pulito; `reel-list.js` e `_reel_list_context` citati esistono su `dev`.
+
+#### bootstrap-brownfield-03 — Aggiorna CLAUDE.md
+
+- **Slug:** claude-md-brownfield
+- **Descrizione:** Estende `CLAUDE.md` (oggi solo blocco governance) con stack, comandi build/test/run, convenzioni e guardrail dal Current System Design; rimanda a ADR-001 e ADR-002.
+- **Tier di modello:** medium
+- **Depends on:** bootstrap-brownfield-01, bootstrap-brownfield-02
+- **Criterio di completamento:** `CLAUDE.md` contiene stack, comandi, convenzioni e guardrail coerenti con la §3-§5 del design, e il blocco governance esistente resta invariato.
+- **Passo di verifica:** diff di `CLAUDE.md` rivisto dall'owner; ogni comando citato è verificato contro `pyproject.toml`/README.
+
+#### bootstrap-brownfield-04 — Inizializza l'indice ADR
+
+- **Slug:** adrs-index
+- **Descrizione:** Crea governance/adrs/README.md dal template readme e linka ADR-001 e ADR-002.
+- **Tier di modello:** simple
+- **Depends on:** bootstrap-brownfield-01, bootstrap-brownfield-02
+- **Criterio di completamento:** governance/adrs/README.md esiste, elenca i due ADR ed è linkato da `governance/INDEX.md`.
+- **Passo di verifica:** `check_wiki.py` pulito, nessuna pagina orfana.
+
+## Implementation record
+
+### 1. Cosa è stato fatto
+
+Formalizzati due ADR retrospettivi ([[001-one-place-one-location]], [[002-client-side-reel-pagination]]), esteso `CLAUDE.md` con stack, comandi, convenzioni e decisioni durature, creato l'indice ADR. Il Current System Design è stato approvato dall'owner prima del piano. La verifica degli ADR sul codice ha corretto il design: l'unicità di luogo e reel non è garantita (il form manuale non passa da `resolve_place`; il reel duplicato è solo un avviso).
+
+### 2. File modificati
+
+- `CLAUDE.md` — esteso (blocco governance invariato).
+- `wiki/governance/` — design, unità, INDEX, `adrs/` (001, 002, README).
+- `wiki/KANBAN.md`, `wiki/README.md`, `wiki/_meta/tags.md` — testata, link, tag.
+- `wiki/change-requests/business-requests/group-reels-by-place.md` — richiesta parcheggiata.
+- Nessun file in `app/`, `tests/` o `scripts/`.
+
+### 3. Esiti di verifica
+
+- `uv run pytest -q`: 492 passed (2026-10-16, prima del lavoro; il codice non è stato toccato): passed.
+- Task 01-04: passo di verifica di ciascuno: passed (vedi i task record).
+- `check_wiki.py`: solo i 3 errori preesistenti su docs/todo-next-step.md (file cancellato apposta in `5f16827`): nessun nuovo errore.
+- Comportamento in browser: non verificato (nessun browser in questo ambiente).
+
+### 4. Deviazioni dal piano
+
+- Nome dei file ADR `001-`/`002-` invece di `ADR-001-`/`ADR-002-` (convenzione policy §3); testo del Piano allineato. Nessun amendment.
+- Selezione ADR ridotta rispetto alla bozza iniziale: l'ipotesi «hub/satellite a un livello» non è diventata ADR, per scelta dell'owner; resta nel concept [[hub-satellite-location]].
+
+### 5. ADR toccati
+
+- ADR-001 nuovo, accepted. ADR-002 nuovo, accepted. Nessuno aggiornato o superato.
+
+### 6. Follow-up
+
+- Aprire come prima unità Delivery (`change`) la richiesta [[group-reels-by-place]].
+- Backlog: [[tiktok-import]], non iniziata.
+- Non verificabile da qui: se la deduplica ha già lasciato luoghi duplicati in produzione (dati solo sulla VPS).
+
+### bootstrap-brownfield-01 — Formalizza ADR-001: un luogo, una Location
 
 - **Slug:** adr-one-place-one-location
 - **Descrizione:** Scrive il file governance/adrs/001-one-place-one-location.md dal template: i reel dello stesso luogo condividono `location_id`; chi decide cos'è «lo stesso luogo» è `resolve_place`.
@@ -197,7 +269,29 @@ Creato governance/adrs/README.md dal template readme, con ADR-001 e ADR-002; lin
 
 ## Closure record
 
-*(non ancora)*
+**Esito:** success
+
+### 1. Riassunto
+
+Bootstrap Brownfield consegnato: Current System Design approvato, due ADR retrospettivi, `CLAUDE.md` e indice ADR. Nessun codice dell'app toccato. Da aprire come prima unità Delivery: [[group-reels-by-place]].
+
+### 2. Artefatti collegati
+
+- Spec: [[current-system-design]] (sezione `## Spec` di questa pagina rimanda lì)
+- Plan: sezione `## Plan` di questa pagina
+- Implementation record: sezione `## Implementation record` di questa pagina
+- ADR toccati: [[001-one-place-one-location]], [[002-client-side-reel-pagination]]
+
+### 3. Stato del control plane alla chiusura
+
+- KANBAN aggiornato: sì — 4 card in DONE, richiesta parcheggiata in TODO.
+- `status` finale (compilato allo stage 2): done.
+- Current System Design aggiornato (solo Brownfield): sì — §6 righe 1 e 3, §7 ADR risolta.
+- CLAUDE.md aggiornato (solo Bootstrap, o quando la Delivery ha cambiato conoscenza duratura): sì.
+
+### 4. Sign-off
+
+- Approvazione owner: fedegt1, 2026-10-16
 
 ## Amendments
 

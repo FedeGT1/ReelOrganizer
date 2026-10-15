@@ -5,10 +5,10 @@ created_at: "2026-10-16"
 updated_at: "2026-10-16"
 tags:
   - kind/design
-  - status/draft
+  - status/authoritative
 connected files: ["001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
-posture: bootstrap
-focus: "Bootstrap Brownfield in execute: tutti i task di execute fatti; pronto per la chiusura del Bootstrap; richiesta group-reels-by-place parcheggiata"
+posture: delivery
+focus: "Delivery: da aprire come prima unità la richiesta group-reels-by-place (change)"
 ---
 
 # Current System Design — ReelOrganizer

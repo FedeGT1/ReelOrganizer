@@ -15,7 +15,7 @@ Il control plane vive in questa vault: [[KANBAN]] (testata + card) e le pagine s
 
 ## Design
 
-- [[current-system-design]] — Current System Design (Brownfield), bozza.
+- [[current-system-design]] — Current System Design (Brownfield), approvato.
 
 ## ADR
 
@@ -25,7 +25,7 @@ Il control plane vive in questa vault: [[KANBAN]] (testata + card) e le pagine s
 
 ## Unità
 
-- [[BOOT-brownfield]] — Bootstrap Brownfield, fase plan (piano approvato).
+- [[BOOT-brownfield]] — Bootstrap Brownfield, chiuso (done), firmato dall'owner il 2026-10-16.
 
 ## Richieste in coda
 
