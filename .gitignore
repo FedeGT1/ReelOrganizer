@@ -12,3 +12,4 @@ data/whisper_models/
 .worktrees/
 .DS_Store
 .claude/
+wiki/.obsidian/
