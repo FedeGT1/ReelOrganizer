@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 (refresh baseline) in execute · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 in review · design: [[current-system-design]]
 
 # Kanban
 
@@ -30,11 +30,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: wip | branch: governance/C_01_01-refresh-baseline-reel-list | merged: no | depends_on: —
+*(none)*
 
 ## TEST
 
-*(none)*
+- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: review | branch: governance/C_01_01-refresh-baseline-reel-list | merged: no | depends_on: —
 
 ## DONE
 

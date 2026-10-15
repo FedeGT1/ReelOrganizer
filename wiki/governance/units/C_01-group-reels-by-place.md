@@ -218,7 +218,7 @@ Fonte unica: la `## Spec` di questa pagina e gli ADR [[001-one-place-one-locatio
 
 ### C_01_01 — Refresh baseline: consumatori della lista reel
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_01-refresh-baseline-reel-list
 
 #### 1. Cosa è stato fatto
