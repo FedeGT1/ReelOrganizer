@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 in review · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 done, prossimo task C_01_02 · design: [[current-system-design]]
 
 # Kanban
 
@@ -34,10 +34,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: review | branch: governance/C_01_01-refresh-baseline-reel-list | merged: no | depends_on: —
+*(none)*
 
 ## DONE
 
+- [x] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: done | branch: governance/C_01_01-refresh-baseline-reel-list | merged: yes | depends_on: —
 - [x] bootstrap-brownfield-04 — Inizializza governance/adrs/README.md | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: bootstrap-brownfield-01, bootstrap-brownfield-02
 - [x] bootstrap-brownfield-03 — Aggiorna CLAUDE.md con stack, comandi, convenzioni, guardrail | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: bootstrap-brownfield-01, bootstrap-brownfield-02
 - [x] bootstrap-brownfield-02 — Formalizza ADR-002: lista completa dal server, paginazione solo client | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: —

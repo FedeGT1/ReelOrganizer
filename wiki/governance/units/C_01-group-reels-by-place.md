@@ -8,7 +8,7 @@ tags:
   - status/draft
 connected files: ["group-reels-by-place", "current-system-design", "001-one-place-one-location", "002-client-side-reel-pagination", "hub-satellite-location"]
 unit_kind: change
-phase: execute
+phase: review
 status: wip
 owner: "fedegt1"
 amendments: none
@@ -218,8 +218,8 @@ Fonte unica: la `## Spec` di questa pagina e gli ADR [[001-one-place-one-locatio
 
 ### C_01_01 — Refresh baseline: consumatori della lista reel
 
-- **Stato:** review
-- **Branch:** governance/C_01_01-refresh-baseline-reel-list
+- **Stato:** done
+- **Branch:** governance/C_01_01-refresh-baseline-reel-list (mergiato in `dev`, commit di merge `--no-ff`)
 
 #### 1. Cosa è stato fatto
 
@@ -237,12 +237,12 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 #### 4. Review
 
 - Findings critici/importanti: nessuno.
-- Findings minori / follow-up: nessuno.
+- Findings minori / follow-up: blocco aggiunto in §2 lungo ma leggibile, non riscritto; il merge porta con sé anche lo stato del control plane del branch.
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approved (2026-10-16)
+- Note: review con report esplicito; approvazione e merge in `dev` richiesti dall'owner.
 
 #### 6. Deviazioni / follow-up
 
