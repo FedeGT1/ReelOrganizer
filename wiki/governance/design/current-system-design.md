@@ -8,7 +8,7 @@ tags:
   - status/authoritative
 connected files: ["C_01-group-reels-by-place", "001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
 posture: delivery
-focus: "Delivery C_01 group-reels-by-place: Piano approvato, 7 task pronti; primo task C_01_01"
+focus: "Delivery C_01 group-reels-by-place: C_01_01 in review"
 ---
 
 # Current System Design — ReelOrganizer
@@ -65,6 +65,14 @@ SQLite.
   una per la location). Rende `app/templates/partials/reel_list.html` → `<ul class="reel-list">` di
   `app/templates/partials/_reel_card.html`; ogni card mostra il nome del luogo (linkato al reel), nota e icone dei
   tipi. Esiste anche `GET /api/reels` con la stessa logica, che restituisce JSON.
+  **Consumatori del frammento lista** (verificati su `dev`, task C_01_01): `_reel_list_context`
+  e `reel_list.html` sono usati da `app/routers/reels.py` (`ui_list_reels`, `ui_create_reel`,
+  `ui_update_reel`, `ui_delete_reel`), `app/routers/ai_categorize.py` e
+  `app/routers/ai_multi_categorize.py`, che li rimandano come swap `hx-swap-oob` su
+  `#reel-list` dopo la conferma. **Consumatori della card:** `_reel_card.html` è incluso anche da
+  `app/routers/note_regeneration.py` (sostituisce una sola card, `closest li` /
+  `outerHTML`) e da `app/templates/partials/audit_results.html` (dentro `<ul class="reel-list">`
+  proprie, fuori da `#reel-list`, quindi senza la paginazione di `reel-list.js`).
 - **Paginazione:** interamente client-side, `app/static/js/reel-list.js`: il server
   restituisce tutti i reel, il JS nasconde tutti tranne i primi 5 e aggiunge «Carica altri».
 - **Deduplica dei luoghi:** `app/location_matching.py` (`resolve_place`,

@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: Piano approvato, 7 task pronti; primo task C_01_01 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 in review · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,7 +19,6 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
-- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: planned | branch: — | merged: no | depends_on: —
 - [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_01
 - [ ] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_02
 - [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
@@ -35,7 +34,7 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-*(none)*
+- [ ] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: review | branch: governance/C_01_01-refresh-baseline-reel-list | merged: no | depends_on: —
 
 ## DONE
 
