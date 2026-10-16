@@ -8,7 +8,7 @@ tags:
   - status/authoritative
 connected files: ["C_01-group-reels-by-place", "001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
 posture: delivery
-focus: "Delivery C_01 group-reels-by-place: C_01_03 in review"
+focus: "Delivery C_01 group-reels-by-place: C_01_03 done; dev NON rilasciare fino a C_01_04 (paginazione)"
 ---
 
 # Current System Design — ReelOrganizer

@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_03 in review · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_03 done; dev NON rilasciare fino a C_01_04 (paginazione) · design: [[current-system-design]]
 
 # Kanban
 
@@ -32,10 +32,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-- [ ] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: review | branch: governance/C_01_03-grouped-template | merged: no | depends_on: C_01_02
+*(none)*
 
 ## DONE
 
+- [x] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: done | branch: governance/C_01_03-grouped-template | merged: yes | depends_on: C_01_02
 - [x] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: done | branch: governance/C_01_02-server-grouping | merged: yes | depends_on: C_01_01
 - [x] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: done | branch: governance/C_01_01-refresh-baseline-reel-list | merged: yes | depends_on: —
 - [x] bootstrap-brownfield-04 — Inizializza governance/adrs/README.md | unit: BOOT | status: done | branch: — | merged: n/a | depends_on: bootstrap-brownfield-01, bootstrap-brownfield-02

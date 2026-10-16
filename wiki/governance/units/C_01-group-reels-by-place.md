@@ -286,8 +286,8 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_03 — Template a gruppi con intestazione per luogo
 
-- **Stato:** review
-- **Branch:** governance/C_01_03-grouped-template
+- **Stato:** done
+- **Branch:** governance/C_01_03-grouped-template (mergiato in `dev`, commit di merge `--no-ff`)
 - **Commit:** 5019b8f
 
 #### 1. Cosa è stato fatto
@@ -310,12 +310,12 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 #### 4. Review
 
 - Findings critici/importanti: nessuno nel task. Stato intermedio noto, vedi §6.
-- Findings minori / follow-up: intestazione non ancora stilata (C_01_05).
+- Findings minori / follow-up: intestazione non ancora stilata (C_01_05); rimozione del test di C_01_02 segnalata all'owner in review.
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approved (2026-10-16)
+- Note: review con report esplicito; approvazione e merge in `dev` richiesti dall'owner.
 
 #### 6. Deviazioni / follow-up
 
