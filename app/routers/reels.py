@@ -257,7 +257,6 @@ def _reel_list_context(
     filtered_location = get_owned(session, Location, location_id, user_id) if location_id else None
     serialized = {r.id: _serialize_reel(session, r) for r in reels}
     return {
-        "reels": [serialized[r.id] for r in reels],
         "groups": _group_reels_by_place(session, user_id, reels, serialized),
         "taxonomy": get_taxonomy(session, user_id),
         "filtered_location": filtered_location,
