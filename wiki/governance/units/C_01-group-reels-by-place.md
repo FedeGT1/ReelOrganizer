@@ -325,7 +325,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_04 — Paginazione per gruppi in reel-list.js
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_04-group-pagination
 - **Commit:** 0214a4f, ffc6b74 (rework)
 
