@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_01 done, prossimo task C_01_02 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_02 in execute · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,7 +19,6 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
-- [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_01
 - [ ] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_02
 - [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
@@ -30,7 +29,7 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-*(none)*
+- [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: wip | branch: governance/C_01_02-server-grouping | merged: no | depends_on: C_01_01
 
 ## TEST
 
