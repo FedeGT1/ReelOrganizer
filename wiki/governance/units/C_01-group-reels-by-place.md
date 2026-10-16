@@ -372,7 +372,7 @@ Nessuno.
 
 ### C_01_05 — Stile dell'intestazione di gruppo
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_05-group-header-style
 - **Commit:** f1c65eb
 

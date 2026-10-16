@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_05 in execute (stile intestazione); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_05 in review (stile intestazione); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -26,15 +26,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-- [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: wip | branch: governance/C_01_05-group-header-style | merged: no | depends_on: C_01_03
-
+*(none)*
 
 ## TEST
 
-*(none)*
-
-
-
+- [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: review | branch: governance/C_01_05-group-header-style | merged: no | depends_on: C_01_03
 
 ## DONE
 
