@@ -27,6 +27,7 @@ mirror of `git log`; `git log` itself remains authoritative for anything finer-g
 | 2026-10-16 | C_01_02 — Reel list context now returns reels grouped by place (newest reel first inside a group, groups by most recent reel, hub name on satellite groups); UI not yet switched | `app/routers/reels.py::_group_reels_by_place`, `tests/test_reel_list_grouping.py` |
 | 2026-10-16 | C_01_03 — Reel list rendered as one section per place with a header (place name, hub on satellites, reel count); pagination script not yet adapted (C_01_04) | `app/templates/partials/reel_list.html`, `tests/test_reel_list_template.py` |
 | 2026-10-16 | C_01_04 — Reel list pagination now works on place groups (5 groups at a time, "Carica altri (N gruppi rimanenti)", re-init on swap and OOB swap) | `app/static/js/reel-list.js`, `app/static/css/style.css` |
+| 2026-10-16 | C_01_05 — Place group header styled (name left, count right, gold rule; long names wrap, no horizontal scroll); audit lists untouched | `app/static/css/style.css` |
 
 ## See also
 

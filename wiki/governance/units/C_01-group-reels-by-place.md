@@ -372,7 +372,7 @@ Nessuno.
 
 ### C_01_05 — Stile dell'intestazione di gruppo
 
-- **Stato:** review
+- **Stato:** done
 - **Branch:** governance/C_01_05-group-header-style
 - **Commit:** f1c65eb
 
@@ -397,8 +397,8 @@ Regole CSS in `app/static/css/style.css` per `.reel-groups` (colonna con spazio 
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approvato dall'owner (2026-10-16), merge in dev (--no-ff)
+- Note: resa visiva e larghezza ~400 px da verificare in C_01_07.
 
 #### 6. Deviazioni / follow-up
 
