@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_06 mergiato in dev; prossimo C_01_07 (verifica dal vivo dell'owner); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_07 in review (verifica dal vivo registrata); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,7 +19,6 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
-- [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_04, C_01_05, C_01_06
 - [[group-reels-by-place]] — group reels by place in the reel list. Parked until the Bootstrap closes; becomes the first Delivery unit.
 - [[tiktok-import]] — import from TikTok in addition to Instagram. Not started.
 
@@ -29,7 +28,7 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-*(none)*
+- [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: review | branch: governance/C_01_07-live-verification | merged: no | depends_on: C_01_04, C_01_05, C_01_06
 
 ## DONE
 
