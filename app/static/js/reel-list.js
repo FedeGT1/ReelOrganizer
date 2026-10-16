@@ -58,3 +58,9 @@ document.addEventListener("htmx:afterSwap", (event) => {
         initReelPagination();
     }
 });
+
+document.addEventListener("htmx:oobAfterSwap", (event) => {
+    if (event.detail.target && event.detail.target.id === "reel-list") {
+        initReelPagination();
+    }
+});
