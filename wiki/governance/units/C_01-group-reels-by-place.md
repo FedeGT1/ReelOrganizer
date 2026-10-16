@@ -284,6 +284,44 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 - Nessuna.
 
+### C_01_03 — Template a gruppi con intestazione per luogo
+
+- **Stato:** wip
+- **Branch:** governance/C_01_03-grouped-template
+- **Commit:** 5019b8f
+
+#### 1. Cosa è stato fatto
+
+`app/templates/partials/reel_list.html` rende un `<section class="reel-group" data-location-id>` per gruppo, con un `<h3 class="reel-group-header">` (nome del luogo, ` · hub` per i satelliti, conteggio) e le card del gruppo in un `<ul class="reel-list">` proprio. `_reel_card.html` è invariato e resta un `<li>` autonomo. Il banner del filtro hub è conservato. La chiave `reels` piatta del contesto, senza più consumatori, è rimossa insieme al test che la richiedeva.
+
+#### 2. File modificati
+
+- `app/templates/partials/reel_list.html` — rendering a gruppi.
+- `app/routers/reels.py` — rimossa la chiave `reels` dal contesto.
+- `tests/test_reel_list_template.py` — 8 test nuovi (sette in rosso prima).
+- `tests/test_reel_list_grouping.py` — rimosso `test_flat_reels_key_is_still_provided`.
+
+#### 3. Verifica
+
+- TDD: 7 test su 8 in rosso prima dell'implementazione, tutti verdi dopo: passed.
+- `uv run pytest -q`: 510 passed (503 + 8 − 1): passed.
+- Audit (`audit_results.html`) e rigenerazione nota non toccati: usano ancora `_reel_card.html` in una `ul.reel-list` propria.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno nel task. Stato intermedio noto, vedi §6.
+- Findings minori / follow-up: intestazione non ancora stilata (C_01_05).
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- **Stato intermedio su `dev` fino a C_01_04**: `reel-list.js` cerca la prima `ul.reel-list` e nasconde i reel oltre il quinto di *quel* gruppo, mostrando «Carica altri» dopo di esso; gli altri gruppi restano interi. Nessun dato perso, ma la paginazione è sbagliata finché non arriva C_01_04: non rilasciare `dev` tra i due task.
+- Rimossa la chiave `reels` piatta (follow-up di C_01_02).
+
 ## Closure record
 
 *(non ancora)*
