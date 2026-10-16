@@ -207,6 +207,37 @@ def delete_reel(
     session.commit()
 
 
+def _group_reels_by_place(
+    session: Session, user_id: str, reels: list[Reel], serialized: dict[str, dict]
+) -> list[dict]:
+    newest_first = sorted(reels, key=lambda r: (r.created_at, r.id), reverse=True)
+
+    buckets: dict[str, list[Reel]] = {}
+    for reel in newest_first:
+        buckets.setdefault(reel.location_id, []).append(reel)
+
+    groups = []
+    for location_id, bucket in buckets.items():
+        location = session.get(Location, location_id)
+        hub = None
+        if location is not None and location.parent_id:
+            hub = get_owned(session, Location, location.parent_id, user_id)
+        groups.append(
+            {
+                "location_id": location_id,
+                "name": location.name if location else "",
+                "hub_name": hub.name if hub else None,
+                "count": len(bucket),
+                "newest_at": bucket[0].created_at,
+                "reels": [serialized[r.id] for r in bucket],
+            }
+        )
+
+    groups.sort(key=lambda g: (g["name"].lower(), g["location_id"]))
+    groups.sort(key=lambda g: g["newest_at"], reverse=True)
+    return groups
+
+
 def _reel_list_context(
     session: Session,
     user_id: str,
@@ -224,8 +255,10 @@ def _reel_list_context(
     reels = _filter_reels_by_text(session, reels, q)
 
     filtered_location = get_owned(session, Location, location_id, user_id) if location_id else None
+    serialized = {r.id: _serialize_reel(session, r) for r in reels}
     return {
-        "reels": [_serialize_reel(session, r) for r in reels],
+        "reels": [serialized[r.id] for r in reels],
+        "groups": _group_reels_by_place(session, user_id, reels, serialized),
         "taxonomy": get_taxonomy(session, user_id),
         "filtered_location": filtered_location,
     }
