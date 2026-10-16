@@ -250,8 +250,8 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context
 
-- **Stato:** review
-- **Branch:** governance/C_01_02-server-grouping
+- **Stato:** done
+- **Branch:** governance/C_01_02-server-grouping (mergiato in `dev`, commit di merge `--no-ff`)
 - **Commit:** 0a40e0d
 
 #### 1. Cosa è stato fatto
@@ -273,11 +273,12 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 - Findings critici/importanti: nessuno.
 - Findings minori / follow-up: doppia serializzazione dei reel trovata in self-review e rimossa. La chiave `reels` piatta resta finché il template non passa ai gruppi: valutare la rimozione in C_01_03/C_01_06.
+  Review: `session.get(Location, …)` del raggruppamento non è filtrato per utente (come `_serialize_reel`); nessun buco concreto, i `location_id` arrivano da reel già filtrati. Costo di una `get` per gruppo accettato.
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approved (2026-10-16)
+- Note: review con report esplicito; approvazione e merge in `dev` richiesti dall'owner.
 
 #### 6. Deviazioni / follow-up
 

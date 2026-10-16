@@ -24,6 +24,7 @@ mirror of `git log`; `git log` itself remains authoritative for anything finer-g
 | 2026-10-09 | Multiuser retrofit: `User` table, scrypt-hashed per-account login, `app/scoping.py` ownership helpers, every router scoped to the current user, additive-column + bootstrap-user migration for existing deployments, `scripts/create_user.py` admin CLI | `dc70771` … `b0169d3` (full span, see [[03-the-multiuser-retrofit]]) |
 | 2026-10-09 | Fixed: three write paths (AI-confirm, audit reassign, ask-session creation) accepted a client-supplied `location_id` without an ownership check | `ed5d7fa` (see [[get-owned]]) |
 | 2026-10-16 | C_01_01 — Current System Design §2 refreshed with the real consumers of the reel list fragment and card (prerequisite for [[C_01-group-reels-by-place]]) | merge of `governance/C_01_01-refresh-baseline-reel-list` into `dev` |
+| 2026-10-16 | C_01_02 — Reel list context now returns reels grouped by place (newest reel first inside a group, groups by most recent reel, hub name on satellite groups); UI not yet switched | `app/routers/reels.py::_group_reels_by_place`, `tests/test_reel_list_grouping.py` |
 
 ## See also
 
