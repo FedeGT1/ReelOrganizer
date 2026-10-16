@@ -237,6 +237,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 #### 4. Review
 
 - Findings critici/importanti: nessuno.
+- Rework: listener `htmx:oobAfterSwap` ripristinato; il verificatore Node ora simula anche l'evento OOB (falliva 2 controlli senza il listener, ora ALL OK); 510 passed. Resta non verificato il browser reale (C_01_07).
 - Findings minori / follow-up: blocco aggiunto in §2 lungo ma leggibile, non riscritto; il merge porta con sé anche lo stato del control plane del branch.
 
 #### 5. Approvazione owner
@@ -322,6 +323,42 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 - **Stato intermedio su `dev` fino a C_01_04**: `reel-list.js` cerca la prima `ul.reel-list` e nasconde i reel oltre il quinto di *quel* gruppo, mostrando «Carica altri» dopo di esso; gli altri gruppi restano interi. Nessun dato perso, ma la paginazione è sbagliata finché non arriva C_01_04: non rilasciare `dev` tra i due task.
 - Rimossa la chiave `reels` piatta (follow-up di C_01_02).
 
+### C_01_04 — Paginazione per gruppi in reel-list.js
+
+- **Stato:** review
+- **Branch:** governance/C_01_04-group-pagination
+- **Commit:** 0214a4f, ffc6b74 (rework)
+
+#### 1. Cosa è stato fatto
+
+`app/static/js/reel-list.js` pagina ora i gruppi, non i reel: mostra 5 `.reel-group` per volta, il bottone «Carica altri (N gruppi rimanenti)» (singolare «1 gruppo rimanente») sta dopo `.reel-groups`, un gruppo non si spezza mai e la paginazione si reinizializza a ogni `htmx:afterSwap` su `#reel-list`, rimuovendo il bottone precedente. In `style.css` aggiunta la sola regola `.reel-group[hidden]` perché un gruppo nascosto non venga mostrato da un futuro `display` di C_01_05.
+
+#### 2. File modificati
+
+- `app/static/js/reel-list.js` — paginazione per gruppi.
+- `app/static/css/style.css` — regola `.reel-group[hidden]`.
+
+#### 3. Verifica
+
+- Il repo non ha test JS (nessun test runner introdotto: sarebbe una decisione nuova). Verifica ad hoc con Node e un DOM finto, fuori dal repo: 17 controlli su 12 / 6 / 5 / 3 / 0 gruppi, due click successivi, etichetta singolare, bottone dopo i gruppi, nessuna card nascosta singolarmente, re-init con un solo bottone, `afterSwap` su altri target ignorato, assenza di `.reel-groups` senza errore: passed.
+- Mutazioni sul codice (soglia 4 invece di 5; nessuna riga nascosta): rilevate (9 e 2 fallimenti).
+- `uv run pytest -q`: 510 passed: passed.
+- Non verificato: comportamento nel browser reale con HTMX. Lo controlla l'owner nel task C_01_07.
+
+#### 4. Review
+
+- Findings critici/importanti (review, 2026-10-16): **la riscrittura ha tolto il listener `htmx:oobAfterSwap`** presente nella versione precedente. Creazione, modifica, AI (`reels.py`, `ai_categorize.py`, `ai_multi_categorize.py`) rimandano la lista come `hx-swap-oob="innerHTML:#reel-list"`: con htmx 1.9.12 quello swap emette `oobAfterSwap` sul target e non `afterSwap` su `#reel-list`, quindi la paginazione non riparte e la lista appare intera. Il controllo con Node non lo ha visto perché simulava solo `afterSwap`.
+- Findings minori / follow-up: il DOM finto non copre `:scope >` né il rendering reale.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna. Il merge chiude lo stato intermedio di `dev` aperto da C_01_03.
+
 ## Closure record
 
 *(non ancora)*
@@ -335,4 +372,4 @@ Nessuno.
 
 ## Review notes
 
-Nessuna.
+- **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto, in attesa di nuovo handoff e review.

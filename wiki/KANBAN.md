@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_03 done; dev NON rilasciare fino a C_01_04 (paginazione) · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 in review (dopo rework OOB); dev non rilasciare finché non è mergiato · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,7 +19,6 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
-- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_04, C_01_05, C_01_06
@@ -32,7 +31,9 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-*(none)*
+- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: review | branch: governance/C_01_04-group-pagination | merged: no | depends_on: C_01_03
+
+
 
 ## DONE
 
