@@ -406,7 +406,7 @@ Regole CSS in `app/static/css/style.css` per `.reel-groups` (colonna con spazio 
 
 ### C_01_06 — Test dei consumatori della lista reel
 
-- **Stato:** review
+- **Stato:** done
 - **Branch:** governance/C_01_06-consumer-tests
 - **Commit:** 6181f02
 
@@ -430,8 +430,8 @@ Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata d
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approvato dall'owner (2026-10-16), merge in dev (--no-ff)
+- Note: i test non coprono browser/JS; C_01_07.
 
 #### 6. Deviazioni / follow-up
 

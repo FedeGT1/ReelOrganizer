@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_06 in review (test dei consumatori); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_06 mergiato in dev; prossimo C_01_07 (verifica dal vivo dell'owner); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -29,10 +29,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-- [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: review | branch: governance/C_01_06-consumer-tests | merged: no | depends_on: C_01_03
+*(none)*
 
 ## DONE
 
+- [x] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: done | branch: governance/C_01_06-consumer-tests | merged: yes | depends_on: C_01_03
 - [x] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: done | branch: governance/C_01_05-group-header-style | merged: yes | depends_on: C_01_03
 - [x] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: done | branch: governance/C_01_04-group-pagination | merged: yes | depends_on: C_01_03
 - [x] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: done | branch: governance/C_01_03-grouped-template | merged: yes | depends_on: C_01_02
