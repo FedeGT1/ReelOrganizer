@@ -439,7 +439,7 @@ Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata d
 
 ### C_01_07 — Verifica dal vivo e conferma dell'owner
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_07-live-verification
 - **Commit:** —
 
