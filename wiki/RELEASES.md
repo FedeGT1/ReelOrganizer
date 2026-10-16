@@ -2,7 +2,7 @@
 authors:
   - "fedegt1"
 created_at: "2026-10-09"
-updated_at: "2026-10-09"
+updated_at: "2026-10-16"
 tags:
   - kind/meta
   - topic/deployment
@@ -25,11 +25,9 @@ until that's confirmed.
 
 ## Deploy history
 
-*(blank — not filled in on this bootstrap pass)*
-
 | Date | Environment | Commit / version | Who / how |
 |---|---|---|---|
-| ? | Production | ? | ? |
+| 2026-10-16 | Production | `dev` @ `048875c` (C_01 group-reels-by-place) | fedegt1, push + Docker rebuild and container recreate (confirmed by the owner) |
 
 Fill this in the next time a deploy happens (or retroactively, from whoever remembers),
 using the verification steps in the root `README.md`'s "Updating after a code change"
