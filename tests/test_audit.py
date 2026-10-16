@@ -770,3 +770,20 @@ def test_regenerate_notes_page_renders(client):
     response = client.get("/strumenti/rigenera-note")
     assert response.status_code == 200
     assert 'hx-post="/ui/reels/regenerate-notes"' in response.text
+
+
+def test_audit_scan_cards_stay_plain_lists_without_place_groups(client, session, test_user_id):
+    loc_a = Location(user_id=test_user_id, name="Surugaya - Akihabara", is_hub=False, lat=35.7, lon=139.77)
+    loc_b = Location(user_id=test_user_id, name="Surugaya Akihabara (駿河屋秋葉原)", is_hub=False, lat=35.7001, lon=139.7701)
+    session.add(loc_a)
+    session.add(loc_b)
+    session.commit()
+    session.refresh(loc_a)
+    session.add(Reel(user_id=test_user_id, link="https://instagram.com/reel/a", location_id=loc_a.id, note="Negozio"))
+    session.commit()
+
+    response = client.get("/ui/audit/scan")
+
+    assert '<ul class="reel-list">' in response.text
+    assert "Negozio" in response.text
+    assert "reel-group" not in response.text

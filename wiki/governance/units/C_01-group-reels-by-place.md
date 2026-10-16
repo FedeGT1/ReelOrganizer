@@ -404,6 +404,39 @@ Regole CSS in `app/static/css/style.css` per `.reel-groups` (colonna con spazio 
 
 - Nessuna.
 
+### C_01_06 — Test dei consumatori della lista reel
+
+- **Stato:** review
+- **Branch:** governance/C_01_06-consumer-tests
+- **Commit:** 6181f02
+
+#### 1. Cosa è stato fatto
+
+Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata dopo create, edit, delete (`test_ui_fragments.py`: gruppo del luogo con conteggio e hub, reel più recente in cima, reel spostato nel gruppo del nuovo luogo, gruppo vuoto che sparisce); flusso AI singolo e multiplo (`test_ai_ui.py`, `test_ai_multi_categorize.py`); la rigenerazione nota restituisce una sola `<li id="reel-…">` senza gruppi (`test_note_regeneration.py`); le liste dell'audit restano `ul.reel-list` senza gruppi (`test_audit.py`); `GET /api/reels` resta un elenco JSON piatto senza chiave di gruppi (`test_reels_api.py`).
+
+#### 2. File modificati
+
+- `tests/test_ui_fragments.py`, `tests/test_ai_ui.py`, `tests/test_ai_multi_categorize.py`, `tests/test_note_regeneration.py`, `tests/test_audit.py`, `tests/test_reels_api.py` — solo aggiunte in coda.
+
+#### 3. Verifica
+
+- `uv run pytest -q`: 518 passed (492 base, soglia del task rispettata).
+- Mutazione: rinominando temporaneamente la classe `reel-group` nel template, i 5 test sulla lista raggruppata falliscono (template ripristinato). Gli altri 3 sono guardie di invarianti (card autonoma, audit, API) e passano oggi per costruzione.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: nessuno.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna.
+
 ## Review notes
 
 - **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto e approvato in seconda review.

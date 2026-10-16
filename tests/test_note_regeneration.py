@@ -186,3 +186,23 @@ def test_ui_regenerate_all_notes_updates_only_eligible_reels(client, session, mo
     assert with_source.note == "Nota rigenerata"
     assert with_only_note.note == "Nota rigenerata"
     assert nothing_at_all.note is None
+
+
+def test_ui_regenerate_reel_note_returns_a_single_card_not_a_group(client, session, monkeypatch, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    reel = Reel(
+        link="https://instagram.com/reel/abc", location_id=hub.id, note="vecchia", caption="Ramen",
+        user_id=test_user_id,
+    )
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+    monkeypatch.setattr(ai_client, "categorize", _fake_categorize("Nuova nota"))
+
+    response = client.put(f"/ui/reels/{reel.id}/regenerate-note")
+
+    assert response.text.lstrip().startswith(f'<li id="reel-{reel.id}"')
+    assert "reel-group" not in response.text
