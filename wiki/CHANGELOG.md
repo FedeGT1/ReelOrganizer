@@ -29,6 +29,7 @@ mirror of `git log`; `git log` itself remains authoritative for anything finer-g
 | 2026-10-16 | C_01_04 — Reel list pagination now works on place groups (5 groups at a time, "Carica altri (N gruppi rimanenti)", re-init on swap and OOB swap) | `app/static/js/reel-list.js`, `app/static/css/style.css` |
 | 2026-10-16 | C_01_05 — Place group header styled (name left, count right, gold rule; long names wrap, no horizontal scroll); audit lists untouched | `app/static/css/style.css` |
 | 2026-10-16 | C_01_06 — Tests for every reel-list consumer: grouped list after create/edit/delete and AI flows, standalone card on note regeneration, audit lists ungrouped, `/api/reels` still flat JSON | `tests/test_ui_fragments.py`, `tests/test_ai_ui.py`, `tests/test_ai_multi_categorize.py`, `tests/test_note_regeneration.py`, `tests/test_audit.py`, `tests/test_reels_api.py` |
+| 2026-10-16 | C_01_07 — Owner's live browser verification of the grouped reel list recorded ("tutto ok"); no code change | `wiki/governance/units/C_01-group-reels-by-place.md` |
 
 ## See also
 

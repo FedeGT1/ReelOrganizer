@@ -439,7 +439,7 @@ Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata d
 
 ### C_01_07 — Verifica dal vivo e conferma dell'owner
 
-- **Stato:** review
+- **Stato:** done
 - **Branch:** governance/C_01_07-live-verification
 - **Commit:** —
 
@@ -464,8 +464,8 @@ L'owner ha verificato in browser, dal vivo, il comportamento della lista con le 
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approvato dall'owner (2026-10-16), merge in dev (--no-ff)
+- Note: conferma della verifica dal vivo complessiva, non punto per punto.
 
 #### 6. Deviazioni / follow-up
 

@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_07 in review (verifica dal vivo registrata); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01 tutti i task done; prossimo delivery-close (firma dell'owner); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -28,10 +28,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-- [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: review | branch: governance/C_01_07-live-verification | merged: no | depends_on: C_01_04, C_01_05, C_01_06
+*(none)*
 
 ## DONE
 
+- [x] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: done | branch: governance/C_01_07-live-verification | merged: yes | depends_on: C_01_04, C_01_05, C_01_06
 - [x] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: done | branch: governance/C_01_06-consumer-tests | merged: yes | depends_on: C_01_03
 - [x] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: done | branch: governance/C_01_05-group-header-style | merged: yes | depends_on: C_01_03
 - [x] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: done | branch: governance/C_01_04-group-pagination | merged: yes | depends_on: C_01_03
