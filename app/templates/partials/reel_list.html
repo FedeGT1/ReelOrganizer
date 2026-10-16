@@ -4,8 +4,18 @@
     <a href="#" onclick="window.clearLocationFilter(); return false;">✕ Mostra tutti</a>
 </div>
 {% endif %}
-<ul class="reel-list">
-    {% for reel in reels %}
-    {% include "partials/_reel_card.html" with context %}
+<div class="reel-groups">
+    {% for group in groups %}
+    <section class="reel-group" data-location-id="{{ group.location_id }}">
+        <h3 class="reel-group-header">
+            <span class="reel-group-name">{{ group.name }}{% if group.hub_name %} · {{ group.hub_name }}{% endif %}</span>
+            <span class="reel-group-count">{{ group.count }}</span>
+        </h3>
+        <ul class="reel-list">
+            {% for reel in group.reels %}
+            {% include "partials/_reel_card.html" with context %}
+            {% endfor %}
+        </ul>
+    </section>
     {% endfor %}
-</ul>
+</div>

@@ -152,15 +152,6 @@ def test_other_users_reels_are_not_grouped(session, test_user_id):
     assert [g["location_id"] for g in groups] == [mine.id]
 
 
-def test_flat_reels_key_is_still_provided(session, test_user_id):
-    loc = _loc(session, test_user_id, "Anywhere")
-    _reel(session, test_user_id, loc, 1)
-
-    context = _reel_list_context(session, test_user_id)
-
-    assert len(context["reels"]) == 1
-
-
 def test_api_reels_keeps_its_current_order(client, session, test_user_id):
     a = _loc(session, test_user_id, "Alpha")
     b = _loc(session, test_user_id, "Beta")
