@@ -359,17 +359,6 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 - Rework dopo la prima review (listener OOB). Il merge chiude lo stato intermedio di `dev` aperto da C_01_03.
 
-## Closure record
-
-*(non ancora)*
-
-## Amendments
-
-Nessuno.
-
-| Task | Motivo | Modifica proposta | Stato (`pending`/`accepted`/`rejected`) |
-|---|---|---|---|
-
 ### C_01_05 — Stile dell'intestazione di gruppo
 
 - **Stato:** done
@@ -445,7 +434,7 @@ Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata d
 
 #### 1. Cosa è stato fatto
 
-L'owner ha verificato in browser, dal vivo, il comportamento della lista con le modifiche di C_01_02–C_01_06 presenti in \`dev\`. Prima della verifica l'agente gli ha elencato cosa controllare, in corrispondenza dei criteri di successo della Spec §5: adiacenza dei reel dello stesso satellite con intestazione (nome, hub, conteggio); luogo con un solo reel e ordine dal più recente; gruppo in cima dopo l'aggiunta di un reel; «Carica altri» a 5 gruppi per volta, anche dopo creazione, modifica ed eliminazione; filtri (hub, tipo, testo); modifica, eliminazione, rigenerazione nota, import AI; larghezza ~400 px.
+L'owner ha verificato in browser, dal vivo, il comportamento della lista con le modifiche di C_01_02–C_01_06 presenti in `dev`. Prima della verifica l'agente gli ha elencato cosa controllare, in corrispondenza dei criteri di successo della Spec §5: adiacenza dei reel dello stesso satellite con intestazione (nome, hub, conteggio); luogo con un solo reel e ordine dal più recente; gruppo in cima dopo l'aggiunta di un reel; «Carica altri» a 5 gruppi per volta, anche dopo creazione, modifica ed eliminazione; filtri (hub, tipo, testo); modifica, eliminazione, rigenerazione nota, import AI; larghezza ~400 px.
 
 #### 2. File modificati
 
@@ -454,7 +443,7 @@ L'owner ha verificato in browser, dal vivo, il comportamento della lista con le 
 #### 3. Verifica
 
 - Esito dell'owner (2026-10-16), testuale: «ho verificato, tutto ok». La conferma è complessiva sull'elenco di controlli sopra, non punto per punto: non ci sono osservazioni per singolo criterio.
-- Ultimo criterio di §5 (suite e nuovi test): \`uv run pytest -q\` → 518 passed su \`dev\` (492 di partenza), con test su ordine, raggruppamento, paginazione per gruppi e consumatori.
+- Ultimo criterio di §5 (suite e nuovi test): `uv run pytest -q` → 518 passed su `dev` (492 di partenza), con test su ordine, raggruppamento, paginazione per gruppi e consumatori.
 - Non registrato: dispositivo/browser usato e quanti luoghi aveva il deploy verificato.
 
 #### 4. Review
@@ -469,7 +458,18 @@ L'owner ha verificato in browser, dal vivo, il comportamento della lista con le 
 
 #### 6. Deviazioni / follow-up
 
-- Nessuna. I rischi della Spec §6 (riscrittura di \`reel-list.js\` dopo uno swap HTMX, luoghi duplicati storici) non hanno prodotto problemi nella verifica dell'owner.
+- Nessuna. I rischi della Spec §6 (riscrittura di `reel-list.js` dopo uno swap HTMX, luoghi duplicati storici) non hanno prodotto problemi nella verifica dell'owner.
+
+## Closure record
+
+*(non ancora)*
+
+## Amendments
+
+Nessuno.
+
+| Task | Motivo | Modifica proposta | Stato (`pending`/`accepted`/`rejected`) |
+|---|---|---|---|
 
 ## Review notes
 
