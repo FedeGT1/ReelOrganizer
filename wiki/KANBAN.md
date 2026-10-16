@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_02 in execute · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_02 in review · design: [[current-system-design]]
 
 # Kanban
 
@@ -29,11 +29,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-- [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: wip | branch: governance/C_01_02-server-grouping | merged: no | depends_on: C_01_01
+*(none)*
 
 ## TEST
 
-*(none)*
+- [ ] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: review | branch: governance/C_01_02-server-grouping | merged: no | depends_on: C_01_01
 
 ## DONE
 

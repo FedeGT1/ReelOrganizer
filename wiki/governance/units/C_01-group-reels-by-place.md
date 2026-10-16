@@ -250,7 +250,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_02-server-grouping
 - **Commit:** 0a40e0d
 
