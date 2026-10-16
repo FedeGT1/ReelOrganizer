@@ -8,7 +8,7 @@ tags:
   - status/authoritative
 connected files: ["C_01-group-reels-by-place", "001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
 posture: delivery
-focus: "Delivery C_01 group-reels-by-place: C_01 tutti i task done; prossimo delivery-close (firma dell'owner); browser da verificare in C_01_07"
+focus: "Delivery C_01 group-reels-by-place: C_01 chiusura preparata, in attesa della firma dell'owner; browser da verificare in C_01_07"
 ---
 
 # Current System Design — ReelOrganizer
@@ -27,8 +27,8 @@ focus: "Delivery C_01 group-reels-by-place: C_01 tutti i task done; prossimo del
 
 ## Item aperti
 
-- In corso: [[C_01-group-reels-by-place]] — raggruppare i reel per luogo nella lista
-  (richiesta [[group-reels-by-place]]).
+- Chiusura in attesa di firma: [[C_01-group-reels-by-place]] — reel raggruppati per luogo
+  nella lista (richiesta [[group-reels-by-place]]); tutti i task sono `done`.
 - Richiesta di backlog: [[tiktok-import]] — non iniziata, non prioritaria.
 - Le domande aperte di §7 sotto.
 
@@ -59,12 +59,19 @@ SQLite.
 - **UI:** template Jinja2 server-side + HTMX. `index.html` carica `#map-container`
   (`/ui/map`) e `#reel-list` (`/ui/reels`) in `hx-trigger="load"`. Creazione, modifica ed
   eliminazione rispondono con la lista rigenerata e la mappa come swap `hx-swap-oob`.
-- **Lista reel** (area della richiesta in corso): `app/routers/reels.py::_reel_list_context`
-  esegue `user_query(Reel, user_id)` (con filtro opzionale hub + satelliti), poi filtri
-  Python per tipo e testo, poi `_serialize_reel` per ciascun reel (una query per i tipi e
-  una per la location). Rende `app/templates/partials/reel_list.html` → `<ul class="reel-list">` di
-  `app/templates/partials/_reel_card.html`; ogni card mostra il nome del luogo (linkato al reel), nota e icone dei
-  tipi. Esiste anche `GET /api/reels` con la stessa logica, che restituisce JSON.
+- **Lista reel:** `app/routers/reels.py::_reel_list_context` esegue
+  `user_query(Reel, user_id)` (con filtro opzionale hub + satelliti), poi filtri Python per
+  tipo e testo, poi `_serialize_reel` per ciascun reel (una query per i tipi e una per la
+  location). `_group_reels_by_place` ordina i reel per `(created_at, id)` decrescente e li
+  raggruppa per `location_id`; i gruppi sono ordinati per reel più recente (parità: nome,
+  poi id). Il contesto restituisce `groups` (`location_id`, `name`, `hub_name` per i
+  satelliti, `count`, `reels`), `taxonomy` e `filtered_location`. Rende
+  `app/templates/partials/reel_list.html` → una `<section class="reel-group">` per luogo,
+  con intestazione (nome, hub per i satelliti, conteggio) e un `<ul class="reel-list">` di
+  `app/templates/partials/_reel_card.html`; ogni card mostra il nome del luogo (linkato al
+  reel), nota e icone dei tipi. Anche la lista filtrata (hub, tipo, testo) è raggruppata.
+  Esiste anche `GET /api/reels` con la stessa logica di filtro, che restituisce JSON piatto
+  e invariato.
   **Consumatori del frammento lista** (verificati su `dev`, task C_01_01): `_reel_list_context`
   e `reel_list.html` sono usati da `app/routers/reels.py` (`ui_list_reels`, `ui_create_reel`,
   `ui_update_reel`, `ui_delete_reel`), `app/routers/ai_categorize.py` e
@@ -74,7 +81,10 @@ SQLite.
   `outerHTML`) e da `app/templates/partials/audit_results.html` (dentro `<ul class="reel-list">`
   proprie, fuori da `#reel-list`, quindi senza la paginazione di `reel-list.js`).
 - **Paginazione:** interamente client-side, `app/static/js/reel-list.js`: il server
-  restituisce tutti i reel, il JS nasconde tutti tranne i primi 5 e aggiunge «Carica altri».
+  restituisce tutti i gruppi, il JS nasconde tutti tranne i primi 5 e aggiunge «Carica altri
+  (N gruppi rimanenti)»; un gruppo non si spezza mai. Riparte a ogni `htmx:afterSwap` e
+  `htmx:oobAfterSwap` su `#reel-list` (gli aggiornamenti dopo creazione, modifica e flussi
+  AI arrivano come swap OOB).
 - **Deduplica dei luoghi:** `app/location_matching.py` (`resolve_place`,
   `normalize_place_name`, distanza haversine con soglie 150 m auto-match / 2 km candidati,
   somiglianza nome 0.8); usata dal flusso AI di categorizzazione.
@@ -108,18 +118,20 @@ SQLite.
 
 ### 5. Rischi e aree fragili
 
-- La lista reel **non ha `ORDER BY`**: l'ordine «di inserimento» è quello implicito di
-  SQLite, non garantito; ogni ordinamento nuovo deve essere esplicito.
-- La paginazione client-side lavora sull'ordine del DOM: raggruppare o ordinare
-  nel server cambia cosa finisce nei primi 5; i gruppi potrebbero spezzarsi sul bordo
-  della pagina.
+- La query della lista non ha `ORDER BY`, ma l'ordine è esplicito in Python
+  (`_group_reels_by_place`): ogni ordinamento nuovo va tenuto lì, non affidato a SQLite.
+- La paginazione client-side lavora sull'ordine del DOM, ora a gruppi: cambiare la
+  struttura di `.reel-groups` / `.reel-group` rompe `reel-list.js` (non ha test nel repo).
+- La rigenerazione nota sostituisce una sola card (`closest li`): il conteggio nell'intestazione
+  del gruppo non viene ricalcolato (oggi non cambia, perché il numero di reel è lo stesso).
 - `_serialize_reel` fa 2 query per reel e `_filter_reels_by_text` una per reel: la lista
   scala male oltre qualche centinaio di reel (non è un problema oggi, solo un limite).
 - Lo schema non è alterabile alla leggera (dati reali sulla VPS, memoria dell'owner).
 - `get_owned` è opt-in: una route nuova che lo dimentica reintroduce la classe di bug già
   corretta in `ed5d7fa`.
 - Più reel con lo stesso luogo: la deduplica avviene a monte (`resolve_place`); eventuali
-  duplicati storici creati prima di quella logica restano come `Location` distinte.
+  duplicati storici creati prima di quella logica restano come `Location` distinte e, con
+  il raggruppamento, compaiono come gruppi separati.
 
 ### 6. Decisioni implicite osservate
 
@@ -127,16 +139,13 @@ SQLite.
 |---|---|---|---|
 | 1 | Un luogo = una `Location`, per convenzione (dedup solo nel flusso AI e nell'audit, non nel form manuale); reel dello stesso luogo condividono `location_id`; il reel duplicato per link è solo un avviso | `app/models.py`, `app/location_matching.py` | sì → [[001-one-place-one-location]] (fatto) |
 | 2 | Hub/satellite a un solo livello | `app/models.py::Location`, [[hub-satellite-location]] | no — resta nel concept (owner, 2026-10-16) |
-| 3 | Lista completa al server, paginazione solo client | `app/routers/reels.py`, `app/static/js/reel-list.js` | sì → [[002-client-side-reel-pagination]] (fatto) |
+| 3 | Lista completa al server, paginazione solo client (ora a gruppi di luogo, 5 per volta) | `app/routers/reels.py`, `app/static/js/reel-list.js` | sì → [[002-client-side-reel-pagination]] (fatto, aggiornato da C_01) |
 | 4 | Aggiornamento UI via HTMX con swap OOB di lista e mappa | `app/routers/reels.py::ui_create_reel` | no |
 | 5 | Isolamento per `user_id` via helper opt-in | `app/scoping.py` | già documentata in [[get-owned]], non serve ADR |
 | 6 | Schema solo additivo | `app/db.py` | già documentata in [[additive-schema-migration]] |
 
 ### 7. Domande aperte
 
-- **Owner:** vale lo stesso comportamento di raggruppamento per i filtri (hub, tipo,
-  testo)? (Dipende dalla richiesta [[group-reels-by-place]], si decide nel brainstorm
-  Delivery, non qui.)
 - **Owner:** la deduplica automatica dei luoghi ha già creato duplicati in produzione che
   il raggruppamento renderebbe visibili? Non verificabile da qui (dati solo sulla VPS).
 - ~~ADR candidate~~ risolto: 001 e 003 formalizzati in execute, 002 resta nel concept.

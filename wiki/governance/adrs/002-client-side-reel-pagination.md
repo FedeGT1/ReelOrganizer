@@ -25,11 +25,15 @@ paginare è visibile nel codice ma non era scritta.
 Il server restituisce **tutti** i reel dell'utente che passano i filtri, senza `limit` né
 `offset`: lo fanno `_reel_list_context` (`app/routers/reels.py`, frammento HTMX) e
 `GET /api/reels` (JSON). La paginazione è solo nel browser: `app/static/js/reel-list.js`
-mostra 5 reel per volta (`REEL_LIST_GROUP_SIZE`) con «Carica altri (N rimanenti)», ed è
-rieseguita a ogni `htmx:afterSwap` su `#reel-list`.
+mostra 5 **gruppi di luogo** per volta (`REEL_LIST_GROUP_SIZE`) con «Carica altri (N gruppi
+rimanenti)», ed è rieseguita a ogni `htmx:afterSwap` e `htmx:oobAfterSwap` su `#reel-list`.
 
-Non c'è `ORDER BY` sulla lista: l'ordine è quello implicito di SQLite (rowid), non
-garantito. I filtri (hub con satelliti, tipo, testo) sono applicati in Python dopo la
+*Aggiornato da [[C_01-group-reels-by-place]] (2026-10-16, confermato dall'owner): in origine
+la pagina era di 5 reel e la lista non aveva ordinamento esplicito (ordine implicito di
+SQLite). Ora `_reel_list_context` ordina e raggruppa per luogo in Python
+(`_group_reels_by_place`) e il browser pagina i gruppi; un gruppo non si spezza mai.*
+
+La query non ha `ORDER BY`; l'ordine è esplicito in Python. I filtri (hub con satelliti, tipo, testo) sono applicati in Python dopo la
 query; il rendering fa due query per reel (tipi e location).
 
 ## Alternative considerate
@@ -43,10 +47,10 @@ query; il rendering fa due query per reel (tipi e location).
 
 - Ogni swap (creazione, modifica, eliminazione, filtro) ricarica e ricostruisce la lista
   intera; il costo cresce linearmente con i reel.
-- Qualunque raggruppamento o ordinamento lato server deve essere esplicito e fare i
-  conti con i 5 visibili: un gruppo può spezzarsi al bordo della pagina.
-- La scelta è quella che [[group-reels-by-place]] mette in discussione.
-- L'assenza di `ORDER BY` è un effetto da tenere presente, non una decisione presa.
+- Qualunque raggruppamento o ordinamento lato server deve essere esplicito (oggi lo è, in
+  Python) e la paginazione lavora sulla struttura a gruppi del DOM, senza test JS nel repo.
+- La scelta è quella che [[group-reels-by-place]] aveva messo in discussione: confermata,
+  con l'unità di paginazione portata da reel a gruppo.
 
 ## Conferma dell'owner
 

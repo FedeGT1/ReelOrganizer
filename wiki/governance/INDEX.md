@@ -27,7 +27,7 @@ Il control plane vive in questa vault: [[KANBAN]] (testata + card) e le pagine s
 
 - [[BOOT-brownfield]] — Bootstrap Brownfield, chiuso (done), firmato dall'owner il 2026-10-16.
 
-- [[C_01-group-reels-by-place]] — Change cycle, Spec e Piano approvati.
+- [[C_01-group-reels-by-place]] — Change cycle, tutti i task done, chiusura in attesa di firma.
 
 ## Richieste in coda
 

@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01 tutti i task done; prossimo delivery-close (firma dell'owner); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01 chiusura preparata, in attesa della firma dell'owner; browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 

@@ -8,7 +8,7 @@ tags:
   - status/draft
 connected files: ["group-reels-by-place", "current-system-design", "001-one-place-one-location", "002-client-side-reel-pagination", "hub-satellite-location"]
 unit_kind: change
-phase: execute
+phase: close
 status: wip
 owner: "fedegt1"
 amendments: none
@@ -215,6 +215,23 @@ Fonte unica: la `## Spec` di questa pagina e gli ADR [[001-one-place-one-locatio
 *(nessuno)*
 
 ## Implementation record
+
+### Riepilogo dell'unità
+
+**Cosa è stato fatto.** La lista reel raggruppa i reel per luogo (`location_id`, di norma un satellite). `_reel_list_context` ordina i reel per data decrescente e li raggruppa con `_group_reels_by_place`; i gruppi sono ordinati per reel più recente. Il template rende una sezione per luogo con intestazione (nome, hub per i satelliti, conteggio), anche per i luoghi con un solo reel. `reel-list.js` pagina 5 gruppi per volta, senza spezzarli, e riparte dopo ogni swap (anche OOB). `GET /api/reels`, mappa, audit, export e chat AI sono invariati. Nessun cambio di schema.
+
+**File modificati.** `app/routers/reels.py` (raggruppamento), `app/templates/partials/reel_list.html` (sezioni a gruppi), `app/static/js/reel-list.js` (paginazione per gruppi), `app/static/css/style.css` (intestazione e `.reel-group[hidden]`), sei file di test in `tests/` (più `test_reel_list_grouping.py` e `test_reel_list_template.py`, nuovi); pagine di governance e design in `wiki/`, `CLAUDE.md`.
+
+**Esiti di verifica.** `uv run pytest -q`: 518 passed (492 prima dell'unità). Verifica del JS con un DOM finto in Node, non committata (il repo non ha test JS). Verifica dal vivo in browser dell'owner (C_01_07): «ho verificato, tutto ok», complessiva e non punto per punto.
+
+**Deviazioni dal piano.** Nessun amendment. C_01_04 è tornato in `wip` dopo la prima review: la riscrittura aveva tolto il listener `htmx:oobAfterSwap`, quindi la paginazione non ripartiva dopo creazione, modifica e flussi AI; corretto nel rework. Tra il merge di C_01_03 e quello di C_01_04 `dev` aveva una paginazione sbagliata con più gruppi (nessun dato perso; l'owner era stato avvertito di non rilasciare `dev` in quella finestra, non verificato se sia stato rispettato). Il piano fissava ADR-001 come `ADR-001-…`; il file si chiama `001-…` per la policy di naming.
+
+**ADR toccati.** [[002-client-side-reel-pagination]] aggiornato (pagina di 5 gruppi; ordinamento ora esplicito). [[001-one-place-one-location]] invariato (i duplicati storici restano gruppi separati).
+
+**Follow-up.**
+- Duplicati storici di luoghi: la feature li rende visibili, non li risolve; lo strumento di audit esiste già.
+- `reel-list.js` non ha test automatici: un'eventuale suite JS è una decisione da prendere con l'owner.
+- `session.get(Location, …)` in `_group_reels_by_place` non passa da `get_owned` (il `location_id` viene da reel già dell'utente): minore, da uniformare se si tocca di nuovo la funzione.
 
 ### C_01_01 — Refresh baseline: consumatori della lista reel
 
@@ -462,7 +479,31 @@ L'owner ha verificato in browser, dal vivo, il comportamento della lista con le 
 
 ## Closure record
 
-*(non ancora)*
+**Esito:** success
+
+### 1. Riassunto
+
+I reel che puntano allo stesso luogo compaiono ora adiacenti, sotto un'unica intestazione con nome, hub e conteggio, con i gruppi ordinati per reel più recente e «Carica altri» a 5 gruppi per volta. Tutti i 7 task sono `done` e mergiati in `dev`; la suite passa (518 test) e l'owner ha verificato il risultato in browser. Non è stato consegnato né richiesto altro: i duplicati storici di luoghi non sono risolti (vedi follow-up).
+
+### 2. Artefatti collegati
+
+- Spec: sezione `## Spec` di questa pagina
+- Plan: sezione `## Plan` di questa pagina
+- Implementation record: sezione `## Implementation record` di questa pagina
+- Richiesta di origine: [[group-reels-by-place]]
+- ADR toccati: [[002-client-side-reel-pagination]] (aggiornato)
+
+### 3. Stato del control plane alla chiusura
+
+- KANBAN aggiornato: sì — le 7 card C_01 sono `done`, `merged: yes`, in corsia DONE.
+- `status` finale (compilato allo stage 2): in attesa di firma.
+- Current System Design aggiornato: sì — §2 (lista reel, paginazione), §5 (rischi), §6 riga 3, §7 (domanda sui filtri risolta), Item aperti.
+- CLAUDE.md aggiornato: sì — riga dell'ADR-002 in «Decisioni durature».
+- RELEASES.md non toccato: il merge in `dev` non è un deploy.
+
+### 4. Sign-off
+
+- Approvazione owner: in attesa
 
 ## Amendments
 

@@ -53,7 +53,7 @@
 - `wiki/governance/adrs/001-one-place-one-location.md` — un luogo = una `Location`; l'unicità è per convenzione
   (`resolve_place`), non garantita dal DB né dal form manuale.
 - `wiki/governance/adrs/002-client-side-reel-pagination.md` — la lista reel è completa dal server, paginata solo
-  nel browser (5 per volta), senza `ORDER BY`.
+  nel browser (5 gruppi di luogo per volta), con ordinamento e raggruppamento espliciti in Python.
 
 ## Guida per gli agenti
 
