@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 in review (dopo rework OOB); dev non rilasciare finché non è mergiato · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 mergiato in dev; prossimo C_01_05; browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -31,12 +31,14 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TEST
 
-- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: review | branch: governance/C_01_04-group-pagination | merged: no | depends_on: C_01_03
+*(none)*
+
 
 
 
 ## DONE
 
+- [x] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: done | branch: governance/C_01_04-group-pagination | merged: yes | depends_on: C_01_03
 - [x] C_01_03 — Template a gruppi con intestazione per luogo | unit: C_01 | status: done | branch: governance/C_01_03-grouped-template | merged: yes | depends_on: C_01_02
 - [x] C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context | unit: C_01 | status: done | branch: governance/C_01_02-server-grouping | merged: yes | depends_on: C_01_01
 - [x] C_01_01 — Refresh baseline: consumatori della lista reel nel design | unit: C_01 | status: done | branch: governance/C_01_01-refresh-baseline-reel-list | merged: yes | depends_on: —

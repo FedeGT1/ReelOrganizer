@@ -325,7 +325,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_04 — Paginazione per gruppi in reel-list.js
 
-- **Stato:** review
+- **Stato:** done
 - **Branch:** governance/C_01_04-group-pagination
 - **Commit:** 0214a4f, ffc6b74 (rework)
 
@@ -352,12 +352,12 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 #### 5. Approvazione owner
 
-- Esito: pending
-- Note: —
+- Esito: approvato dall'owner (2026-10-16), merge in dev (--no-ff)
+- Note: il browser reale resta da verificare in C_01_07.
 
 #### 6. Deviazioni / follow-up
 
-- Nessuna. Il merge chiude lo stato intermedio di `dev` aperto da C_01_03.
+- Rework dopo la prima review (listener OOB). Il merge chiude lo stato intermedio di `dev` aperto da C_01_03.
 
 ## Closure record
 
@@ -372,4 +372,4 @@ Nessuno.
 
 ## Review notes
 
-- **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto, in attesa di nuovo handoff e review.
+- **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto e approvato in seconda review.
