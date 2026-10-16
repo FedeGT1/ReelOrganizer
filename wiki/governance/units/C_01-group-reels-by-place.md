@@ -437,6 +437,40 @@ Aggiunti 8 test, nessun test preesistente toccato o rimosso. Lista raggruppata d
 
 - Nessuna.
 
+### C_01_07 — Verifica dal vivo e conferma dell'owner
+
+- **Stato:** wip
+- **Branch:** governance/C_01_07-live-verification
+- **Commit:** —
+
+#### 1. Cosa è stato fatto
+
+L'owner ha verificato in browser, dal vivo, il comportamento della lista con le modifiche di C_01_02–C_01_06 presenti in \`dev\`. Prima della verifica l'agente gli ha elencato cosa controllare, in corrispondenza dei criteri di successo della Spec §5: adiacenza dei reel dello stesso satellite con intestazione (nome, hub, conteggio); luogo con un solo reel e ordine dal più recente; gruppo in cima dopo l'aggiunta di un reel; «Carica altri» a 5 gruppi per volta, anche dopo creazione, modifica ed eliminazione; filtri (hub, tipo, testo); modifica, eliminazione, rigenerazione nota, import AI; larghezza ~400 px.
+
+#### 2. File modificati
+
+- Nessun file di codice. Solo questo record e la card.
+
+#### 3. Verifica
+
+- Esito dell'owner (2026-10-16), testuale: «ho verificato, tutto ok». La conferma è complessiva sull'elenco di controlli sopra, non punto per punto: non ci sono osservazioni per singolo criterio.
+- Ultimo criterio di §5 (suite e nuovi test): \`uv run pytest -q\` → 518 passed su \`dev\` (492 di partenza), con test su ordine, raggruppamento, paginazione per gruppi e consumatori.
+- Non registrato: dispositivo/browser usato e quanti luoghi aveva il deploy verificato.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: nessuno emerso dalla verifica.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna. I rischi della Spec §6 (riscrittura di \`reel-list.js\` dopo uno swap HTMX, luoghi duplicati storici) non hanno prodotto problemi nella verifica dell'owner.
+
 ## Review notes
 
 - **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto e approvato in seconda review.
