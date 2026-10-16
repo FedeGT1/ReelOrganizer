@@ -286,7 +286,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_03 — Template a gruppi con intestazione per luogo
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_03-grouped-template
 - **Commit:** 5019b8f
 
