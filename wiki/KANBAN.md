@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 mergiato in dev; prossimo C_01_05; browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_05 in execute (stile intestazione); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -19,7 +19,6 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## TODO
 
-- [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_03
 - [ ] C_01_07 — Verifica dal vivo e conferma dell owner | unit: C_01 | status: planned | branch: — | merged: no | depends_on: C_01_04, C_01_05, C_01_06
 - [[group-reels-by-place]] — group reels by place in the reel list. Parked until the Bootstrap closes; becomes the first Delivery unit.
@@ -27,7 +26,8 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-*(none)*
+- [ ] C_01_05 — Stile dell intestazione di gruppo | unit: C_01 | status: wip | branch: governance/C_01_05-group-header-style | merged: no | depends_on: C_01_03
+
 
 ## TEST
 

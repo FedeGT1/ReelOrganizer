@@ -370,6 +370,40 @@ Nessuno.
 | Task | Motivo | Modifica proposta | Stato (`pending`/`accepted`/`rejected`) |
 |---|---|---|---|
 
+### C_01_05 — Stile dell'intestazione di gruppo
+
+- **Stato:** wip
+- **Branch:** governance/C_01_05-group-header-style
+- **Commit:** f1c65eb
+
+#### 1. Cosa è stato fatto
+
+Regole CSS in `app/static/css/style.css` per `.reel-groups` (colonna con spazio tra i gruppi), `.reel-group-header` (nome a sinistra, conteggio a destra, filetto oro sotto, font serif dei titoli già in uso), `.reel-group-name` (può andare a capo, `overflow-wrap: anywhere`, nessuno scroll orizzontale con nomi lunghi) e `.reel-group-count` (monospace, piccolo, non si restringe). `.reel-group .reel-list` azzera il margine della lista dentro il gruppo.
+
+#### 2. File modificati
+
+- `app/static/css/style.css` — solo regole nuove, legate a classi `reel-group*`.
+
+#### 3. Verifica
+
+- Le regole sono limitate a `.reel-groups`, `.reel-group-*` e `.reel-group .reel-list`: le liste `ul.reel-list` dell'audit (fuori da `.reel-group`) non sono toccate; nessuna regola `.reel-list` esistente è stata modificata.
+- `uv run pytest -q`: 510 passed.
+- Non verificato: resa visiva e larghezza ~400 px. Nessun browser in ambiente; lo controlla l'owner in C_01_07.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: colori e spaziature sono una scelta coerente con la palette esistente, non una decisione di prodotto; l'owner può ritoccarli in C_01_07.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna.
+
 ## Review notes
 
 - **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto e approvato in seconda review.
