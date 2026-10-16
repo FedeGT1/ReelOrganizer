@@ -322,6 +322,42 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 - **Stato intermedio su `dev` fino a C_01_04**: `reel-list.js` cerca la prima `ul.reel-list` e nasconde i reel oltre il quinto di *quel* gruppo, mostrando «Carica altri» dopo di esso; gli altri gruppi restano interi. Nessun dato perso, ma la paginazione è sbagliata finché non arriva C_01_04: non rilasciare `dev` tra i due task.
 - Rimossa la chiave `reels` piatta (follow-up di C_01_02).
 
+### C_01_04 — Paginazione per gruppi in reel-list.js
+
+- **Stato:** wip
+- **Branch:** governance/C_01_04-group-pagination
+- **Commit:** 0214a4f
+
+#### 1. Cosa è stato fatto
+
+`app/static/js/reel-list.js` pagina ora i gruppi, non i reel: mostra 5 `.reel-group` per volta, il bottone «Carica altri (N gruppi rimanenti)» (singolare «1 gruppo rimanente») sta dopo `.reel-groups`, un gruppo non si spezza mai e la paginazione si reinizializza a ogni `htmx:afterSwap` su `#reel-list`, rimuovendo il bottone precedente. In `style.css` aggiunta la sola regola `.reel-group[hidden]` perché un gruppo nascosto non venga mostrato da un futuro `display` di C_01_05.
+
+#### 2. File modificati
+
+- `app/static/js/reel-list.js` — paginazione per gruppi.
+- `app/static/css/style.css` — regola `.reel-group[hidden]`.
+
+#### 3. Verifica
+
+- Il repo non ha test JS (nessun test runner introdotto: sarebbe una decisione nuova). Verifica ad hoc con Node e un DOM finto, fuori dal repo: 17 controlli su 12 / 6 / 5 / 3 / 0 gruppi, due click successivi, etichetta singolare, bottone dopo i gruppi, nessuna card nascosta singolarmente, re-init con un solo bottone, `afterSwap` su altri target ignorato, assenza di `.reel-groups` senza errore: passed.
+- Mutazioni sul codice (soglia 4 invece di 5; nessuna riga nascosta): rilevate (9 e 2 fallimenti).
+- `uv run pytest -q`: 510 passed: passed.
+- Non verificato: comportamento nel browser reale con HTMX. Lo controlla l'owner nel task C_01_07.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: il DOM finto non copre `:scope >` né il rendering reale.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna. Il merge chiude lo stato intermedio di `dev` aperto da C_01_03.
+
 ## Closure record
 
 *(non ancora)*
