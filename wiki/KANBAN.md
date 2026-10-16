@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 in execute; dev non rilasciare finché non è mergiato · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_04 in review (finding sull'init OOB); dev non rilasciare finché non è mergiato · design: [[current-system-design]]
 
 # Kanban
 
@@ -27,11 +27,12 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: wip | branch: governance/C_01_04-group-pagination | merged: no | depends_on: C_01_03
+*(none)*
 
 ## TEST
 
-*(none)*
+- [ ] C_01_04 — Paginazione per gruppi in reel-list.js | unit: C_01 | status: review | branch: governance/C_01_04-group-pagination | merged: no | depends_on: C_01_03
+
 
 ## DONE
 

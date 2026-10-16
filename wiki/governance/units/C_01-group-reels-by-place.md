@@ -324,7 +324,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_04 — Paginazione per gruppi in reel-list.js
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_04-group-pagination
 - **Commit:** 0214a4f
 
@@ -346,7 +346,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 #### 4. Review
 
-- Findings critici/importanti: nessuno.
+- Findings critici/importanti (review, 2026-10-16): **la riscrittura ha tolto il listener `htmx:oobAfterSwap`** presente nella versione precedente. Creazione, modifica, AI (`reels.py`, `ai_categorize.py`, `ai_multi_categorize.py`) rimandano la lista come `hx-swap-oob="innerHTML:#reel-list"`: con htmx 1.9.12 quello swap emette `oobAfterSwap` sul target e non `afterSwap` su `#reel-list`, quindi la paginazione non riparte e la lista appare intera. Il controllo con Node non lo ha visto perché simulava solo `afterSwap`.
 - Findings minori / follow-up: il DOM finto non copre `:scope >` né il rendering reale.
 
 #### 5. Approvazione owner
