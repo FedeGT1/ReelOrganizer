@@ -406,7 +406,7 @@ Regole CSS in `app/static/css/style.css` per `.reel-groups` (colonna con spazio 
 
 ### C_01_06 — Test dei consumatori della lista reel
 
-- **Stato:** wip
+- **Stato:** review
 - **Branch:** governance/C_01_06-consumer-tests
 - **Commit:** 6181f02
 

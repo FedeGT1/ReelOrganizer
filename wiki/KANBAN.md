@@ -9,7 +9,7 @@ tags:
 connected files: ["change-requests/business-requests/tiktok-import", "CHANGELOG", "governance/INDEX"]
 ---
 
-> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_06 in execute (test dei consumatori); browser da verificare in C_01_07 · design: [[current-system-design]]
+> **Governance** — posture: delivery · focus: Delivery C_01 group-reels-by-place: C_01_06 in review (test dei consumatori); browser da verificare in C_01_07 · design: [[current-system-design]]
 
 # Kanban
 
@@ -25,11 +25,11 @@ git history on `dev`. Nothing else open was found in this pass.
 
 ## WIP
 
-- [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: wip | branch: governance/C_01_06-consumer-tests | merged: no | depends_on: C_01_03
+*(none)*
 
 ## TEST
 
-*(none)*
+- [ ] C_01_06 — Test dei consumatori della lista reel | unit: C_01 | status: review | branch: governance/C_01_06-consumer-tests | merged: no | depends_on: C_01_03
 
 ## DONE
 
