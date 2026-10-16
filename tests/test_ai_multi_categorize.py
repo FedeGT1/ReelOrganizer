@@ -610,3 +610,33 @@ def test_ui_ai_multi_confirm_cleans_up_unchecked_sessions_too(client, session, m
     assert response.status_code == 200
     assert len(session.exec(select(Reel)).all()) == 1
     assert session.exec(select(AiSession)).all() == []
+
+
+def test_ui_ai_multi_confirm_returns_one_group_per_place(client, session, test_user_id):
+    hub = Location(name="Kyoto - Osaka / Kansai", is_hub=True, lat=35.0116, lon=135.7681, user_id=test_user_id)
+    session.add(hub)
+    session.add(Category(key="culture", label="Cultura", icon="⛩️", user_id=test_user_id))
+    session.commit()
+    session.refresh(hub)
+    place_one = json.dumps({
+        "place_name": "Fushimi Inari Taisha", "types": ["culture"],
+        "note": "Torii gates", "lat": None, "lon": None,
+        "resolution_location_id": hub.id, "resolution_hub_id": "",
+    })
+    place_two = json.dumps({
+        "place_name": "Kiyomizu-dera", "types": ["culture"],
+        "note": "Historic temple", "lat": 34.9949, "lon": 135.785,
+        "resolution_location_id": "", "resolution_hub_id": hub.id,
+    })
+
+    response = client.post(
+        "/ui/ai/multi/confirm",
+        data={
+            "link": "https://instagram.com/reel/kyoto11",
+            "session_ids": ["s1", "s2"],
+            "place_json": [place_one, place_two],
+        },
+    )
+
+    assert response.text.count('class="reel-group"') == 2
+    assert "Kiyomizu-dera · Kyoto - Osaka / Kansai" in response.text

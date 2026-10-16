@@ -430,3 +430,79 @@ def test_ui_reels_get_filters_by_type(client, session, test_user_id):
     assert response.status_code == 200
     assert "Ramen spot" in response.text
     assert "Shrine visit" not in response.text
+
+
+def _oob_reel_list(response_text: str) -> str:
+    return response_text.split('<div hx-swap-oob="innerHTML:#reel-list">', 1)[1].split(
+        '<div hx-swap-oob="innerHTML:#map-container">', 1
+    )[0]
+
+
+def test_ui_reels_post_returns_grouped_list_with_new_reel_in_its_place_group(client, session, test_user_id):
+    hub = Location(name="Kyoto", is_hub=True, user_id=test_user_id)
+    session.add(hub)
+    session.commit()
+    session.refresh(hub)
+    spot = Location(name="Fushimi Inari", is_hub=False, parent_id=hub.id, user_id=test_user_id)
+    session.add(spot)
+    session.commit()
+    session.refresh(spot)
+    session.add(Reel(link="https://instagram.com/reel/old", location_id=spot.id, note="Old", user_id=test_user_id))
+    session.commit()
+
+    response = client.post(
+        "/ui/reels",
+        data={"link": "https://instagram.com/reel/new", "location_id": spot.id, "note": "Fresh"},
+    )
+
+    html = _oob_reel_list(response.text)
+    assert html.count('class="reel-group"') == 1
+    assert "Fushimi Inari · Kyoto" in html
+    assert '<span class="reel-group-count">2</span>' in html
+    assert html.index("Fresh") < html.index("Old")
+
+
+def test_ui_reels_put_moves_reel_to_the_group_of_the_new_place(client, session, test_user_id):
+    a = Location(name="Place A", is_hub=True, user_id=test_user_id)
+    b = Location(name="Place B", is_hub=True, user_id=test_user_id)
+    session.add(a)
+    session.add(b)
+    session.commit()
+    session.refresh(a)
+    session.refresh(b)
+    reel = Reel(link="https://instagram.com/reel/m", location_id=a.id, note="Mover", user_id=test_user_id)
+    session.add(reel)
+    session.commit()
+    session.refresh(reel)
+
+    response = client.put(
+        f"/ui/reels/{reel.id}",
+        data={"link": "https://instagram.com/reel/m", "location_id": b.id, "note": "Mover"},
+    )
+
+    html = _oob_reel_list(response.text)
+    assert html.count('class="reel-group"') == 1
+    assert "Place B" in html
+    assert "Place A" not in html
+
+
+def test_ui_reels_delete_removes_empty_group_and_keeps_others_grouped(client, session, test_user_id):
+    a = Location(name="Place A", is_hub=True, user_id=test_user_id)
+    b = Location(name="Place B", is_hub=True, user_id=test_user_id)
+    session.add(a)
+    session.add(b)
+    session.commit()
+    session.refresh(a)
+    session.refresh(b)
+    gone = Reel(link="https://instagram.com/reel/g", location_id=a.id, note="Gone", user_id=test_user_id)
+    kept = Reel(link="https://instagram.com/reel/k", location_id=b.id, note="Kept", user_id=test_user_id)
+    session.add(gone)
+    session.add(kept)
+    session.commit()
+    session.refresh(gone)
+
+    response = client.delete(f"/ui/reels/{gone.id}")
+
+    assert response.text.count('class="reel-group"') == 1
+    assert "Place B" in response.text
+    assert "Place A" not in response.text

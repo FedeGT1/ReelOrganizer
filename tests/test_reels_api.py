@@ -603,3 +603,22 @@ def test_get_reel_belonging_to_another_user_returns_404(client, session, test_us
     )
 
     assert response.status_code == 404
+
+
+def test_list_reels_api_stays_a_flat_json_list_without_groups(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, user_id=test_user_id)
+    other = Location(name="Osaka", is_hub=True, user_id=test_user_id)
+    session.add(hub)
+    session.add(other)
+    session.commit()
+    session.refresh(hub)
+    session.refresh(other)
+    for i, loc in enumerate([hub, other, hub]):
+        session.add(Reel(link=f"https://instagram.com/reel/{i}", location_id=loc.id, note=f"n{i}", user_id=test_user_id))
+    session.commit()
+
+    data = client.get("/api/reels").json()
+
+    assert isinstance(data, list)
+    assert len(data) == 3
+    assert all("location_id" in item and "groups" not in item for item in data)

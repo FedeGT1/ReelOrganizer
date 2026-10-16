@@ -706,3 +706,30 @@ def test_ui_ai_candidate_chip_click_continues_session_and_shows_confirm(client, 
     )
     assert second.status_code == 200
     assert "Conferma e salva" in second.text
+
+
+def test_ui_ai_confirm_returns_grouped_reel_list(client, session, test_user_id):
+    hub = Location(name="Tokyo / Kanto", is_hub=True, lat=35.6762, lon=139.6503, user_id=test_user_id)
+    session.add(hub)
+    session.add(Category(key="food", label="Cibo", icon="🍜", user_id=test_user_id))
+    session.commit()
+    session.refresh(hub)
+    session.add(Reel(link="https://instagram.com/reel/first", location_id=hub.id, note="First", user_id=test_user_id))
+    session.commit()
+
+    response = client.post(
+        "/ui/ai/confirm",
+        data={
+            "session_id": "irrelevant",
+            "link": "https://instagram.com/reel/second",
+            "place_name": "Tokyo / Kanto",
+            "types": ["food"],
+            "note": "Second",
+            "lat": "",
+            "lon": "",
+            "resolution_location_id": hub.id,
+        },
+    )
+
+    assert response.text.count('class="reel-group"') == 1
+    assert '<span class="reel-group-count">2</span>' in response.text
