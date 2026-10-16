@@ -8,7 +8,7 @@ tags:
   - status/draft
 connected files: ["group-reels-by-place", "current-system-design", "001-one-place-one-location", "002-client-side-reel-pagination", "hub-satellite-location"]
 unit_kind: change
-phase: review
+phase: execute
 status: wip
 owner: "fedegt1"
 amendments: none
@@ -247,6 +247,41 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 #### 6. Deviazioni / follow-up
 
 - Segnalazione per C_01_05: le regole CSS `.reel-list` valgono anche nell'audit; l'intestazione di gruppo non deve alterare quelle liste.
+
+### C_01_02 — Raggruppamento e ordinamento lato server in _reel_list_context
+
+- **Stato:** review
+- **Branch:** governance/C_01_02-server-grouping
+- **Commit:** 0a40e0d
+
+#### 1. Cosa è stato fatto
+
+`_reel_list_context` (`app/routers/reels.py`) restituisce ora anche `groups`: i reel sono raggruppati per `location_id`, dal più recente dentro il gruppo, con i gruppi ordinati per reel più recente e spareggio stabile (nome del luogo, poi id). Ogni gruppo porta nome, nome dell'hub per i satelliti (`None` per un hub), conteggio e le card serializzate. La chiave `reels` piatta e `GET /api/reels` sono invariati; ogni reel è serializzato una volta sola. Il template non è ancora cambiato (task C_01_03).
+
+#### 2. File modificati
+
+- `app/routers/reels.py` — `_group_reels_by_place` e la chiave `groups`.
+- `tests/test_reel_list_grouping.py` — 11 test nuovi (nove falliti prima, due di caratterizzazione).
+
+#### 3. Verifica
+
+- TDD: 9 test nuovi in rosso su `KeyError: 'groups'` prima dell'implementazione, tutti verdi dopo: passed.
+- `uv run pytest -q`: 503 passed (492 + 11): passed.
+- `GET /api/reels` ordine invariato (test di caratterizzazione): passed.
+
+#### 4. Review
+
+- Findings critici/importanti: nessuno.
+- Findings minori / follow-up: doppia serializzazione dei reel trovata in self-review e rimossa. La chiave `reels` piatta resta finché il template non passa ai gruppi: valutare la rimozione in C_01_03/C_01_06.
+
+#### 5. Approvazione owner
+
+- Esito: pending
+- Note: —
+
+#### 6. Deviazioni / follow-up
+
+- Nessuna.
 
 ## Closure record
 
