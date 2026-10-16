@@ -193,6 +193,10 @@ button, .reel-list button {
     display: none;
 }
 
+.reel-group[hidden] {
+    display: none;
+}
+
 .reel-info {
     flex: 1 1 auto;
     min-width: 0;

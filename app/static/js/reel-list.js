@@ -1,7 +1,8 @@
 const REEL_LIST_GROUP_SIZE = 5;
 
 function updateLoadMoreLabel(button, remaining) {
-    button.textContent = `Carica altri (${remaining} rimanenti)`;
+    const noun = remaining === 1 ? "gruppo rimanente" : "gruppi rimanenti";
+    button.textContent = `Carica altri (${remaining} ${noun})`;
 }
 
 function initReelPagination() {
@@ -15,17 +16,17 @@ function initReelPagination() {
         existingButton.remove();
     }
 
-    const list = container.querySelector("ul.reel-list");
-    if (!list) {
+    const groupsContainer = container.querySelector(".reel-groups");
+    if (!groupsContainer) {
         return;
     }
 
-    const items = Array.from(list.children);
-    items.forEach((item, index) => {
-        item.hidden = index >= REEL_LIST_GROUP_SIZE;
+    const groups = Array.from(groupsContainer.querySelectorAll(":scope > .reel-group"));
+    groups.forEach((group, index) => {
+        group.hidden = index >= REEL_LIST_GROUP_SIZE;
     });
 
-    const hiddenCount = items.length - REEL_LIST_GROUP_SIZE;
+    const hiddenCount = groups.length - REEL_LIST_GROUP_SIZE;
     if (hiddenCount <= 0) {
         return;
     }
@@ -36,12 +37,12 @@ function initReelPagination() {
     updateLoadMoreLabel(button, hiddenCount);
 
     button.addEventListener("click", () => {
-        const hiddenItems = items.filter((item) => item.hidden);
-        hiddenItems.slice(0, REEL_LIST_GROUP_SIZE).forEach((item) => {
-            item.hidden = false;
+        const hiddenGroups = groups.filter((group) => group.hidden);
+        hiddenGroups.slice(0, REEL_LIST_GROUP_SIZE).forEach((group) => {
+            group.hidden = false;
         });
 
-        const remaining = items.filter((item) => item.hidden).length;
+        const remaining = groups.filter((group) => group.hidden).length;
         if (remaining <= 0) {
             button.remove();
         } else {
@@ -49,16 +50,10 @@ function initReelPagination() {
         }
     });
 
-    list.insertAdjacentElement("afterend", button);
+    groupsContainer.insertAdjacentElement("afterend", button);
 }
 
 document.addEventListener("htmx:afterSwap", (event) => {
-    if (event.detail.target && event.detail.target.id === "reel-list") {
-        initReelPagination();
-    }
-});
-
-document.addEventListener("htmx:oobAfterSwap", (event) => {
     if (event.detail.target && event.detail.target.id === "reel-list") {
         initReelPagination();
     }
