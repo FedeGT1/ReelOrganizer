@@ -15,8 +15,8 @@ connected files: ["components/reel-organizer/README", "concepts/hub-satellite-lo
 |---|---|
 | Requested by | The operator (fedegt1), directly in chat |
 | Requested on | 2026-10-16 |
-| Status | under analysis — in Delivery brainstorm as [[C_01-group-reels-by-place]] |
-| Spec | [[C_01-group-reels-by-place]] (draft) |
+| Status | delivered — closed with [[C_01-group-reels-by-place]] (2026-10-16) |
+| Spec | [[C_01-group-reels-by-place]] (approved) |
 | Branches | none yet |
 
 ## The request

@@ -5,11 +5,11 @@ created_at: "2026-10-16"
 updated_at: "2026-10-16"
 tags:
   - kind/unit
-  - status/draft
+  - status/record
 connected files: ["group-reels-by-place", "current-system-design", "001-one-place-one-location", "002-client-side-reel-pagination", "hub-satellite-location"]
 unit_kind: change
-phase: close
-status: wip
+phase: —
+status: done
 owner: "fedegt1"
 amendments: none
 ---
@@ -496,14 +496,14 @@ I reel che puntano allo stesso luogo compaiono ora adiacenti, sotto un'unica int
 ### 3. Stato del control plane alla chiusura
 
 - KANBAN aggiornato: sì — le 7 card C_01 sono `done`, `merged: yes`, in corsia DONE.
-- `status` finale (compilato allo stage 2): in attesa di firma.
+- `status` finale (compilato allo stage 2): done.
 - Current System Design aggiornato: sì — §2 (lista reel, paginazione), §5 (rischi), §6 riga 3, §7 (domanda sui filtri risolta), Item aperti.
 - CLAUDE.md aggiornato: sì — riga dell'ADR-002 in «Decisioni durature».
 - RELEASES.md non toccato: il merge in `dev` non è un deploy.
 
 ### 4. Sign-off
 
-- Approvazione owner: in attesa
+- Approvazione owner: fedegt1, 2026-10-16
 
 ## Amendments
 

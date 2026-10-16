@@ -8,7 +8,7 @@ tags:
   - status/authoritative
 connected files: ["C_01-group-reels-by-place", "001-one-place-one-location", "002-client-side-reel-pagination", "components/reel-organizer/README", "hub-satellite-location", "get-owned", "additive-schema-migration", "group-reels-by-place", "BOOT-brownfield"]
 posture: delivery
-focus: "Delivery C_01 group-reels-by-place: C_01 chiusura preparata, in attesa della firma dell'owner; browser da verificare in C_01_07"
+focus: "inattivo; C_01 group-reels-by-place chiusa; in backlog: tiktok-import"
 ---
 
 # Current System Design — ReelOrganizer
@@ -27,8 +27,6 @@ focus: "Delivery C_01 group-reels-by-place: C_01 chiusura preparata, in attesa d
 
 ## Item aperti
 
-- Chiusura in attesa di firma: [[C_01-group-reels-by-place]] — reel raggruppati per luogo
-  nella lista (richiesta [[group-reels-by-place]]); tutti i task sono `done`.
 - Richiesta di backlog: [[tiktok-import]] — non iniziata, non prioritaria.
 - Le domande aperte di §7 sotto.
 
