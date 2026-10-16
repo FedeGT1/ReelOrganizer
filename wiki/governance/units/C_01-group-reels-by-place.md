@@ -237,6 +237,7 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 #### 4. Review
 
 - Findings critici/importanti: nessuno.
+- Rework: listener `htmx:oobAfterSwap` ripristinato; il verificatore Node ora simula anche l'evento OOB (falliva 2 controlli senza il listener, ora ALL OK); 510 passed. Resta non verificato il browser reale (C_01_07).
 - Findings minori / follow-up: blocco aggiunto in §2 lungo ma leggibile, non riscritto; il merge porta con sé anche lo stato del control plane del branch.
 
 #### 5. Approvazione owner
@@ -324,9 +325,9 @@ Aggiornata la §2 di `governance/design/current-system-design.md` con i consumat
 
 ### C_01_04 — Paginazione per gruppi in reel-list.js
 
-- **Stato:** review
+- **Stato:** wip
 - **Branch:** governance/C_01_04-group-pagination
-- **Commit:** 0214a4f
+- **Commit:** 0214a4f, ffc6b74 (rework)
 
 #### 1. Cosa è stato fatto
 
@@ -371,4 +372,4 @@ Nessuno.
 
 ## Review notes
 
-Nessuna.
+- **C_01_04 (2026-10-16, esito: wip, confermato dall'owner)** — la riscrittura di `reel-list.js` aveva tolto il listener `htmx:oobAfterSwap`; creazione, modifica e flussi AI aggiornano `#reel-list` con swap OOB, quindi la paginazione non ripartiva. Rework: ripristinato il listener (commit ffc6b74). Risolto, in attesa di nuovo handoff e review.
